@@ -51,16 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadData() {
     const savedTeams = localStorage.getItem('teams');
     const savedMatches = localStorage.getItem('matches');
-    
+
     if (savedTeams) {
         teams = JSON.parse(savedTeams);
     }
-    
+
     if (savedMatches) {
         matches = JSON.parse(savedMatches);
-    } else {
-        // Add sample data if no matches exist
-        addSampleData();
     }
 }
 
@@ -69,33 +66,7 @@ function saveData() {
     localStorage.setItem('matches', JSON.stringify(matches));
 }
 
-function addSampleData() {
-    const sampleMatches = [
-        {
-            id: Date.now() + 1,
-            team1: '1 группа',
-            team2: '2 группа',
-            score1: 3,
-            score2: 1,
-            date: '2026-01-10'
-        },
-        {
-            id: Date.now() + 2,
-            team1: '2 группа',
-            team2: '1 группа',
-            score1: 2,
-            score2: 2,
-            date: '2026-01-12'
-        }
-    ];
-    
-    sampleMatches.forEach(match => {
-        matches.push(match);
-    });
-    
-    calculateStandings();
-    saveData();
-}
+
 
 // === AUTHENTICATION ===
 function checkLoginStatus() {
@@ -126,7 +97,7 @@ function logout() {
 function updateAdminUI() {
     const adminPanel = document.getElementById('adminPanel');
     const adminBtn = document.getElementById('adminBtn');
-    
+
     if (isLoggedIn) {
         adminPanel.classList.add('active');
         adminBtn.textContent = 'Админ ✓';
@@ -151,24 +122,24 @@ function calculateStandings() {
         team.points = 0;
         team.form = [];
     });
-    
+
     // Calculate stats from matches
     matches.forEach(match => {
         const team1 = teams.find(t => t.name === match.team1);
         const team2 = teams.find(t => t.name === match.team2);
-        
+
         if (!team1 || !team2) return;
-        
+
         // Update matches played
         team1.matches++;
         team2.matches++;
-        
+
         // Update goals
         team1.goalsFor += match.score1;
         team1.goalsAgainst += match.score2;
         team2.goalsFor += match.score2;
         team2.goalsAgainst += match.score1;
-        
+
         // Determine result
         if (match.score1 > match.score2) {
             // Team 1 wins
@@ -193,12 +164,12 @@ function calculateStandings() {
             team1.form.unshift('D');
             team2.form.unshift('D');
         }
-        
+
         // Keep only last 5 matches in form
         team1.form = team1.form.slice(0, 5);
         team2.form = team2.form.slice(0, 5);
     });
-    
+
     // Sort teams by points, then goal difference
     teams.sort((a, b) => {
         if (b.points !== a.points) {
@@ -208,7 +179,7 @@ function calculateStandings() {
         const gdB = b.goalsFor - b.goalsAgainst;
         return gdB - gdA;
     });
-    
+
     saveData();
 }
 
@@ -216,13 +187,13 @@ function calculateStandings() {
 function renderLeagueTable() {
     const tbody = document.getElementById('leagueTableBody');
     tbody.innerHTML = '';
-    
+
     teams.forEach((team, index) => {
         const row = document.createElement('tr');
-        
+
         const goalDifference = team.goalsFor - team.goalsAgainst;
         const gdSign = goalDifference > 0 ? '+' : '';
-        
+
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>
@@ -247,7 +218,7 @@ function renderLeagueTable() {
                 </div>
             </td>
         `;
-        
+
         tbody.appendChild(row);
     });
 }
@@ -255,25 +226,25 @@ function renderLeagueTable() {
 function renderMatches() {
     const grid = document.getElementById('matchesGrid');
     grid.innerHTML = '';
-    
+
     if (matches.length === 0) {
         grid.innerHTML = '<p class="text-muted text-center">Матчи пока не добавлены</p>';
         return;
     }
-    
+
     // Sort matches by date (newest first)
     const sortedMatches = [...matches].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+
     sortedMatches.forEach(match => {
         const card = document.createElement('div');
         card.className = 'match-card';
-        
+
         const formattedDate = new Date(match.date).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
         });
-        
+
         card.innerHTML = `
             <div class="match-date">${formattedDate}</div>
             <div class="match-teams">
@@ -296,7 +267,7 @@ function renderMatches() {
                 </div>
             ` : ''}
         `;
-        
+
         grid.appendChild(card);
     });
 }
@@ -308,7 +279,7 @@ function addMatch(matchData) {
         showAlert('Команды должны быть разными!', 'error');
         return false;
     }
-    
+
     const newMatch = {
         id: Date.now(),
         team1: matchData.team1,
@@ -317,7 +288,7 @@ function addMatch(matchData) {
         score2: parseInt(matchData.score2),
         date: matchData.date
     };
-    
+
     matches.push(newMatch);
     calculateStandings();
     renderLeagueTable();
@@ -329,9 +300,9 @@ function addMatch(matchData) {
 function editMatch(matchId) {
     const match = matches.find(m => m.id === matchId);
     if (!match) return;
-    
+
     editingMatchId = matchId;
-    
+
     // Fill form with match data
     document.getElementById('matchId').value = match.id;
     document.getElementById('team1').value = match.team1;
@@ -339,7 +310,7 @@ function editMatch(matchId) {
     document.getElementById('score1').value = match.score1;
     document.getElementById('score2').value = match.score2;
     document.getElementById('matchDate').value = match.date;
-    
+
     document.getElementById('matchModalTitle').textContent = 'Изменить Матч';
     openModal('matchModal');
 }
@@ -350,10 +321,10 @@ function updateMatch(matchId, matchData) {
         showAlert('Команды должны быть разными!', 'error');
         return false;
     }
-    
+
     const matchIndex = matches.findIndex(m => m.id === matchId);
     if (matchIndex === -1) return false;
-    
+
     matches[matchIndex] = {
         id: matchId,
         team1: matchData.team1,
@@ -362,7 +333,7 @@ function updateMatch(matchId, matchData) {
         score2: parseInt(matchData.score2),
         date: matchData.date
     };
-    
+
     calculateStandings();
     renderLeagueTable();
     renderMatches();
@@ -374,7 +345,7 @@ function deleteMatch(matchId) {
     if (!confirm('Вы уверены, что хотите удалить этот матч?')) {
         return;
     }
-    
+
     matches = matches.filter(m => m.id !== matchId);
     calculateStandings();
     renderLeagueTable();
@@ -391,7 +362,7 @@ function openModal(modalId) {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.remove('active');
-    
+
     // Reset forms
     if (modalId === 'loginModal') {
         document.getElementById('loginForm').reset();
@@ -409,10 +380,10 @@ function showAlert(message, type) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type}`;
     alertDiv.textContent = message;
-    
+
     const container = document.querySelector('.container');
     container.insertBefore(alertDiv, container.firstChild);
-    
+
     setTimeout(() => {
         alertDiv.remove();
     }, 3000);
@@ -426,23 +397,23 @@ function initializeEventListeners() {
             openModal('loginModal');
         }
     });
-    
+
     // Login form
     document.getElementById('loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        
+
         if (login(username, password)) {
             document.getElementById('loginForm').reset();
         } else {
             document.getElementById('loginError').innerHTML = '<div class="alert alert-error">Неверный логин или пароль</div>';
         }
     });
-    
+
     // Logout button
     document.getElementById('logoutBtn').addEventListener('click', logout);
-    
+
     // Add match button
     document.getElementById('addMatchBtn').addEventListener('click', () => {
         editingMatchId = null;
@@ -450,11 +421,11 @@ function initializeEventListeners() {
         document.getElementById('matchModalTitle').textContent = 'Добавить Матч';
         openModal('matchModal');
     });
-    
+
     // Match form
     document.getElementById('matchForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        
+
         const matchData = {
             team1: document.getElementById('team1').value,
             team2: document.getElementById('team2').value,
@@ -462,25 +433,25 @@ function initializeEventListeners() {
             score2: document.getElementById('score2').value,
             date: document.getElementById('matchDate').value
         };
-        
+
         let success;
         if (editingMatchId) {
             success = updateMatch(editingMatchId, matchData);
         } else {
             success = addMatch(matchData);
         }
-        
+
         if (success) {
             closeModal('matchModal');
         }
     });
-    
+
     // Modal close buttons
     document.getElementById('closeLoginModal').addEventListener('click', () => closeModal('loginModal'));
     document.getElementById('cancelLogin').addEventListener('click', () => closeModal('loginModal'));
     document.getElementById('closeMatchModal').addEventListener('click', () => closeModal('matchModal'));
     document.getElementById('cancelMatch').addEventListener('click', () => closeModal('matchModal'));
-    
+
     // Close modal on background click
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
