@@ -37,18 +37,74 @@ let teams = [
 let matches = [];
 let isLoggedIn = false;
 let editingMatchId = null;
+let unsubscribeMatches = null; // Firestore listener unsubscribe function
 
 // === INITIALIZATION ===
 document.addEventListener('DOMContentLoaded', () => {
-    loadData();
     checkLoginStatus();
-    renderLeagueTable();
-    renderMatches();
+    initializeFirestore();
     initializeEventListeners();
 });
 
-// === DATA MANAGEMENT ===
-function loadData() {
+// === FIREBASE / DATA MANAGEMENT ===
+function initializeFirestore() {
+    // Check if Firebase is available
+    if (typeof db === 'undefined') {
+        console.error('Firebase not initialized! Using localStorage fallback.');
+        loadDataFromLocalStorage();
+        return;
+    }
+
+    // Listen to matches collection in real-time
+    unsubscribeMatches = db.collection('matches')
+        .orderBy('date', 'desc')
+        .onSnapshot((snapshot) => {
+            matches = [];
+
+            snapshot.forEach((doc) => {
+                matches.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+
+            // If no matches exist, add default match
+            if (matches.length === 0) {
+                addDefaultMatch();
+            } else {
+                calculateStandings();
+                renderLeagueTable();
+                renderMatches();
+            }
+        }, (error) => {
+            console.error('Error loading matches:', error);
+            showAlert('Ошибка загрузки данных. Проверьте подключение к интернету.', 'error');
+            loadDataFromLocalStorage(); // Fallback to localStorage
+        });
+}
+
+function addDefaultMatch() {
+    const defaultMatch = {
+        team1: '1 группа',
+        team2: '2 группа',
+        score1: 2,
+        score2: 2,
+        date: '2026-01-16',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    db.collection('matches')
+        .add(defaultMatch)
+        .then(() => {
+            console.log('Default match added successfully');
+        })
+        .catch((error) => {
+            console.error('Error adding default match:', error);
+        });
+}
+
+// Fallback to localStorage if Firebase is not available
+function loadDataFromLocalStorage() {
     const savedTeams = localStorage.getItem('teams');
     const savedMatches = localStorage.getItem('matches');
 
@@ -61,23 +117,24 @@ function loadData() {
     } else {
         // Add default match if no matches exist
         matches = [{
-            id: Date.now(),
+            id: Date.now().toString(),
             team1: '1 группа',
             team2: '2 группа',
             score1: 2,
             score2: 2,
             date: '2026-01-16'
         }];
-        calculateStandings();
     }
+
+    calculateStandings();
+    renderLeagueTable();
+    renderMatches();
 }
 
-function saveData() {
+function saveDataToLocalStorage() {
     localStorage.setItem('teams', JSON.stringify(teams));
     localStorage.setItem('matches', JSON.stringify(matches));
 }
-
-
 
 // === AUTHENTICATION ===
 function checkLoginStatus() {
@@ -191,7 +248,8 @@ function calculateStandings() {
         return gdB - gdA;
     });
 
-    saveData();
+    // Save to localStorage as backup
+    saveDataToLocalStorage();
 }
 
 // === RENDERING ===
@@ -243,10 +301,8 @@ function renderMatches() {
         return;
     }
 
-    // Sort matches by date (newest first)
-    const sortedMatches = [...matches].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    sortedMatches.forEach(match => {
+    // Matches are already sorted by date from Firestore query
+    matches.forEach(match => {
         const card = document.createElement('div');
         card.className = 'match-card';
 
@@ -273,8 +329,8 @@ function renderMatches() {
             </div>
             ${isLoggedIn ? `
                 <div class="match-actions">
-                    <button class="btn btn-secondary btn-small" onclick="editMatch(${match.id})">✏️ Изменить</button>
-                    <button class="btn btn-danger btn-small" onclick="deleteMatch(${match.id})">🗑️ Удалить</button>
+                    <button class="btn btn-secondary btn-small" onclick="editMatch('${match.id}')">✏️ Изменить</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')">🗑️ Удалить</button>
                 </div>
             ` : ''}
         `;
@@ -292,19 +348,25 @@ function addMatch(matchData) {
     }
 
     const newMatch = {
-        id: Date.now(),
         team1: matchData.team1,
         team2: matchData.team2,
         score1: parseInt(matchData.score1),
         score2: parseInt(matchData.score2),
-        date: matchData.date
+        date: matchData.date,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    matches.push(newMatch);
-    calculateStandings();
-    renderLeagueTable();
-    renderMatches();
-    showAlert('Матч успешно добавлен!', 'success');
+    // Add to Firestore
+    db.collection('matches')
+        .add(newMatch)
+        .then(() => {
+            showAlert('Матч успешно добавлен!', 'success');
+        })
+        .catch((error) => {
+            console.error('Error adding match:', error);
+            showAlert('Ошибка при добавлении матча', 'error');
+        });
+
     return true;
 }
 
@@ -333,22 +395,27 @@ function updateMatch(matchId, matchData) {
         return false;
     }
 
-    const matchIndex = matches.findIndex(m => m.id === matchId);
-    if (matchIndex === -1) return false;
-
-    matches[matchIndex] = {
-        id: matchId,
+    const updatedMatch = {
         team1: matchData.team1,
         team2: matchData.team2,
         score1: parseInt(matchData.score1),
         score2: parseInt(matchData.score2),
-        date: matchData.date
+        date: matchData.date,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    calculateStandings();
-    renderLeagueTable();
-    renderMatches();
-    showAlert('Матч успешно обновлён!', 'success');
+    // Update in Firestore
+    db.collection('matches')
+        .doc(matchId)
+        .update(updatedMatch)
+        .then(() => {
+            showAlert('Матч успешно обновлён!', 'success');
+        })
+        .catch((error) => {
+            console.error('Error updating match:', error);
+            showAlert('Ошибка при обновлении матча', 'error');
+        });
+
     return true;
 }
 
@@ -357,11 +424,17 @@ function deleteMatch(matchId) {
         return;
     }
 
-    matches = matches.filter(m => m.id !== matchId);
-    calculateStandings();
-    renderLeagueTable();
-    renderMatches();
-    showAlert('Матч удалён', 'success');
+    // Delete from Firestore
+    db.collection('matches')
+        .doc(matchId)
+        .delete()
+        .then(() => {
+            showAlert('Матч удалён', 'success');
+        })
+        .catch((error) => {
+            console.error('Error deleting match:', error);
+            showAlert('Ошибка при удалении матча', 'error');
+        });
 }
 
 // === MODAL MANAGEMENT ===
