@@ -382,6 +382,115 @@ body {
   border-top: 1px solid var(--border-color);
 }
 
+/* === GOAL SCORERS & MATCH DETAILS === */
+.match-card {
+  cursor: pointer;
+}
+
+.match-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--transition-normal);
+  margin-top: 0;
+}
+
+.match-details.expanded {
+  max-height: 500px;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.scorers-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-sm);
+}
+
+.team-scorers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.team-scorers-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.goal-scorer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.goal-icon {
+  font-size: 1rem;
+  filter: grayscale(0);
+}
+
+.scorer-name {
+  font-weight: 500;
+}
+
+/* Scorer Inputs in Admin Modal */
+.scorers-container {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.scorer-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.scorer-input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.scorer-input-group label {
+  min-width: 50px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.scorer-input-group input {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+}
+
+.scorer-input-group input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 214, 100, 0.1);
+}
+
+.scorer-input-group input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
 /* === FORMS === */
 .form-group {
   margin-bottom: var(--spacing-lg);

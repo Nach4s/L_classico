@@ -90,6 +90,10 @@ function addDefaultMatch() {
         score1: 2,
         score2: 2,
         date: '2026-01-16',
+        scorers: {
+            team1: ['Игрок 1', 'Игрок 2'],
+            team2: ['Игрок 3', 'Игрок 4']
+        },
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -122,7 +126,11 @@ function loadDataFromLocalStorage() {
             team2: '2 группа',
             score1: 2,
             score2: 2,
-            date: '2026-01-16'
+            date: '2026-01-16',
+            scorers: {
+                team1: ['Игрок 1', 'Игрок 2'],
+                team2: ['Игрок 3', 'Игрок 4']
+            }
         }];
     }
 
@@ -305,12 +313,16 @@ function renderMatches() {
     matches.forEach(match => {
         const card = document.createElement('div');
         card.className = 'match-card';
+        card.onclick = () => toggleMatchDetails(match.id);
 
         const formattedDate = new Date(match.date).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
         });
+
+        // Build scorers HTML
+        const scorersHTML = renderScorers(match);
 
         card.innerHTML = `
             <div class="match-date">${formattedDate}</div>
@@ -327,8 +339,13 @@ function renderMatches() {
                     <div class="match-team-name">${match.team2}</div>
                 </div>
             </div>
+            
+            <div class="match-details" id="details-${match.id}">
+                ${scorersHTML}
+            </div>
+            
             ${isLoggedIn ? `
-                <div class="match-actions">
+                <div class="match-actions" onclick="event.stopPropagation()">
                     <button class="btn btn-secondary btn-small" onclick="editMatch('${match.id}')">✏️ Изменить</button>
                     <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')">🗑️ Удалить</button>
                 </div>
@@ -339,6 +356,111 @@ function renderMatches() {
     });
 }
 
+function renderScorers(match) {
+    if (!match.scorers || (!match.scorers.team1?.length && !match.scorers.team2?.length)) {
+        return '<p class="text-muted text-center" style="font-size: 0.85rem; margin: var(--spacing-sm) 0;">Нет данных о голах</p>';
+    }
+
+    const team1Scorers = match.scorers.team1 || [];
+    const team2Scorers = match.scorers.team2 || [];
+
+    return `
+        <div class="scorers-section">
+            <div class="team-scorers">
+                <div class="team-scorers-title">${match.team1}</div>
+                ${team1Scorers.map(scorer => `
+                    <div class="goal-scorer">
+                        <span class="goal-icon">⚽</span>
+                        <span class="scorer-name">${scorer}</span>
+                    </div>
+                `).join('') || '<span class="text-muted" style="font-size: 0.85rem;">—</span>'}
+            </div>
+            <div class="team-scorers">
+                <div class="team-scorers-title">${match.team2}</div>
+                ${team2Scorers.map(scorer => `
+                    <div class="goal-scorer">
+                        <span class="goal-icon">⚽</span>
+                        <span class="scorer-name">${scorer}</span>
+                    </div>
+                `).join('') || '<span class="text-muted" style="font-size: 0.85rem;">—</span>'}
+            </div>
+        </div>
+    `;
+}
+
+function toggleMatchDetails(matchId) {
+    const detailsElement = document.getElementById(`details-${matchId}`);
+    if (detailsElement) {
+        detailsElement.classList.toggle('expanded');
+    }
+}
+
+// === SCORER INPUTS MANAGEMENT ===
+function updateScorerInputs() {
+    const score1 = parseInt(document.getElementById('score1').value) || 0;
+    const score2 = parseInt(document.getElementById('score2').value) || 0;
+
+    const team1Name = document.getElementById('team1').value;
+    const team2Name = document.getElementById('team2').value;
+
+    createScorerFields('team1Scorers', 'team1ScorersContainer', score1, team1Name);
+    createScorerFields('team2Scorers', 'team2ScorersContainer', score2, team2Name);
+}
+
+function createScorerFields(containerId, containerWrapperId, count, teamName) {
+    const container = document.getElementById(containerId);
+    const containerWrapper = document.getElementById(containerWrapperId);
+
+    if (count === 0) {
+        containerWrapper.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    containerWrapper.style.display = 'block';
+
+    // Get existing values
+    const existingInputs = container.querySelectorAll('input');
+    const existingValues = Array.from(existingInputs).map(input => input.value);
+
+    container.innerHTML = '';
+
+    for (let i = 0; i < count; i++) {
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'scorer-input-group';
+
+        inputGroup.innerHTML = `
+            <label>Гол ${i + 1}:</label>
+            <input 
+                type="text" 
+                placeholder="Имя игрока (например: Даулет E.)"
+                value="${existingValues[i] || ''}"
+                data-scorer-index="${i}"
+            >
+        `;
+
+        container.appendChild(inputGroup);
+    }
+}
+
+function collectScorerData() {
+    const team1Inputs = document.querySelectorAll('#team1Scorers input');
+    const team2Inputs = document.querySelectorAll('#team2Scorers input');
+
+    const team1Scorers = Array.from(team1Inputs)
+        .map(input => input.value.trim())
+        .filter(value => value !== '');
+
+    const team2Scorers = Array.from(team2Inputs)
+        .map(input => input.value.trim())
+        .filter(value => value !== '');
+
+    return {
+        team1: team1Scorers,
+        team2: team2Scorers
+    };
+}
+
 // === MATCH MANAGEMENT ===
 function addMatch(matchData) {
     // Validate that teams are different
@@ -347,12 +469,15 @@ function addMatch(matchData) {
         return false;
     }
 
+    const scorers = collectScorerData();
+
     const newMatch = {
         team1: matchData.team1,
         team2: matchData.team2,
         score1: parseInt(matchData.score1),
         score2: parseInt(matchData.score2),
         date: matchData.date,
+        scorers: scorers,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -384,6 +509,27 @@ function editMatch(matchId) {
     document.getElementById('score2').value = match.score2;
     document.getElementById('matchDate').value = match.date;
 
+    // Update scorer inputs
+    updateScorerInputs();
+
+    // Fill scorer data
+    if (match.scorers) {
+        const team1Inputs = document.querySelectorAll('#team1Scorers input');
+        const team2Inputs = document.querySelectorAll('#team2Scorers input');
+
+        team1Inputs.forEach((input, index) => {
+            if (match.scorers.team1 && match.scorers.team1[index]) {
+                input.value = match.scorers.team1[index];
+            }
+        });
+
+        team2Inputs.forEach((input, index) => {
+            if (match.scorers.team2 && match.scorers.team2[index]) {
+                input.value = match.scorers.team2[index];
+            }
+        });
+    }
+
     document.getElementById('matchModalTitle').textContent = 'Изменить Матч';
     openModal('matchModal');
 }
@@ -395,12 +541,15 @@ function updateMatch(matchId, matchData) {
         return false;
     }
 
+    const scorers = collectScorerData();
+
     const updatedMatch = {
         team1: matchData.team1,
         team2: matchData.team2,
         score1: parseInt(matchData.score1),
         score2: parseInt(matchData.score2),
         date: matchData.date,
+        scorers: scorers,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -454,6 +603,10 @@ function closeModal(modalId) {
     } else if (modalId === 'matchModal') {
         document.getElementById('matchForm').reset();
         document.getElementById('matchError').innerHTML = '';
+        document.getElementById('team1Scorers').innerHTML = '';
+        document.getElementById('team2Scorers').innerHTML = '';
+        document.getElementById('team1ScorersContainer').style.display = 'none';
+        document.getElementById('team2ScorersContainer').style.display = 'none';
         editingMatchId = null;
         document.getElementById('matchModalTitle').textContent = 'Добавить Матч';
     }
@@ -503,8 +656,18 @@ function initializeEventListeners() {
         editingMatchId = null;
         document.getElementById('matchForm').reset();
         document.getElementById('matchModalTitle').textContent = 'Добавить Матч';
+        document.getElementById('team1Scorers').innerHTML = '';
+        document.getElementById('team2Scorers').innerHTML = '';
+        document.getElementById('team1ScorersContainer').style.display = 'none';
+        document.getElementById('team2ScorersContainer').style.display = 'none';
         openModal('matchModal');
     });
+
+    // Score inputs - update scorer fields dynamically
+    document.getElementById('score1').addEventListener('input', updateScorerInputs);
+    document.getElementById('score2').addEventListener('input', updateScorerInputs);
+    document.getElementById('team1').addEventListener('change', updateScorerInputs);
+    document.getElementById('team2').addEventListener('change', updateScorerInputs);
 
     // Match form
     document.getElementById('matchForm').addEventListener('submit', (e) => {
@@ -549,3 +712,4 @@ function initializeEventListeners() {
 // Make functions globally accessible for inline event handlers
 window.editMatch = editMatch;
 window.deleteMatch = deleteMatch;
+window.toggleMatchDetails = toggleMatchDetails;
