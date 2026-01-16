@@ -58,6 +58,17 @@ function loadData() {
 
     if (savedMatches) {
         matches = JSON.parse(savedMatches);
+    } else {
+        // Add default match if no matches exist
+        matches = [{
+            id: Date.now(),
+            team1: '1 группа',
+            team2: '2 группа',
+            score1: 2,
+            score2: 2,
+            date: '2026-01-16'
+        }];
+        calculateStandings();
     }
 }
 
