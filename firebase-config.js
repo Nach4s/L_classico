@@ -1,8 +1,9 @@
 // ===================================
 // FIREBASE CONFIGURATION
+// L Clasico - Football League Website
 // ===================================
 
-// Firebase Configuration - L Clasico Project
+// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyBjyswqlqf39MYTjcrENHrsJPwRIFlMnoI",
     authDomain: "l-clasico.firebaseapp.com",
@@ -18,6 +19,9 @@ const app = firebase.initializeApp(firebaseConfig);
 // Инициализация Firestore
 const db = firebase.firestore();
 
+// Инициализация Firebase Auth
+const auth = firebase.auth();
+
 // Включение offline persistence для работы без интернета
 db.enablePersistence()
     .catch((err) => {
@@ -30,3 +34,4 @@ db.enablePersistence()
 
 // Экспорт для использования в app.js
 window.db = db;
+window.auth = auth;

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L Clasico</title>
+    <meta name="description" content="Футбольная лига школьного класса - турнирная таблица, матчи и голосование за MVP">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -13,7 +14,19 @@
     <header class="header">
         <div class="header-content">
             <h1>L Clasico</h1>
-            <button class="btn btn-primary" id="adminBtn">Админ</button>
+            <div class="header-actions">
+                <!-- Auth buttons for regular users -->
+                <div id="authButtons" class="auth-buttons">
+                    <button class="btn btn-secondary" id="loginBtn">Войти</button>
+                </div>
+                <!-- User info when logged in -->
+                <div id="userInfo" class="user-info hidden">
+                    <span id="userEmail" class="user-email"></span>
+                    <button class="btn btn-secondary btn-small" id="userLogoutBtn">Выйти</button>
+                </div>
+                <!-- Admin button -->
+                <button class="btn btn-primary" id="adminBtn">Админ</button>
+            </div>
         </div>
     </header>
 
@@ -61,7 +74,7 @@
             <div class="card">
                 <div class="admin-header">
                     <h2 class="card-title">Панель Администратора</h2>
-                    <button class="btn btn-danger" id="logoutBtn">Выйти</button>
+                    <button class="btn btn-danger" id="adminLogoutBtn">Выйти</button>
                 </div>
                 <div class="admin-actions">
                     <button class="btn btn-primary" id="addMatchBtn">➕ Добавить Матч</button>
@@ -70,7 +83,63 @@
         </section>
     </main>
 
-    <!-- LOGIN MODAL -->
+    <!-- USER AUTH MODAL (Login/Register) -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="authModalTitle">Вход</h3>
+                <button class="modal-close" id="closeAuthModal">&times;</button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="loginTab" data-tab="login">Вход</button>
+                <button class="auth-tab" id="registerTab" data-tab="register">Регистрация</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="userLoginForm" class="auth-form">
+                <div class="form-group">
+                    <label class="form-label" for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="form-input" placeholder="example@mail.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="loginPassword">Пароль</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+                </div>
+                <div id="loginFormError"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelAuthLogin">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="userRegisterForm" class="auth-form hidden">
+                <div class="form-group">
+                    <label class="form-label" for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" class="form-input" placeholder="example@mail.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="registerPassword">Пароль</label>
+                    <input type="password" id="registerPassword" class="form-input" placeholder="Минимум 6 символов"
+                        minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="registerPasswordConfirm">Подтвердите пароль</label>
+                    <input type="password" id="registerPasswordConfirm" class="form-input" placeholder="••••••••"
+                        required>
+                </div>
+                <div id="registerFormError"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelAuthRegister">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADMIN LOGIN MODAL -->
     <div class="modal" id="loginModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -97,7 +166,7 @@
 
     <!-- ADD/EDIT MATCH MODAL -->
     <div class="modal" id="matchModal">
-        <div class="modal-content">
+        <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3 class="modal-title" id="matchModalTitle">Добавить Матч</h3>
                 <button class="modal-close" id="closeMatchModal">&times;</button>
@@ -153,10 +222,52 @@
         </div>
     </div>
 
+    <!-- MVP VOTING MODAL -->
+    <div class="modal" id="votingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🏆 Голосование за MVP</h3>
+                <button class="modal-close" id="closeVotingModal">&times;</button>
+            </div>
+            <div id="votingContent">
+                <p class="voting-description">Выберите лучшего игрока матча:</p>
+                <div id="votingTimer" class="voting-timer"></div>
+                <div id="playersList" class="players-list">
+                    <!-- Players will be inserted here -->
+                </div>
+                <div id="votingError"></div>
+                <div id="votingSuccess" class="voting-success hidden">
+                    <span class="success-icon">✅</span>
+                    <span>Ваш голос учтён!</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelVoting">Закрыть</button>
+                <button type="button" class="btn btn-primary" id="submitVoteBtn" disabled>Проголосовать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MATCH DETAILS MODAL -->
+    <div class="modal" id="matchDetailsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 class="modal-title" id="matchDetailsTitle">Подробности матча</h3>
+                <button class="modal-close" id="closeMatchDetailsModal">&times;</button>
+            </div>
+            <div id="matchDetailsContent">
+                <!-- Match details will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="closeMatchDetails">Закрыть</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <!-- Firebase Configuration -->
     <script src="firebase-config.js"></script>

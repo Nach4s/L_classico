@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===================================
+    // MATCHES COLLECTION
+    // ===================================
+    match /matches/{matchId} {
+      // Anyone can read matches
+      allow read: if true;
+      
+      // Only authenticated users can create matches (admin check on client)
+      allow create: if request.auth != null;
+      
+      // Update rules: 
+      // - Regular updates allowed for authenticated users
+      // - MVP field can only be set by server/cloud functions OR when voting is closed
+      allow update: if request.auth != null
+        && (
+          // If not changing mvp, allow update
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mvp'])
+          // OR if mvp was null and votingClosed is being set to true
+          || (resource.data.mvp == null && request.resource.data.votingClosed == true)
+        );
+      
+      // Only authenticated users can delete
+      allow delete: if request.auth != null;
+      
+      // ===================================
+      // VOTES SUBCOLLECTION
+      // ===================================
+      match /votes/{oderId} {
+        // Anyone can read votes (for MVP calculation)
+        allow read: if true;
+        
+        // Vote creation rules:
+        // 1. User must be authenticated
+        // 2. Document ID must match the user's UID (one vote per user)
+        // 3. User can't already have a vote document
+        // 4. Vote must include player and votedAt fields
+        allow create: if request.auth != null 
+          && oderId == request.auth.uid
+          && !exists(/databases/$(database)/documents/matches/$(matchId)/votes/$(request.auth.uid))
+          && request.resource.data.keys().hasAll(['player', 'votedAt'])
+          && request.resource.data.player is string
+          && request.resource.data.player.size() > 0;
+        
+        // Votes cannot be updated or deleted
+        allow update, delete: if false;
+      }
+    }
+  }
+}
