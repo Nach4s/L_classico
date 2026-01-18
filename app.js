@@ -4,10 +4,8 @@
 // ===================================
 
 // === CONFIGURATION ===
-const ADMIN_CREDENTIALS = {
-    username: 'admin',
-    password: 'admin123'
-};
+// Admin access by email (Firebase Auth)
+const ADMIN_EMAIL = 'tokkozha.s@gmail.com';
 
 // Voting duration in milliseconds (24 hours)
 const VOTING_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -61,7 +59,17 @@ function initializeAuth() {
     // Listen to auth state changes
     auth.onAuthStateChanged((user) => {
         currentUser = user;
+
+        // Check if user is admin by email
+        if (user && user.email === ADMIN_EMAIL) {
+            isAdminLoggedIn = true;
+            console.log('Admin logged in:', user.email);
+        } else {
+            isAdminLoggedIn = false;
+        }
+
         updateAuthUI();
+        updateAdminUI();
 
         if (user) {
             console.log('User logged in:', user.email);
@@ -69,9 +77,6 @@ function initializeAuth() {
             console.log('User logged out');
         }
     });
-
-    // Check admin login status from session
-    checkAdminLoginStatus();
 }
 
 // Register new user
@@ -152,46 +157,16 @@ function getAuthErrorMessage(errorCode) {
 }
 
 // ===================================
-// ADMIN AUTHENTICATION (Separate)
+// ADMIN UI
 // ===================================
-
-function checkAdminLoginStatus() {
-    const loginStatus = sessionStorage.getItem('isAdminLoggedIn');
-    isAdminLoggedIn = loginStatus === 'true';
-    updateAdminUI();
-}
-
-function loginAdmin(username, password) {
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-        isAdminLoggedIn = true;
-        sessionStorage.setItem('isAdminLoggedIn', 'true');
-        updateAdminUI();
-        closeModal('loginModal');
-        showAlert('Вход в админку выполнен!', 'success');
-        return true;
-    }
-    return false;
-}
-
-function logoutAdmin() {
-    isAdminLoggedIn = false;
-    sessionStorage.removeItem('isAdminLoggedIn');
-    updateAdminUI();
-    showAlert('Вы вышли из админки', 'success');
-}
 
 function updateAdminUI() {
     const adminPanel = document.getElementById('adminPanel');
-    const adminBtn = document.getElementById('adminBtn');
 
     if (isAdminLoggedIn) {
         adminPanel.classList.add('active');
-        adminBtn.textContent = 'Админ ✓';
-        adminBtn.style.background = 'var(--color-primary)';
     } else {
         adminPanel.classList.remove('active');
-        adminBtn.textContent = 'Админ';
-        adminBtn.style.background = '';
     }
 
     // Re-render matches to show/hide edit buttons
@@ -1246,31 +1221,6 @@ function initializeEventListeners() {
     document.getElementById('closeAuthModal').addEventListener('click', () => closeModal('authModal'));
     document.getElementById('cancelAuthLogin').addEventListener('click', () => closeModal('authModal'));
     document.getElementById('cancelAuthRegister').addEventListener('click', () => closeModal('authModal'));
-
-    // === Admin Auth Events ===
-    document.getElementById('adminBtn').addEventListener('click', () => {
-        if (!isAdminLoggedIn) {
-            openModal('loginModal');
-        }
-    });
-
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-
-        if (loginAdmin(username, password)) {
-            document.getElementById('loginForm').reset();
-        } else {
-            document.getElementById('loginError').innerHTML = '<div class="alert alert-error">Неверный логин или пароль</div>';
-        }
-    });
-
-    document.getElementById('adminLogoutBtn').addEventListener('click', logoutAdmin);
-
-    // Admin login modal close
-    document.getElementById('closeLoginModal').addEventListener('click', () => closeModal('loginModal'));
-    document.getElementById('cancelLogin').addEventListener('click', () => closeModal('loginModal'));
 
     // === Match Management Events ===
     document.getElementById('addMatchBtn').addEventListener('click', () => {

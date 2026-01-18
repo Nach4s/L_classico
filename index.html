@@ -24,8 +24,6 @@
                     <span id="userEmail" class="user-email"></span>
                     <button class="btn btn-secondary btn-small" id="userLogoutBtn">Выйти</button>
                 </div>
-                <!-- Admin button -->
-                <button class="btn btn-primary" id="adminBtn">Админ</button>
             </div>
         </div>
     </header>
@@ -73,8 +71,7 @@
         <section class="admin-panel" id="adminPanel">
             <div class="card">
                 <div class="admin-header">
-                    <h2 class="card-title">Панель Администратора</h2>
-                    <button class="btn btn-danger" id="adminLogoutBtn">Выйти</button>
+                    <h2 class="card-title">🔧 Панель Администратора</h2>
                 </div>
                 <div class="admin-actions">
                     <button class="btn btn-primary" id="addMatchBtn">➕ Добавить Матч</button>
@@ -134,31 +131,6 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="cancelAuthRegister">Отмена</button>
                     <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ADMIN LOGIN MODAL -->
-    <div class="modal" id="loginModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Вход в Админку</h3>
-                <button class="modal-close" id="closeLoginModal">&times;</button>
-            </div>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label class="form-label" for="username">Логин</label>
-                    <input type="text" id="username" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="password">Пароль</label>
-                    <input type="password" id="password" class="form-input" required>
-                </div>
-                <div id="loginError"></div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="cancelLogin">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Войти</button>
                 </div>
             </form>
         </div>
