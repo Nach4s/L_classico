@@ -1323,13 +1323,13 @@ body {
   /* === TABS (Fixed & Premium) === */
   .main-tabs {
     position: sticky;
-    top: 73px;
+    top: 61px;
     /* Header height approx */
     z-index: 990;
     background: var(--bg-primary);
     margin: 0 -1rem var(--spacing-md) -1rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0 1rem;
+    border-bottom: 2px solid var(--border-color);
     gap: var(--spacing-md);
 
     /* Hide Scrollbar */
@@ -1342,28 +1342,29 @@ body {
   }
 
   .main-tab {
-    padding: 0.5rem 1rem;
+    padding: 1rem 0.5rem;
     font-size: 0.9rem;
-    background: var(--bg-secondary);
-    border-radius: 20px;
-    border: 1px solid var(--border-color);
+    background: transparent;
+    border: none;
+    border-radius: 0;
     color: var(--text-secondary);
     white-space: nowrap;
-    border-bottom: 1px solid var(--border-color);
-    /* Reset base style */
+    border-bottom: 3px solid transparent;
+    flex: 1;
+    text-align: center;
   }
 
   .main-tab:hover {
-    background: var(--bg-card);
-    border-radius: 20px;
+    background: transparent;
+    color: var(--text-primary);
   }
 
   .main-tab.active {
-    background: var(--color-primary);
-    color: var(--bg-primary);
+    background: transparent;
+    color: var(--color-primary);
     border-color: var(--color-primary);
-    border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(0, 214, 100, 0.3);
+    border-radius: 0;
+    box-shadow: none;
   }
 
   /* === CARDS === */
@@ -1437,7 +1438,48 @@ body {
     min-width: 80px;
   }
 
-  /* === STATS FILTERS === */
+  /* === STATS FILTERS (Segmented Control) === */
+  .stats-filter {
+    width: 100%;
+    /* Remove scroll, use flex */
+    overflow-x: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    gap: 0;
+    position: sticky;
+    top: 115px;
+    /* Below tabs */
+    z-index: 980;
+  }
+
+  .stats-filter-btn {
+    background: transparent;
+    border: none;
+    white-space: nowrap;
+    flex: 1;
+    /* Equal width */
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 0.8rem;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+  }
+
+  .stats-filter-btn.active {
+    background: var(--bg-card);
+    color: var(--color-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+  }
+
   .stats-filter {
     width: 100%;
     /* Remove scroll, use flex */

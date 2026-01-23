@@ -77,7 +77,7 @@
                 </div>
             </section>
 
-             <!-- ADMIN PANEL (Inside Matches Tab) -->
+            <!-- ADMIN PANEL (Inside Matches Tab) -->
             <section class="admin-panel" id="adminPanel">
                 <div class="card mt-lg">
                     <div class="admin-header">
@@ -92,15 +92,19 @@
 
         <!-- TAB CONTENT: STATISTICS -->
         <div id="tab-stats" class="tab-content">
+            <!-- Moved Statistics Filter -->
+            <div class="stats-filter">
+                <button class="stats-filter-btn active" data-filter="goals">Бомбардиры</button>
+                <button class="stats-filter-btn" data-filter="assists">Ассистенты</button>
+                <button class="stats-filter-btn" data-filter="g_a">Гол + Пас</button>
+            </div>
+
             <section class="card">
+                <!-- Removed Title based on plan ("redundant") or keep it if desired. keeping only title -->
                 <div class="card-header">
                     <h2 class="card-title">Статистика Игроков</h2>
-                    <div class="stats-filter">
-                        <button class="stats-filter-btn active" data-filter="goals">Бомбардиры</button>
-                        <button class="stats-filter-btn" data-filter="assists">Ассистенты</button>
-                        <button class="stats-filter-btn" data-filter="g_a">Гол + Пас</button>
-                    </div>
                 </div>
+
                 <div class="league-table-wrapper">
                     <table class="league-table">
                         <thead>
