@@ -1263,15 +1263,7 @@ body {
     font-size: 1.1rem;
   }
 
-  /* Hide less important table columns on small screens */
-  .league-table th:nth-child(4),
-  .league-table th:nth-child(5),
-  .league-table th:nth-child(6),
-  .league-table td:nth-child(4),
-  .league-table td:nth-child(5),
-  .league-table td:nth-child(6) {
-    display: none;
-  }
+  /* Hide less important table columns on small screens - REMOVED for dynamic stats */
 
   .league-table {
     font-size: 0.8rem;
