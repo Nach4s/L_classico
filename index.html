@@ -30,54 +30,95 @@
 
     <!-- MAIN CONTENT -->
     <main class="container">
-        <!-- LEAGUE TABLE SECTION -->
-        <section class="card">
-            <div class="card-header">
-                <h2 class="card-title">Турнирная Таблица</h2>
-            </div>
-            <div class="league-table-wrapper">
-                <table class="league-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Команда</th>
-                            <th>И</th>
-                            <th>В</th>
-                            <th>Н</th>
-                            <th>П</th>
-                            <th>Голы</th>
-                            <th>О</th>
-                            <th>Форма</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leagueTableBody">
-                        <!-- Table rows will be inserted here by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
+        <!-- MAIN TABS -->
+        <div class="main-tabs">
+            <button class="main-tab active" data-tab="table">Турнирная Таблица</button>
+            <button class="main-tab" data-tab="matches">Матчи</button>
+            <button class="main-tab" data-tab="stats">Статистика</button>
+        </div>
 
-        <!-- RECENT MATCHES SECTION -->
-        <section class="card mt-lg">
-            <div class="card-header">
-                <h2 class="card-title">Последние Матчи</h2>
-            </div>
-            <div class="matches-grid" id="matchesGrid">
-                <!-- Match cards will be inserted here by JavaScript -->
-            </div>
-        </section>
+        <!-- TAB CONTENT: LEAGUE TABLE -->
+        <div id="tab-table" class="tab-content active">
+            <section class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Турнирная Таблица</h2>
+                </div>
+                <div class="league-table-wrapper">
+                    <table class="league-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Команда</th>
+                                <th>И</th>
+                                <th>В</th>
+                                <th>Н</th>
+                                <th>П</th>
+                                <th>Голы</th>
+                                <th>О</th>
+                                <th>Форма</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leagueTableBody">
+                            <!-- Table rows will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
 
-        <!-- ADMIN PANEL -->
-        <section class="admin-panel" id="adminPanel">
-            <div class="card">
-                <div class="admin-header">
-                    <h2 class="card-title">🔧 Панель Администратора</h2>
+        <!-- TAB CONTENT: MATCHES -->
+        <div id="tab-matches" class="tab-content">
+            <section class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Последние Матчи</h2>
                 </div>
-                <div class="admin-actions">
-                    <button class="btn btn-primary" id="addMatchBtn">➕ Добавить Матч</button>
+                <div class="matches-grid" id="matchesGrid">
+                    <!-- Match cards will be inserted here by JavaScript -->
                 </div>
-            </div>
-        </section>
+            </section>
+
+             <!-- ADMIN PANEL (Inside Matches Tab) -->
+            <section class="admin-panel" id="adminPanel">
+                <div class="card mt-lg">
+                    <div class="admin-header">
+                        <h2 class="card-title">🔧 Панель Администратора</h2>
+                    </div>
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="addMatchBtn">➕ Добавить Матч</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- TAB CONTENT: STATISTICS -->
+        <div id="tab-stats" class="tab-content">
+            <section class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Статистика Игроков</h2>
+                    <div class="stats-filter">
+                        <button class="stats-filter-btn active" data-filter="goals">Бомбардиры</button>
+                        <button class="stats-filter-btn" data-filter="assists">Ассистенты</button>
+                        <button class="stats-filter-btn" data-filter="g_a">Гол + Пас</button>
+                    </div>
+                </div>
+                <div class="league-table-wrapper">
+                    <table class="league-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Игрок</th>
+                                <th class="text-center">Голы</th>
+                                <th class="text-center">Ассисты</th>
+                                <th class="text-center">Г+П</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsTableBody">
+                            <!-- Stats rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- USER AUTH MODAL (Login/Register) -->

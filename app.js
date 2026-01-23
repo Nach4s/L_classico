@@ -49,6 +49,7 @@ let editingMatchId = null;
 let selectedVotePlayer = null;
 let currentVotingMatchId = null;
 let unsubscribeMatches = null;
+let currentStatsFilter = 'goals';
 
 // === INITIALIZATION ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -217,6 +218,7 @@ function initializeFirestore() {
             calculateStandings();
             renderLeagueTable();
             renderMatches();
+            renderPlayerStats();
         }, (error) => {
             console.error('Error loading matches:', error);
             showAlert('Ошибка загрузки данных', 'error');
@@ -239,6 +241,7 @@ function loadDataFromLocalStorage() {
     calculateStandings();
     renderLeagueTable();
     renderMatches();
+    renderPlayerStats();
 }
 
 function saveDataToLocalStorage() {
@@ -638,17 +641,31 @@ function buildGoalsArray(team1, team2, scorers) {
     const goals = [];
 
     if (scorers.team1) {
-        scorers.team1.forEach(player => {
-            if (player.trim()) {
-                goals.push({ player: player.trim(), team: team1 });
+        scorers.team1.forEach(item => {
+            const scorerName = typeof item === 'string' ? item : item.scorer;
+            const assistName = typeof item === 'string' ? null : item.assist;
+
+            if (scorerName && scorerName.trim()) {
+                goals.push({
+                    player: scorerName.trim(),
+                    assist: assistName ? assistName.trim() : null,
+                    team: team1
+                });
             }
         });
     }
 
     if (scorers.team2) {
-        scorers.team2.forEach(player => {
-            if (player.trim()) {
-                goals.push({ player: player.trim(), team: team2 });
+        scorers.team2.forEach(item => {
+            const scorerName = typeof item === 'string' ? item : item.scorer;
+            const assistName = typeof item === 'string' ? null : item.assist;
+
+            if (scorerName && scorerName.trim()) {
+                goals.push({
+                    player: scorerName.trim(),
+                    assist: assistName ? assistName.trim() : null,
+                    team: team2
+                });
             }
         });
     }
@@ -723,24 +740,169 @@ function editMatch(matchId) {
     updateScorerInputs();
 
     if (match.scorers) {
-        const team1Inputs = document.querySelectorAll('#team1Scorers select');
-        const team2Inputs = document.querySelectorAll('#team2Scorers select');
+        const team1ScorerInputs = document.querySelectorAll('#team1Scorers .scorer-select');
+        const team1AssistInputs = document.querySelectorAll('#team1Scorers .assist-select');
+        const team2ScorerInputs = document.querySelectorAll('#team2Scorers .scorer-select');
+        const team2AssistInputs = document.querySelectorAll('#team2Scorers .assist-select');
 
-        team1Inputs.forEach((input, index) => {
-            if (match.scorers.team1 && match.scorers.team1[index]) {
-                input.value = match.scorers.team1[index];
+        team1ScorerInputs.forEach((input, index) => {
+            const item = match.scorers.team1 && match.scorers.team1[index];
+            if (item) {
+                input.value = typeof item === 'string' ? item : item.scorer;
+            }
+        });
+        team1AssistInputs.forEach((input, index) => {
+            const item = match.scorers.team1 && match.scorers.team1[index];
+            if (item && typeof item !== 'string') {
+                input.value = item.assist;
             }
         });
 
-        team2Inputs.forEach((input, index) => {
-            if (match.scorers.team2 && match.scorers.team2[index]) {
-                input.value = match.scorers.team2[index];
+        team2ScorerInputs.forEach((input, index) => {
+            const item = match.scorers.team2 && match.scorers.team2[index];
+            if (item) {
+                input.value = typeof item === 'string' ? item : item.scorer;
+            }
+        });
+        team2AssistInputs.forEach((input, index) => {
+            const item = match.scorers.team2 && match.scorers.team2[index];
+            if (item && typeof item !== 'string') {
+                input.value = item.assist;
             }
         });
     }
 
     document.getElementById('matchModalTitle').textContent = 'Изменить Матч';
     openModal('matchModal');
+}
+
+// ===================================
+// PLAYER STATISTICS
+// ===================================
+
+function calculatePlayerStats() {
+    const playerStats = new Map();
+
+    matches.forEach(match => {
+        // Process Team 1 Goals
+        if (match.scorers?.team1) {
+            match.scorers.team1.forEach(item => {
+                processStatsItem(item, playerStats);
+            });
+        }
+
+        // Process Team 2 Goals
+        if (match.scorers?.team2) {
+            match.scorers.team2.forEach(item => {
+                processStatsItem(item, playerStats);
+            });
+        }
+    });
+
+    const statsArray = Array.from(playerStats.values());
+
+    // Sort based on filter
+    statsArray.sort((a, b) => {
+        if (currentStatsFilter === 'goals') {
+            return b.goals - a.goals || b.assists - a.assists;
+        } else if (currentStatsFilter === 'assists') {
+            return b.assists - a.assists || b.goals - a.goals;
+        } else { // g_a
+            return (b.goals + b.assists) - (a.goals + a.assists) || b.goals - a.goals;
+        }
+    });
+
+    return statsArray;
+}
+
+function processStatsItem(item, statsMap) {
+    // Handle both string (legacy) and object (new) formats
+    let scorerName, assistName;
+
+    if (typeof item === 'string') {
+        scorerName = item;
+        assistName = null;
+    } else {
+        scorerName = item.scorer;
+        assistName = item.assist;
+    }
+
+    // Update Scorer
+    if (scorerName) {
+        if (!statsMap.has(scorerName)) {
+            statsMap.set(scorerName, { name: scorerName, goals: 0, assists: 0 });
+        }
+        statsMap.get(scorerName).goals++;
+    }
+
+    // Update Assistant
+    if (assistName) {
+        if (!statsMap.has(assistName)) {
+            statsMap.set(assistName, { name: assistName, goals: 0, assists: 0 });
+        }
+        statsMap.get(assistName).assists++;
+    }
+}
+
+function renderPlayerStats() {
+    const tbody = document.getElementById('statsTableBody');
+    const theadRow = document.querySelector('#tab-stats .league-table thead tr');
+
+    // Update Headers
+    if (currentStatsFilter === 'goals') {
+        theadRow.innerHTML = `
+            <th>#</th>
+            <th>Игрок</th>
+            <th class="text-center">Голы</th>
+        `;
+    } else if (currentStatsFilter === 'assists') {
+        theadRow.innerHTML = `
+            <th>#</th>
+            <th>Игрок</th>
+            <th class="text-center">Ассисты</th>
+        `;
+    } else { // g_a
+        theadRow.innerHTML = `
+            <th>#</th>
+            <th>Игрок</th>
+            <th class="text-center">Голы</th>
+            <th class="text-center">Ассисты</th>
+            <th class="text-center">Г+П</th>
+        `;
+    }
+
+    tbody.innerHTML = '';
+
+    const stats = calculatePlayerStats();
+
+    stats.forEach((player, index) => {
+        // Skip players with 0 stats for the current filter
+        if (currentStatsFilter === 'goals' && player.goals === 0) return;
+        if (currentStatsFilter === 'assists' && player.assists === 0) return;
+        if (currentStatsFilter === 'g_a' && (player.goals + player.assists) === 0) return;
+
+        const row = document.createElement('tr');
+
+        let cells = `
+            <td class="text-center">${index + 1}</td>
+            <td class="font-weight-bold">${player.name}</td>
+        `;
+
+        if (currentStatsFilter === 'goals') {
+            cells += `<td class="text-center font-weight-bold">${player.goals}</td>`;
+        } else if (currentStatsFilter === 'assists') {
+            cells += `<td class="text-center font-weight-bold">${player.assists}</td>`;
+        } else {
+            cells += `
+                <td class="text-center">${player.goals}</td>
+                <td class="text-center">${player.assists}</td>
+                <td class="text-center font-weight-bold">${player.goals + player.assists}</td>
+            `;
+        }
+
+        row.innerHTML = cells;
+        tbody.appendChild(row);
+    });
 }
 
 // ===================================
@@ -967,21 +1129,31 @@ function renderScorers(match) {
         <div class="scorers-section">
             <div class="team-scorers">
                 <div class="team-scorers-title">${match.team1}</div>
-                ${team1Scorers.map(scorer => `
+                ${team1Scorers.map(item => {
+        const scorer = typeof item === 'string' ? item : item.scorer;
+        const assist = typeof item === 'string' ? null : item.assist;
+        return `
                     <div class="goal-scorer">
                         <span class="goal-icon">⚽</span>
-                        <span class="scorer-name">${scorer}</span>
+                        <span class="scorer-name">
+                            ${scorer} ${assist ? `<span class="text-muted" style="font-size: 0.8em;">(пас: ${assist})</span>` : ''}
+                        </span>
                     </div>
-                `).join('') || '<span class="text-muted" style="font-size: 0.85rem;">—</span>'}
+                `}).join('') || '<span class="text-muted" style="font-size: 0.85rem;">—</span>'}
             </div>
             <div class="team-scorers">
                 <div class="team-scorers-title">${match.team2}</div>
-                ${team2Scorers.map(scorer => `
+                ${team2Scorers.map(item => {
+            const scorer = typeof item === 'string' ? item : item.scorer;
+            const assist = typeof item === 'string' ? null : item.assist;
+            return `
                     <div class="goal-scorer">
                         <span class="goal-icon">⚽</span>
-                        <span class="scorer-name">${scorer}</span>
+                        <span class="scorer-name">
+                            ${scorer} ${assist ? `<span class="text-muted" style="font-size: 0.8em;">(пас: ${assist})</span>` : ''}
+                        </span>
                     </div>
-                `).join('') || '<span class="text-muted" style="font-size: 0.85rem;">—</span>'}
+                `}).join('') || '<span class="text-muted" style="font-size: 0.85rem;">—</span>'}
             </div>
         </div>
     `;
@@ -1093,15 +1265,25 @@ function createScorerFields(containerId, containerWrapperId, count, teamName) {
     for (let i = 0; i < count; i++) {
         const inputGroup = document.createElement('div');
         inputGroup.className = 'scorer-input-group';
+        inputGroup.style.display = 'grid';
+        inputGroup.style.gridTemplateColumns = 'auto 1fr 1fr';
+        inputGroup.style.alignItems = 'center';
 
-        const options = ['<option value="">Выберите игрока</option>', ...ALLOWED_PLAYERS.map(p =>
-            `<option value="${p}" ${existingValues[i] === p ? 'selected' : ''}>${p}</option>`
+        const scorerOptions = ['<option value="">Гол забил</option>', ...ALLOWED_PLAYERS.map(p =>
+            `<option value="${p}">${p}</option>`
+        )].join('');
+
+        const assistOptions = ['<option value="">Ассистент</option>', ...ALLOWED_PLAYERS.map(p =>
+            `<option value="${p}">${p}</option>`
         )].join('');
 
         inputGroup.innerHTML = `
-            <label>Гол ${i + 1}:</label>
-            <select data-scorer-index="${i}">
-                ${options}
+            <label style="min-width: 20px;">${i + 1}.</label>
+            <select class="scorer-select">
+                ${scorerOptions}
+            </select>
+            <select class="assist-select">
+                ${assistOptions}
             </select>
         `;
 
@@ -1110,16 +1292,22 @@ function createScorerFields(containerId, containerWrapperId, count, teamName) {
 }
 
 function collectScorerData() {
-    const team1Inputs = document.querySelectorAll('#team1Scorers select');
-    const team2Inputs = document.querySelectorAll('#team2Scorers select');
+    const team1Groups = document.querySelectorAll('#team1Scorers .scorer-input-group');
+    const team2Groups = document.querySelectorAll('#team2Scorers .scorer-input-group');
 
-    const team1Scorers = Array.from(team1Inputs)
-        .map(input => input.value.trim())
-        .filter(value => value !== '');
+    const team1Scorers = Array.from(team1Groups).map(group => {
+        const scorer = group.querySelector('.scorer-select').value;
+        const assist = group.querySelector('.assist-select').value;
+        if (scorer) return { scorer, assist };
+        return null;
+    }).filter(item => item !== null);
 
-    const team2Scorers = Array.from(team2Inputs)
-        .map(input => input.value.trim())
-        .filter(value => value !== '');
+    const team2Scorers = Array.from(team2Groups).map(group => {
+        const scorer = group.querySelector('.scorer-select').value;
+        const assist = group.querySelector('.assist-select').value;
+        if (scorer) return { scorer, assist };
+        return null;
+    }).filter(item => item !== null);
 
     return {
         team1: team1Scorers,
@@ -1306,6 +1494,31 @@ function initializeEventListeners() {
             if (e.target === modal) {
                 closeModal(modal.id);
             }
+        });
+    });
+
+    // === Main Tabs ===
+    const mainTabs = document.querySelectorAll('.main-tab');
+    mainTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Deactivate all
+            mainTabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            // Activate clicked
+            tab.classList.add('active');
+            document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+        });
+    });
+
+    // === Stats Filter ===
+    const statsFilters = document.querySelectorAll('.stats-filter-btn');
+    statsFilters.forEach(btn => {
+        btn.addEventListener('click', () => {
+            statsFilters.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentStatsFilter = btn.dataset.filter;
+            renderPlayerStats();
         });
     });
 }
