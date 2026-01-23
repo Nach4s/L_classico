@@ -868,9 +868,11 @@ function renderMatches() {
             </div>
             
             <div class="match-footer">
+                ${isVotingOpen(match) ? `
                 <button class="btn btn-voting btn-small" onclick="event.stopPropagation(); openVotingModal('${match.id}')">
                     🏆 Голосовать за MVP
                 </button>
+                ` : ''}
                 ${isAdminLoggedIn ? `
                     <div class="match-actions" onclick="event.stopPropagation()">
                         <button class="btn btn-secondary btn-small" onclick="editMatch('${match.id}')" title="Редактировать">✏️</button>

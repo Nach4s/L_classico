@@ -1166,7 +1166,8 @@ body {
 
   .matches-grid {
     grid-template-columns: 1fr;
-    gap: var(--spacing-md);
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xl);
   }
 
   .match-card {
