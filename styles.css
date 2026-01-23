@@ -1290,45 +1290,177 @@ body {
     font-size: 1rem;
   }
 
-  .match-card {
-    padding: var(--spacing-sm);
+  :root {
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
   }
 
-  .match-date {
-    font-size: 0.7rem;
+  /* === LAYOUT & CONTAINER === */
+  .container {
+    padding: var(--spacing-md);
+    padding-top: 0;
   }
 
-  .match-team-name {
+  /* === HEADER === */
+  .header {
+    padding: var(--spacing-md) 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(26, 35, 50, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .header-content {
+    padding: 0 var(--spacing-md);
+  }
+
+  .header h1 {
+    font-size: 1.25rem;
+  }
+
+  /* === TABS (Fixed & Premium) === */
+  .main-tabs {
+    position: sticky;
+    top: 73px;
+    /* Header height approx */
+    z-index: 990;
+    background: var(--bg-primary);
+    margin: 0 -1rem var(--spacing-md) -1rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    gap: var(--spacing-md);
+
+    /* Hide Scrollbar */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .main-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .main-tab {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-color);
+    /* Reset base style */
+  }
+
+  .main-tab:hover {
+    background: var(--bg-card);
+    border-radius: 20px;
+  }
+
+  .main-tab.active {
+    background: var(--color-primary);
+    color: var(--bg-primary);
+    border-color: var(--color-primary);
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0, 214, 100, 0.3);
+  }
+
+  /* === CARDS === */
+  .card {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .card-header {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+  }
+
+  .card-title {
+    font-size: 1.15rem;
+  }
+
+  /* === TABLES === */
+  .league-table-wrapper {
+    margin-top: var(--spacing-sm);
+    margin-right: -1rem;
+    /* Allow scroll to edge */
+    padding-right: 1rem;
+  }
+
+  .league-table th,
+  .league-table td {
+    padding: 10px 8px;
     font-size: 0.8rem;
   }
 
-  .match-score {
-    font-size: 1.3rem;
+  .team-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
   }
 
-  .modal-content {
-    width: 95%;
+  /* === MATCH CARDS === */
+  .matches-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+  }
+
+  .match-card {
+    padding: var(--spacing-md);
+  }
+
+  .match-teams {
+    gap: 0;
+  }
+
+  .match-team-name {
+    font-size: 0.9rem;
+    margin-bottom: 0;
+  }
+
+  .match-score {
+    font-size: 1.5rem;
+    min-width: 80px;
+  }
+
+  /* === STATS FILTERS === */
+  .stats-filter {
+    width: 100%;
+    overflow-x: auto;
+    background: transparent;
+    border: none;
     padding: 0;
-    max-height: 80vh;
-    /* Better fit for mobile screens */
+    margin-top: var(--spacing-sm);
+  }
+
+  .stats-filter-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  /* === MODAL & FORMS === */
+  .modal-content {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .modal-header {
-    padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);
-    margin: 0;
+    padding: var(--spacing-md);
   }
 
-  .modal-footer {
-    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md) var(--spacing-md);
-    margin: 0;
-  }
-
-  #matchDetailsContent,
-  #votingContent,
-  .auth-form,
-  .auth-tabs,
-  #matchForm {
-    padding: var(--spacing-sm) var(--spacing-md);
+  .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .modal-title {
@@ -1337,6 +1469,7 @@ body {
 
   .modal-footer {
     flex-direction: column;
+    padding: var(--spacing-md);
   }
 
   .modal-footer .btn {
@@ -1350,7 +1483,16 @@ body {
   .form-input,
   .form-select {
     font-size: 0.9rem;
-    padding: var(--spacing-sm);
+    padding: 0.75rem;
+  }
+
+  /* Modal Body Fixes */
+  #matchDetailsContent,
+  #votingContent,
+  .auth-form,
+  .auth-tabs,
+  #matchForm {
+    padding: var(--spacing-md);
   }
 }
 
