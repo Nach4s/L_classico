@@ -10,6 +10,12 @@ const ADMIN_EMAIL = 'tokkozha.s@gmail.com';
 // Voting duration in milliseconds (24 hours)
 const VOTING_DURATION_MS = 24 * 60 * 60 * 1000;
 
+// Allowed players for voting
+const ALLOWED_PLAYERS = [
+    "Мансур Ш.", "Даулет Е.", "Санжар А.", "Айбек А.", "Алишер А.",
+    "Шынгыс Т.", "Асан Т.", "Димаш А.", "Акылбек А.", "Ерасыл К.", "Данияр А."
+];
+
 // === DATA STRUCTURES ===
 let teams = [
     {
@@ -350,41 +356,11 @@ async function openVotingModal(matchId) {
         `;
     }
 
-    // Build players list from goals
-    const goals = match.goals || [];
-    if (goals.length === 0) {
-        playersList.innerHTML = `
-            <div class="no-goals-message">
-                <p>Нет забивших игроков для голосования</p>
-            </div>
-        `;
-        openModal('votingModal');
-        return;
-    }
-
-    // Get unique players with their goal counts
-    const playerMap = new Map();
-    goals.forEach(goal => {
-        const key = `${goal.player}|${goal.team}`;
-        if (playerMap.has(key)) {
-            playerMap.get(key).goalCount++;
-        } else {
-            playerMap.set(key, {
-                player: goal.player,
-                team: goal.team,
-                goalCount: 1
-            });
-        }
-    });
-
-    playersList.innerHTML = Array.from(playerMap.values()).map(p => `
-        <div class="player-option" data-player="${p.player}" data-team="${p.team}">
+    // Build players list from ALLOWED_PLAYERS
+    playersList.innerHTML = ALLOWED_PLAYERS.map(player => `
+        <div class="player-option" data-player="${player}" data-team="General">
             <div class="player-info">
-                <span class="player-name">${p.player}</span>
-                <span class="player-team">${p.team}</span>
-            </div>
-            <div class="player-goals">
-                ⚽ ${p.goalCount}
+                <span class="player-name">${player}</span>
             </div>
         </div>
     `).join('');
@@ -708,8 +684,8 @@ function editMatch(matchId) {
     updateScorerInputs();
 
     if (match.scorers) {
-        const team1Inputs = document.querySelectorAll('#team1Scorers input');
-        const team2Inputs = document.querySelectorAll('#team2Scorers input');
+        const team1Inputs = document.querySelectorAll('#team1Scorers select');
+        const team2Inputs = document.querySelectorAll('#team2Scorers select');
 
         team1Inputs.forEach((input, index) => {
             if (match.scorers.team1 && match.scorers.team1[index]) {
@@ -1060,7 +1036,7 @@ function createScorerFields(containerId, containerWrapperId, count, teamName) {
 
     containerWrapper.style.display = 'block';
 
-    const existingInputs = container.querySelectorAll('input');
+    const existingInputs = container.querySelectorAll('select');
     const existingValues = Array.from(existingInputs).map(input => input.value);
 
     container.innerHTML = '';
@@ -1069,14 +1045,15 @@ function createScorerFields(containerId, containerWrapperId, count, teamName) {
         const inputGroup = document.createElement('div');
         inputGroup.className = 'scorer-input-group';
 
+        const options = ['<option value="">Выберите игрока</option>', ...ALLOWED_PLAYERS.map(p =>
+            `<option value="${p}" ${existingValues[i] === p ? 'selected' : ''}>${p}</option>`
+        )].join('');
+
         inputGroup.innerHTML = `
             <label>Гол ${i + 1}:</label>
-            <input 
-                type="text" 
-                placeholder="Имя игрока (например: Даулет E.)"
-                value="${existingValues[i] || ''}"
-                data-scorer-index="${i}"
-            >
+            <select data-scorer-index="${i}">
+                ${options}
+            </select>
         `;
 
         container.appendChild(inputGroup);
@@ -1084,8 +1061,8 @@ function createScorerFields(containerId, containerWrapperId, count, teamName) {
 }
 
 function collectScorerData() {
-    const team1Inputs = document.querySelectorAll('#team1Scorers input');
-    const team2Inputs = document.querySelectorAll('#team2Scorers input');
+    const team1Inputs = document.querySelectorAll('#team1Scorers select');
+    const team2Inputs = document.querySelectorAll('#team2Scorers select');
 
     const team1Scorers = Array.from(team1Inputs)
         .map(input => input.value.trim())
