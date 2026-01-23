@@ -865,8 +865,8 @@ function renderPlayerStats() {
         theadRow.innerHTML = `
             <th>#</th>
             <th>Игрок</th>
-            <th class="text-center">Голы</th>
-            <th class="text-center">Ассисты</th>
+            <th class="text-center col-optional">Голы</th>
+            <th class="text-center col-optional">Ассисты</th>
             <th class="text-center">Г+П</th>
         `;
     }
@@ -894,8 +894,8 @@ function renderPlayerStats() {
             cells += `<td class="text-center font-weight-bold">${player.assists}</td>`;
         } else {
             cells += `
-                <td class="text-center">${player.goals}</td>
-                <td class="text-center">${player.assists}</td>
+                <td class="text-center col-optional">${player.goals}</td>
+                <td class="text-center col-optional">${player.assists}</td>
                 <td class="text-center font-weight-bold">${player.goals + player.assists}</td>
             `;
         }

@@ -1396,6 +1396,16 @@ body {
     font-size: 0.8rem;
   }
 
+  .team-name {
+    white-space: nowrap;
+    /* Prevent wrapping */
+  }
+
+  /* Optional columns hidden on mobile for G+A view */
+  .col-optional {
+    display: none;
+  }
+
   .team-icon {
     width: 20px;
     height: 20px;
@@ -1430,18 +1440,28 @@ body {
   /* === STATS FILTERS === */
   .stats-filter {
     width: 100%;
-    overflow-x: auto;
+    /* Remove scroll, use flex */
+    overflow-x: hidden;
     background: transparent;
     border: none;
     padding: 0;
     margin-top: var(--spacing-sm);
+    display: flex;
+    gap: 5px;
   }
 
   .stats-filter-btn {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     white-space: nowrap;
-    flex: 0 0 auto;
+    flex: 1;
+    /* Equal width */
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 0.75rem;
+    justify-content: center;
+    display: flex;
+    align-items: center;
   }
 
   /* === MODAL & FORMS === */
