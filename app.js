@@ -146,6 +146,13 @@ function updateAuthUI() {
     renderMatches();
 }
 
+// Helper for Russian declension
+function getDeclension(number, titles) {
+    const n = Math.abs(parseInt(number, 10)); // Ensure integer
+    const cases = [2, 0, 1, 1, 1, 2];
+    return titles[(n % 100 > 4 && n % 100 < 20) ? 2 : cases[(n % 10 < 5) ? n % 10 : 5]];
+}
+
 // Get Firebase error message in Russian
 function getAuthErrorMessage(errorCode) {
     const messages = {
@@ -325,7 +332,7 @@ async function openVotingModal(matchId) {
             <div class="voting-closed-message">
                 <span class="closed-icon">⏰</span>
                 <p>Голосование завершено</p>
-                ${match.mvp ? `<p class="mvp-result">🏆 MVP: ${match.mvp.player} (${match.mvp.votes} голосов)</p>` : ''}
+                ${match.mvp ? `<p class="mvp-result">🏆 MVP: ${match.mvp.player} (${match.mvp.votes} ${getDeclension(match.mvp.votes, ['голос', 'голоса', 'голосов'])})</p>` : ''}
             </div>
         `;
         votingTimer.innerHTML = '';
@@ -405,11 +412,21 @@ async function submitVote() {
             return;
         }
 
+        if (!currentUser.email) {
+            console.error('User email is missing!');
+            showVotingError('Ошибка: отсутствиет email пользователя. Попробуйте перевойти.');
+            submitBtn.disabled = false;
+            return;
+        }
+
+        console.log('Submitting vote for:', currentUser.email);
+
         // Submit vote
         await db.collection('matches').doc(currentVotingMatchId)
             .collection('votes').doc(currentUser.uid).set({
                 player: selectedVotePlayer.player,
                 team: selectedVotePlayer.team,
+                userEmail: currentUser.email,
                 votedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
@@ -522,23 +539,45 @@ async function getVoteStatistics(matchId) {
         const votesSnapshot = await db.collection('matches').doc(matchId)
             .collection('votes').get();
 
-        const voteCount = new Map();
+        const voteData = new Map(); // Key: "player", Value: { team: "", votes: 0, voters: [] }
         let totalVotes = 0;
 
         votesSnapshot.forEach(doc => {
             const vote = doc.data();
-            const key = `${vote.player}|${vote.team}`;
-            voteCount.set(key, (voteCount.get(key) || 0) + 1);
+            // Group by player name only to handle legacy team names
+            const key = vote.player;
+
+            if (!voteData.has(key)) {
+                // Prefer "General" or the most recent team, but for now just take the first one found
+                // If the player is in ALLOWED_PLAYERS, we can force "General" or their specific group if we knew it
+                // For simplified display, we'll use the team from the vote, defaulting to "General" if it matches the current logic
+                voteData.set(key, {
+                    team: vote.team === "General" ? "General" : vote.team,
+                    votes: 0,
+                    voters: []
+                });
+            }
+
+            const data = voteData.get(key);
+
+            // Update team if we encounter "General" (preferred for new consistency)
+            if (vote.team === "General") {
+                data.team = "General";
+            }
+
+            data.votes++;
+            // Include all voters, even if email is missing (for old votes)
+            data.voters.push(vote.userEmail || 'Аноним');
             totalVotes++;
         });
 
-        const stats = Array.from(voteCount.entries()).map(([key, votes]) => {
-            const [player, team] = key.split('|');
+        const stats = Array.from(voteData.entries()).map(([player, data]) => {
             return {
                 player,
-                team,
-                votes,
-                percentage: totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0
+                team: data.team,
+                votes: data.votes,
+                voters: data.voters,
+                percentage: totalVotes > 0 ? Math.round((data.votes / totalVotes) * 100) : 0
             };
         }).sort((a, b) => b.votes - a.votes);
 
@@ -894,7 +933,7 @@ function getVotingStatusHTML(match) {
         return `
             <div class="voting-status closed">
                 <span class="status-icon">🏆</span>
-                <span>MVP: ${match.mvp.player} (${match.mvp.votes} голосов)</span>
+                <span>MVP: ${match.mvp.player} (${match.mvp.votes} ${getDeclension(match.mvp.votes, ['голос', 'голоса', 'голосов'])})</span>
             </div>
         `;
     } else if (isVotingOpen(match)) {
@@ -991,8 +1030,16 @@ async function showMatchDetails(matchId) {
                         </div>
                         <div class="vote-stat-bar-container">
                             <div class="vote-stat-bar" style="width: ${s.percentage}%"></div>
-                            <span class="vote-stat-value">${s.votes} голосов (${s.percentage}%)</span>
+                            <span class="vote-stat-value">${s.votes} ${getDeclension(s.votes, ['голос', 'голоса', 'голосов'])} (${s.percentage}%)</span>
                         </div>
+                        ${s.voters && s.voters.length > 0 ? `
+                            <div class="voters-list" style="margin-top: 8px; font-size: 0.85rem;">
+                                <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Голосовали:</div>
+                                <ul style="list-style: none; padding-left: 0; color: var(--text-muted);">
+                                    ${s.voters.map(email => `<li style="margin-bottom: 2px;">• ${email}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -1003,7 +1050,7 @@ async function showMatchDetails(matchId) {
                 <h4>🏆 MVP матча</h4>
                 <p class="mvp-name">${match.mvp.player}</p>
                 <p class="mvp-team">${match.mvp.team}</p>
-                <p class="mvp-votes">${match.mvp.votes} голосов</p>
+                <p class="mvp-votes">${match.mvp.votes} ${getDeclension(match.mvp.votes, ['голос', 'голоса', 'голосов'])}</p>
             </div>
         ` : ''}
     `;

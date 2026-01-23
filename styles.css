@@ -563,14 +563,15 @@ body {
 .modal-content {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
+  padding: 0;
   max-width: 500px;
   width: 90%;
   max-height: 90vh;
-  overflow-y: auto;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border-color);
   animation: slideUp var(--transition-normal);
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes slideUp {
@@ -589,9 +590,11 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-md) var(--spacing-xl);
   border-bottom: 2px solid var(--border-color);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .modal-title {
@@ -602,12 +605,18 @@ body {
 .modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 2rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: color var(--transition-fast);
-  padding: var(--spacing-xs);
+  padding: var(--spacing-sm);
   line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
 }
 
 .modal-close:hover {
@@ -617,9 +626,22 @@ body {
 .modal-footer {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
   border-top: 1px solid var(--border-color);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* Scrollable Content Area */
+#matchDetailsContent,
+#votingContent,
+.auth-form,
+.auth-tabs,
+#matchForm {
+  padding: var(--spacing-md) var(--spacing-xl);
+  overflow-y: auto;
+  flex-grow: 1;
 }
 
 .modal-footer .btn {
@@ -983,7 +1005,7 @@ body {
 
 /* === MATCH DETAILS MODAL === */
 .modal-large {
-  max-width: 600px;
+  max-width: 800px;
 }
 
 .match-details-info {
@@ -1286,7 +1308,27 @@ body {
 
   .modal-content {
     width: 95%;
-    padding: var(--spacing-md);
+    padding: 0;
+    max-height: 80vh;
+    /* Better fit for mobile screens */
+  }
+
+  .modal-header {
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm) var(--spacing-md);
+    margin: 0;
+  }
+
+  .modal-footer {
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md) var(--spacing-md);
+    margin: 0;
+  }
+
+  #matchDetailsContent,
+  #votingContent,
+  .auth-form,
+  .auth-tabs,
+  #matchForm {
+    padding: var(--spacing-sm) var(--spacing-md);
   }
 
   .modal-title {
