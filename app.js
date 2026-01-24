@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===================================
 
 function initializeAuth() {
+    // Set language to Russian for emails/SMS
+    auth.languageCode = 'ru';
+
     // Listen to auth state changes
     auth.onAuthStateChanged((user) => {
         currentUser = user;
@@ -124,6 +127,22 @@ async function logoutUser() {
     } catch (error) {
         console.error('Logout error:', error);
         showAlert('Ошибка при выходе', 'error');
+    }
+}
+
+// Recover password
+async function recoverPassword(email) {
+    try {
+        console.log('Initiating password reset for:', email);
+        await auth.sendPasswordResetEmail(email);
+        console.log('Password reset email sent successfully');
+        showAlert('Инструкции отправлены на email', 'success');
+        document.getElementById('recoveryFormError').innerHTML = `
+            <div class="alert alert-success">Инструкции по сбросу пароля отправлены на ваш email. Проверьте папку "Входящие" или "Спам".</div>
+        `;
+    } catch (error) {
+        console.error('Recovery error:', error);
+        throw error;
     }
 }
 
@@ -1354,8 +1373,11 @@ function closeModal(modalId) {
     } else if (modalId === 'authModal') {
         document.getElementById('userLoginForm').reset();
         document.getElementById('userRegisterForm').reset();
+        document.getElementById('userRecoveryForm').reset();
         document.getElementById('loginFormError').innerHTML = '';
         document.getElementById('registerFormError').innerHTML = '';
+        document.getElementById('recoveryFormError').innerHTML = '';
+        switchAuthTab('login'); // Reset to login tab on close
     } else if (modalId === 'votingModal') {
         document.getElementById('playersList').classList.remove('hidden');
         document.getElementById('votingSuccess').classList.add('hidden');
@@ -1403,6 +1425,10 @@ function initializeEventListeners() {
         switchAuthTab('register');
     });
 
+    document.getElementById('recoveryTab').addEventListener('click', () => {
+        switchAuthTab('recovery');
+    });
+
     // User login form
     document.getElementById('userLoginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1445,6 +1471,21 @@ function initializeEventListeners() {
     document.getElementById('closeAuthModal').addEventListener('click', () => closeModal('authModal'));
     document.getElementById('cancelAuthLogin').addEventListener('click', () => closeModal('authModal'));
     document.getElementById('cancelAuthRegister').addEventListener('click', () => closeModal('authModal'));
+    document.getElementById('cancelAuthRecovery').addEventListener('click', () => closeModal('authModal'));
+
+    // User recovery form
+    document.getElementById('userRecoveryForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('recoveryEmail').value;
+
+        try {
+            await recoverPassword(email);
+        } catch (error) {
+            document.getElementById('recoveryFormError').innerHTML = `
+                <div class="alert alert-error">${getAuthErrorMessage(error.code)}</div>
+            `;
+        }
+    });
 
     // === Match Management Events ===
     document.getElementById('addMatchBtn').addEventListener('click', () => {
@@ -1537,22 +1578,32 @@ function initializeEventListeners() {
 function switchAuthTab(tab) {
     const loginTab = document.getElementById('loginTab');
     const registerTab = document.getElementById('registerTab');
+    const recoveryTab = document.getElementById('recoveryTab');
     const loginForm = document.getElementById('userLoginForm');
     const registerForm = document.getElementById('userRegisterForm');
+    const recoveryForm = document.getElementById('userRecoveryForm');
     const modalTitle = document.getElementById('authModalTitle');
+
+    // Reset basics
+    loginTab.classList.remove('active');
+    registerTab.classList.remove('active');
+    recoveryTab.classList.remove('active');
+    loginForm.classList.add('hidden');
+    registerForm.classList.add('hidden');
+    recoveryForm.classList.add('hidden');
 
     if (tab === 'login') {
         loginTab.classList.add('active');
-        registerTab.classList.remove('active');
         loginForm.classList.remove('hidden');
-        registerForm.classList.add('hidden');
         modalTitle.textContent = 'Вход';
-    } else {
-        loginTab.classList.remove('active');
+    } else if (tab === 'register') {
         registerTab.classList.add('active');
-        loginForm.classList.add('hidden');
         registerForm.classList.remove('hidden');
         modalTitle.textContent = 'Регистрация';
+    } else if (tab === 'recovery') {
+        recoveryTab.classList.add('active');
+        recoveryForm.classList.remove('hidden');
+        modalTitle.textContent = 'Восстановление пароля';
     }
 }
 

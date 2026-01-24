@@ -137,6 +137,7 @@
             <div class="auth-tabs">
                 <button class="auth-tab active" id="loginTab" data-tab="login">Вход</button>
                 <button class="auth-tab" id="registerTab" data-tab="register">Регистрация</button>
+                <button class="auth-tab" id="recoveryTab" data-tab="recovery">Забыли пароль?</button>
             </div>
 
             <!-- Login Form -->
@@ -156,7 +157,6 @@
                 </div>
             </form>
 
-            <!-- Register Form -->
             <form id="userRegisterForm" class="auth-form hidden">
                 <div class="form-group">
                     <label class="form-label" for="registerEmail">Email</label>
@@ -176,6 +176,22 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="cancelAuthRegister">Отмена</button>
                     <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </div>
+            </form>
+
+            <!-- Recovery Form -->
+            <form id="userRecoveryForm" class="auth-form hidden">
+                <p style="margin-bottom: 15px; font-size: 0.9rem; color: var(--text-secondary);">
+                    Введите ваш email, и мы отправим вам инструкцию по сбросу пароля.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="recoveryEmail">Email</label>
+                    <input type="email" id="recoveryEmail" class="form-input" placeholder="example@mail.com" required>
+                </div>
+                <div id="recoveryFormError"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelAuthRecovery">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Восстановить</button>
                 </div>
             </form>
         </div>
