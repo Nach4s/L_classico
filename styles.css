@@ -91,26 +91,31 @@ body {
 
 /* Mobile header layout */
 @media (max-width: 480px) {
+  .header {
+    padding: var(--spacing-sm) 0;
+  }
+
   .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    padding: 0 var(--spacing-md);
   }
 
   .header-actions {
-    width: 100%;
-    justify-content: flex-end;
+    flex-shrink: 0;
   }
 
   .header h1 {
-    font-size: 1.6rem;
+    font-size: 2rem;
   }
 
   .header h1::before {
-    font-size: 1.8rem;
+    font-size: 2.2rem;
   }
 
-  /* Show email on mobile, stack vertically */
+  /* Email and button in 2 rows */
   .user-info {
     flex-direction: column;
     align-items: flex-end;
@@ -119,10 +124,15 @@ body {
 
   .user-email {
     display: block !important;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     max-width: none;
     order: -1;
     /* Email above button */
+  }
+
+  .user-info .btn-small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
   }
 }
 
