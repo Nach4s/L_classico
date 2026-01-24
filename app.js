@@ -475,20 +475,29 @@ async function closeVotingAndCalculateMVP(matchId) {
             .collection('votes').get();
 
         // Count votes per player
+        // Count votes per player
         const voteCount = new Map();
+        const playerTeams = new Map();
+
         votesSnapshot.forEach(doc => {
             const vote = doc.data();
-            const key = `${vote.player}|${vote.team}`;
+            const key = vote.player; // Group by player ONLY
+
             voteCount.set(key, (voteCount.get(key) || 0) + 1);
+
+            // Store a team for this player (prefer "General" or last seen)
+            if (!playerTeams.has(key) || vote.team === "General") {
+                playerTeams.set(key, vote.team || "General");
+            }
         });
 
         // Find MVP (player with most votes)
         let mvp = null;
         let maxVotes = 0;
 
-        voteCount.forEach((votes, key) => {
+        voteCount.forEach((votes, player) => {
             if (votes > maxVotes) {
-                const [player, team] = key.split('|');
+                const team = playerTeams.get(player);
                 maxVotes = votes;
                 mvp = { player, team, votes };
             }
@@ -1080,6 +1089,7 @@ function renderMatches() {
                         <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')" title="Удалить">🗑️</button>
                         <button class="btn btn-info btn-small" onclick="showMatchDetails('${match.id}')" title="Статистика">📊</button>
                         <button class="btn btn-warning btn-small" onclick="resetVoting('${match.id}')" title="Возобновить голосование">🔄</button>
+                        <button class="btn btn-danger btn-small" onclick="forceEndVoting('${match.id}')" title="Принудительно завершить и пересчитать">🛑</button>
                     </div>
                 ` : ''}
             </div>
@@ -1546,6 +1556,26 @@ function switchAuthTab(tab) {
     }
 }
 
+// Force End Voting (Recalculate MVP)
+async function forceEndVoting(matchId) {
+    if (!isAdminLoggedIn) {
+        showAlert('Только админ может завершить голосование', 'error');
+        return;
+    }
+
+    if (!confirm('Принудительно завершить голосование и пересчитать MVP?')) {
+        return;
+    }
+
+    try {
+        await closeVotingAndCalculateMVP(matchId);
+        showAlert('Голосование завершено и MVP пересчитан!', 'success');
+    } catch (error) {
+        console.error('Error forcing end voting:', error);
+        showAlert('Ошибка при завершении голосования', 'error');
+    }
+}
+
 // Make functions globally accessible for inline event handlers
 window.editMatch = editMatch;
 window.deleteMatch = deleteMatch;
@@ -1553,3 +1583,4 @@ window.toggleMatchDetails = toggleMatchDetails;
 window.openVotingModal = openVotingModal;
 window.showMatchDetails = showMatchDetails;
 window.resetVoting = resetVoting;
+window.forceEndVoting = forceEndVoting;

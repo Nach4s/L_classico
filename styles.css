@@ -752,6 +752,13 @@ body {
   white-space: nowrap;
 }
 
+/* Hide email on mobile to prevent text overlap */
+@media (max-width: 768px) {
+  .user-email {
+    display: none;
+  }
+}
+
 /* === AUTH MODAL TABS === */
 .auth-tabs {
   display: flex;
