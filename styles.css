@@ -3142,8 +3142,8 @@ body {
   }
 
   .pitch-row {
-    gap: 20px;
-    /* Explicit large gap to prevent overlapping borders */
+    gap: 50px;
+    /* Significantly increased gap for mobile */
   }
 
   .pitch-player-slot {
