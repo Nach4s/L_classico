@@ -1680,6 +1680,8 @@ let fantasyCurrentFilter = 'ALL';
 
 function initFantasy() {
     try {
+        console.log('Initializing Fantasy Football module...');
+
         // Load saved team from localStorage/Firebase
         loadFantasyTeam();
 
@@ -2036,8 +2038,11 @@ function calculateSpentBudget() {
 // ===================================
 
 function renderFantasyPlayersList() {
-    const container = document.getElementById('fantasyPlayersGrid');
-    if (!container) return;
+    const container = document.getElementById('fantasyPlayersList');
+    if (!container) {
+        console.error('Fantasy players container not found!');
+        return;
+    }
 
     let filteredPlayers = FANTASY_PLAYERS;
     if (fantasyCurrentFilter !== 'ALL') {
