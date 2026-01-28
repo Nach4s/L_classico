@@ -1641,20 +1641,23 @@ window.forceEndVoting = forceEndVoting;
 // El Clasico Fantasy System
 // ===================================
 
-// Fantasy Players Data
+// Fantasy Players Data (with team colors)
 const FANTASY_PLAYERS = [
-    { id: 2, name: "Мансур Ш.", position: "FWD", price: 6.5 },
-    { id: 3, name: "Даулет Е.", position: "MID", price: 7.0 },
-    { id: 4, name: "Санжар А.", position: "MID", price: 7.0 },
-    { id: 5, name: "Айбек А.", position: "FWD", price: 6.5 },
-    { id: 6, name: "Алишер А.", position: "DEF", price: 3.0 },
-    { id: 7, name: "Шынгыс Т.", position: "FWD", price: 6.0 },
-    { id: 8, name: "Асан Т.", position: "DEF", price: 6.0 },
-    { id: 9, name: "Димаш А.", position: "GK", price: 2.5 },
-    { id: 10, name: "Акылбек А.", position: "FWD", price: 9.0 },
-    { id: 11, name: "Ерасыл К.", position: "FWD", price: 7.5 },
-    { id: 12, name: "Данияр А.", position: "MID", price: 5.5 },
-    { id: 13, name: "Хамид Т.", position: "DEF", price: 4.0 }
+    // Team A (Red Jerseys) 🔴
+    { id: 2, name: "Мансур Ш.", position: "FWD", price: 6.5, team: "A" },
+    { id: 3, name: "Даулет Е.", position: "MID", price: 7.0, team: "A" },
+    { id: 4, name: "Санжар А.", position: "MID", price: 7.0, team: "A" },
+    { id: 5, name: "Айбек А.", position: "FWD", price: 6.5, team: "A" },
+    { id: 6, name: "Алишер А.", position: "DEF", price: 3.0, team: "A" },
+    { id: 7, name: "Шынгыс Т.", position: "FWD", price: 6.0, team: "A" },
+
+    // Team B (Blue Jerseys) 🔵
+    { id: 8, name: "Асан Т.", position: "DEF", price: 6.0, team: "B" },
+    { id: 9, name: "Димаш А.", position: "GK", price: 2.5, team: "B" },
+    { id: 10, name: "Акылбек А.", position: "FWD", price: 9.0, team: "B" },
+    { id: 11, name: "Ерасыл К.", position: "FWD", price: 7.5, team: "B" },
+    { id: 12, name: "Данияр А.", position: "MID", price: 5.5, team: "B" },
+    { id: 13, name: "Хамид Т.", position: "DEF", price: 4.0, team: "B" }
 ];
 
 // Fantasy Configuration
@@ -2093,9 +2096,9 @@ function renderFantasyPlayersList() {
                     <span class="fpl-price-badge">${player.price.toFixed(1)}</span>
                 </div>
                 <div class="fpl-card-body">
-                    <div class="fpl-jersey">👕</div>
+                    <div class="fpl-jersey team-${player.team}">👕</div>
                     <div class="fpl-player-name">${player.name}</div>
-                    <div class="fpl-team-name">L Clasico</div>
+                    <div class="fpl-team-name">Team ${player.team}</div>
                 </div>
                 ${isSelected ? '<div class="fpl-selected-overlay">✔</div>' : ''}
             </div>
@@ -2132,12 +2135,13 @@ function renderSelectedTeam() {
             const player = FANTASY_PLAYERS.find(p => p.id === playerId);
             if (player) {
                 const isCaptain = fantasyTeam.captainId === playerId;
+                const jerseyImage = player.team === 'A' ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
 
                 slotHtml = `
                     <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}">
-                        <div class="player-jersey-icon">👕</div>
+                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
                         <div class="player-slot-name">${player.name}</div>
-                        <div class="player-slot-pos">${player.position}</div>
+                        <div class="player-slot-points">${player.position}</div>
                         <div class="player-slot-actions">
                             <button class="slot-action-btn ${isCaptain ? 'captain-active' : ''}" 
                                     onclick="event.stopPropagation(); setCaptain(${player.id})" 
@@ -2158,7 +2162,7 @@ function renderSelectedTeam() {
         if (!slotHtml) {
             slotHtml = `
                 <div class="pitch-player-slot empty">
-                    <div class="player-jersey">+</div>
+                    <div class="player-jersey-placeholder">+</div>
                     <div class="player-slot-name">Пусто</div>
                     <div class="player-slot-points">—</div>
                 </div>

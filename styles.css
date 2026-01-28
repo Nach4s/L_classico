@@ -2674,31 +2674,68 @@ body {
 
 /* Player Slot on Pitch */
 .pitch-player-slot {
-  width: 90px;
+  width: 220px;
+  /* Increased to fit larger jersey */
   text-align: center;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .pitch-player-slot .player-jersey {
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   margin: 0 auto;
   background: rgba(255, 255, 255, 0.9);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2.5rem;
   font-weight: bold;
   color: #333;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   position: relative;
 }
 
-.pitch-player-slot.empty .player-jersey {
-  background: rgba(255, 255, 255, 0.3);
-  border: 2px dashed rgba(255, 255, 255, 0.5);
+/* Image Based Jersey */
+.player-jersey-img {
+  width: 200px;
+  /* Massively increased */
+  height: 200px;
+  object-fit: contain;
+  transition: transform var(--transition-fast);
+}
+
+.player-jersey-img:hover {
+  transform: scale(1.1);
+}
+
+.player-jersey-placeholder {
+  width: 140px;
+  /* Increased to match roughly jersey prominence */
+  height: 140px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.1);
+  border: 3px dashed rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  /* Larger plus sign */
+  font-weight: bold;
   color: white;
+  box-shadow: none;
+}
+
+
+
+/* Fix overlap for empty slots */
+.pitch-player-slot.empty .player-slot-name {
+  margin-top: 10px;
+  /* Reset margin for empty slots */
 }
 
 .pitch-player-slot.captain .player-jersey::before {
@@ -2718,16 +2755,35 @@ body {
   font-weight: bold;
 }
 
-.player-slot-name {
-  font-size: 0.7rem;
+/* Team colors for pitch jerseys */
+.pitch-player-slot .player-jersey.team-A {
+  background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%);
   color: white;
-  background: rgba(55, 0, 60, 0.9);
-  padding: 2px 4px;
-  border-radius: 2px;
-  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.5);
+}
+
+.pitch-player-slot .player-jersey.team-B {
+  background: linear-gradient(135deg, #4a9eff 0%, #6bb0ff 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.5);
+}
+
+.player-slot-name {
+  font-size: 0.75rem;
+  color: white;
+  background: rgba(55, 0, 60, 0.95);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: -30px;
+  /* Pull up more for larger jersey */
+  position: relative;
+  z-index: 2;
+  /* Ensure it sits above jersey bottom if overlapping */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .player-slot-points {
@@ -2889,6 +2945,21 @@ body {
   margin: var(--spacing-xs) 0;
 }
 
+/* Team-specific jersey colors */
+.fpl-jersey.team-A {
+  filter: hue-rotate(0deg) saturate(2);
+  /* Red jerseys */
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.fpl-jersey.team-B {
+  filter: hue-rotate(200deg) saturate(2);
+  /* Blue jerseys */
+  color: #4a9eff;
+  text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+}
+
 .fpl-player-name {
   font-size: 0.75rem;
   font-weight: 600;
@@ -2921,7 +2992,8 @@ body {
 }
 
 .fpl-player-card {
-  position: relative; /* For overlay positioning */
+  position: relative;
+  /* For overlay positioning */
 }
 
 
@@ -3001,13 +3073,18 @@ body {
   }
 
   .pitch-player-slot {
-    width: 80px;
+    width: 150px;
   }
 
-  .pitch-player-slot .player-jersey {
-    width: 50px;
-    height: 50px;
-    font-size: 1.2rem;
+  .player-jersey-img {
+    width: 140px;
+    height: 140px;
+  }
+
+  .player-jersey-placeholder {
+    width: 90px;
+    height: 90px;
+    font-size: 2.5rem;
   }
 
   .player-slot-name {
