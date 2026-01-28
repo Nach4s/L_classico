@@ -1678,39 +1678,39 @@ let fantasyCurrentFilter = 'ALL';
 // FANTASY INITIALIZATION
 // ===================================
 
+// ===================================
+// FANTASY INITIALIZATION (Simplified & Robust)
+// ===================================
+
 function initFantasy() {
+    console.log('🎮 Initializing Fantasy Football...');
+
     try {
-        console.log('Initializing Fantasy Football module...');
-
-        // Load saved team from localStorage/Firebase
+        // 1. Load saved data
         loadFantasyTeam();
-
-        // Load manager name
         loadManagerName();
 
-        // Setup Fantasy Tab Navigation
+        // 2. Setup all event listeners
         setupFantasyTabs();
+        setupPositionFilter();
+        setupSquadListToggle();
+        setupManagerNameInput();
+        setupSaveButton();
 
-        // Setup Position Filter (FPL-style)
-        setupFantasyFilter();
-
-        // Setup Squad/List Toggle
-        setupFPLToggle();
-
-        // Setup Manager Name Save
-        setupManagerName();
-
-        // Initial Render
+        // 3. Initial render
+        console.log('📊 Rendering initial state...');
         renderFantasyPlayersList();
         renderSelectedTeam();
         updateFantasyBudget();
         updateDeadlineDisplay();
 
-        // Update deadline every minute
+        // 4. Update deadline every minute
         setInterval(updateDeadlineDisplay, 60000);
-    } catch (e) {
-        alert('Ошибка запуска Fantasy: ' + e.message);
-        console.error('Critical Error in initFantasy:', e);
+
+        console.log('✅ Fantasy Football initialized successfully!');
+    } catch (err) {
+        console.error('❌ Fantasy init error:', err);
+        showAlert('Ошибка загрузки Fantasy', 'error');
     }
 }
 
@@ -1722,7 +1722,6 @@ function loadManagerName() {
 
     if (saved) {
         fantasyTeam.managerName = saved;
-        // Hide input, show saved name
         if (nameContainer) nameContainer.classList.add('hidden');
         if (savedNameDisplay) {
             const spanEl = savedNameDisplay.querySelector('span');
@@ -1730,14 +1729,13 @@ function loadManagerName() {
             savedNameDisplay.classList.remove('hidden');
         }
     } else {
-        // Show input for first-time users
         if (nameContainer) nameContainer.classList.remove('hidden');
         if (savedNameDisplay) savedNameDisplay.classList.add('hidden');
     }
 }
 
-// Setup Manager Name
-function setupManagerName() {
+// Setup Manager Name Input
+function setupManagerNameInput() {
     const input = document.getElementById('managerName');
     const saveBtn = document.getElementById('saveManagerName');
     const nameContainer = document.getElementById('managerNameContainer');
@@ -1750,9 +1748,8 @@ function setupManagerName() {
             if (name) {
                 fantasyTeam.managerName = name;
                 localStorage.setItem('fantasyManagerName', name);
-                showAlert(`Имя менеджера сохранено: ${name}`, 'success');
+                showAlert(`✅ Имя сохранено: ${name}`, 'success');
 
-                // Hide input, show saved name
                 if (nameContainer) nameContainer.classList.add('hidden');
                 if (savedNameDisplay) {
                     const spanEl = savedNameDisplay.querySelector('span');
@@ -1765,7 +1762,6 @@ function setupManagerName() {
         });
     }
 
-    // Edit button to change name
     if (editBtn) {
         editBtn.addEventListener('click', () => {
             if (nameContainer) nameContainer.classList.remove('hidden');
@@ -1774,84 +1770,104 @@ function setupManagerName() {
         });
     }
 
-    // Also save on Enter key
     if (input) {
         input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                saveBtn?.click();
-            }
+            if (e.key === 'Enter') saveBtn?.click();
         });
     }
 }
 
-// Setup Fantasy Sub-tabs
+// Setup Fantasy Sub-tabs (SIMPLIFIED)
 function setupFantasyTabs() {
-    document.querySelectorAll('.fantasy-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            const targetTab = tab.dataset.fantasyTab;
+    console.log('🔧 Setting up Fantasy tabs...');
 
-            // Update tab buttons
-            document.querySelectorAll('.fantasy-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
+    const tabs = document.querySelectorAll('.fantasy-tab');
 
-            // Update content
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function () {
+            const targetTab = this.getAttribute('data-fantasy-tab');
+            console.log('👆 Tab clicked:', targetTab);
+
+            // Remove all active classes
+            tabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.fantasy-content').forEach(c => c.classList.remove('active'));
-            document.getElementById(`fantasy-${targetTab}`).classList.add('active');
 
-            // Render content if needed
-            if (targetTab === 'results') {
-                renderFantasyResults();
-            } else if (targetTab === 'leaderboard') {
-                renderFantasyLeaderboard();
+            // Add active to clicked tab and content
+            this.classList.add('active');
+            const contentEl = document.getElementById(`fantasy-${targetTab}`);
+            if (contentEl) {
+                contentEl.classList.add('active');
+                console.log('✅ Switched to tab:', targetTab);
+
+                // Render content for specific tabs
+                if (targetTab === 'results') {
+                    renderFantasyResults();
+                } else if (targetTab === 'leaderboard') {
+                    renderFantasyLeaderboard();
+                }
+            } else {
+                console.error('❌ Tab content not found:', `fantasy-${targetTab}`);
             }
         });
     });
-
-    // Save button
-    const saveBtn = document.getElementById('saveFantasyTeam');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveFantasyTeam);
-    }
 }
 
-// Setup Position Filter (FPL-style tabs)
-function setupFantasyFilter() {
+// Setup Position Filter
+function setupPositionFilter() {
+    console.log('🔧 Setting up position filter...');
+
     document.querySelectorAll('.fpl-pos-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            fantasyCurrentFilter = btn.dataset.position;
+        btn.addEventListener('click', function () {
+            const position = this.getAttribute('data-position');
+            console.log('🎯 Filter:', position);
 
+            fantasyCurrentFilter = position;
+
+            // Update active button
             document.querySelectorAll('.fpl-pos-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            this.classList.add('active');
 
+            // Re-render players list
             renderFantasyPlayersList();
         });
     });
 }
 
 // Setup Squad/List Toggle
-function setupFPLToggle() {
+function setupSquadListToggle() {
+    console.log('🔧 Setting up squad/list toggle...');
+
     document.querySelectorAll('.fpl-toggle-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const view = btn.dataset.view;
+        btn.addEventListener('click', function () {
+            const view = this.getAttribute('data-view');
+            console.log('📋 View:', view);
 
-            // Update toggle buttons
+            // Update buttons
             document.querySelectorAll('.fpl-toggle-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            this.classList.add('active');
 
-            // Show/hide views
+            // Toggle views
             const pitchView = document.getElementById('fplPitchView');
             const listView = document.getElementById('fplListView');
 
             if (view === 'squad') {
-                pitchView?.classList.remove('hidden');
-                listView?.classList.add('hidden');
+                if (pitchView) pitchView.classList.remove('hidden');
+                if (listView) listView.classList.add('hidden');
             } else {
-                pitchView?.classList.add('hidden');
-                listView?.classList.remove('hidden');
+                if (pitchView) pitchView.classList.add('hidden');
+                if (listView) listView.classList.remove('hidden');
                 renderListView();
             }
         });
     });
+}
+
+// Setup Save Button
+function setupSaveButton() {
+    const saveBtn = document.getElementById('saveFantasyTeam');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveFantasyTeam);
+    }
 }
 
 // Render List View (alternative to pitch)
@@ -2034,25 +2050,36 @@ function calculateSpentBudget() {
 }
 
 // ===================================
-// FANTASY UI RENDERING
+// FANTASY UI RENDERING (Simplified)
 // ===================================
 
 function renderFantasyPlayersList() {
+    console.log('🎨 Rendering fantasy players list...');
+
     const container = document.getElementById('fantasyPlayersList');
     if (!container) {
-        console.error('Fantasy players container not found!');
+        console.error('❌ Element #fantasyPlayersList not found!');
         return;
     }
 
+    // Filter players by position
     let filteredPlayers = FANTASY_PLAYERS;
-    if (fantasyCurrentFilter !== 'ALL') {
+    if (fantasyCurrentFilter && fantasyCurrentFilter !== 'ALL') {
         filteredPlayers = FANTASY_PLAYERS.filter(p => p.position === fantasyCurrentFilter);
+        console.log(`🔍 Filtered to ${filteredPlayers.length} ${fantasyCurrentFilter} players`);
     }
 
     // Sort by price descending
     filteredPlayers.sort((a, b) => b.price - a.price);
 
-    container.innerHTML = filteredPlayers.map(player => {
+    // Check if we have players to show
+    if (filteredPlayers.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Нет игроков в этой позиции</p>';
+        return;
+    }
+
+    // Render each player
+    const playersHTML = filteredPlayers.map(player => {
         const isSelected = fantasyTeam.players.includes(player.id);
         const canAfford = calculateSpentBudget() + player.price <= FANTASY_CONFIG.budget || isSelected;
         const teamFull = fantasyTeam.players.length >= FANTASY_CONFIG.maxPlayers && !isSelected;
@@ -2074,6 +2101,9 @@ function renderFantasyPlayersList() {
             </div>
         `;
     }).join('');
+
+    container.innerHTML = playersHTML;
+    console.log(`✅ Rendered ${filteredPlayers.length} players`);
 }
 
 function getPositionEmoji(position) {
@@ -2546,8 +2576,15 @@ window.updateRatingColor = function (value, playerId) {
 
 // Initialize Fantasy when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Delay fantasy init slightly to ensure main app is loaded
-    setTimeout(initFantasy, 100);
+    console.log('📦 DOM loaded, initializing Fantasy...');
+
+    // Initialize Fantasy Football immediately
+    // (No timeout needed - DOM is fully loaded)
+    try {
+        initFantasy();
+    } catch (err) {
+        console.error('❌ Failed to initialize Fantasy:', err);
+    }
 
     // Rating Modal Events
     const closeRatingBtn = document.getElementById('closeRatingModal');

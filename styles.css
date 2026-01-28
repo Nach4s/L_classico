@@ -2827,6 +2827,104 @@ body {
   font-weight: 700;
 }
 
+/* ===================================
+   FPL PLAYER CARD COMPONENTS
+   Missing styles for card structure
+   =================================== */
+
+.fpl-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.fpl-position-badge {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fpl-position-badge.GK {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.fpl-position-badge.DEF {
+  background: rgba(0, 150, 136, 0.2);
+  color: #00bfa5;
+}
+
+.fpl-position-badge.MID {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ce93d8;
+}
+
+.fpl-position-badge.FWD {
+  background: rgba(244, 67, 54, 0.2);
+  color: #ef5350;
+}
+
+.fpl-price-badge {
+  padding: 2px 6px;
+  background: var(--color-primary);
+  color: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.fpl-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.fpl-jersey {
+  font-size: 2rem;
+  margin: var(--spacing-xs) 0;
+}
+
+.fpl-player-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.fpl-team-name {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.fpl-selected-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 214, 100, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--color-primary);
+  border-radius: var(--radius-md);
+}
+
+.fpl-player-card {
+  position: relative; /* For overlay positioning */
+}
+
+
 /* Save Area */
 .fpl-save-area {
   padding: var(--spacing-md) 0;
