@@ -1820,3 +1820,1320 @@ body {
   color: var(--color-primary);
   box-shadow: var(--shadow-sm);
 }
+
+/* ===================================
+   FANTASY FOOTBALL STYLES
+   FotMob-Inspired Design
+   =================================== */
+
+/* Fantasy Sub-tabs */
+.fantasy-tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  background: var(--bg-secondary);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-lg);
+}
+
+.fantasy-tab {
+  flex: 1;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.fantasy-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.fantasy-tab.active {
+  background: var(--color-primary);
+  color: var(--bg-primary);
+}
+
+.fantasy-content {
+  display: none;
+}
+
+.fantasy-content.active {
+  display: block;
+}
+
+/* Fantasy Info Section */
+.fantasy-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+@media (max-width: 600px) {
+  .fantasy-info {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fantasy-rules h4 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-info);
+}
+
+.fantasy-rules ul {
+  list-style: none;
+  padding: 0;
+}
+
+.fantasy-rules li {
+  padding: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.fantasy-rules li::before {
+  content: '✓ ';
+  color: var(--color-primary);
+}
+
+/* Budget Display */
+.fantasy-budget {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.budget-display {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.budget-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.budget-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.budget-value.over-budget {
+  color: var(--color-danger);
+}
+
+.budget-total {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.budget-bar {
+  height: 8px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-info));
+  border-radius: 4px;
+  transition: width var(--transition-normal);
+}
+
+.budget-bar-fill.over-budget {
+  background: var(--color-danger);
+}
+
+/* Deadline Display */
+.fantasy-deadline {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-warning);
+  font-weight: 500;
+}
+
+.fantasy-deadline.locked {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.deadline-icon {
+  font-size: 1.2rem;
+}
+
+/* Selected Team Grid */
+.fantasy-selected-team {
+  margin-bottom: var(--spacing-lg);
+}
+
+.fantasy-selected-team h4 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.selected-players-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 500px) {
+  .selected-players-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.selected-player-slot {
+  position: relative;
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  transition: all var(--transition-fast);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.selected-player-slot.empty {
+  cursor: default;
+}
+
+.selected-player-slot.filled {
+  border: 2px solid var(--color-primary);
+  background: var(--bg-card);
+}
+
+.selected-player-slot.captain {
+  border-color: var(--color-warning);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+.slot-icon {
+  font-size: 2rem;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+.slot-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.slot-player-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.slot-player-position {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.slot-player-price {
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.slot-captain-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--color-warning);
+  color: var(--bg-primary);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-md);
+}
+
+.slot-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+}
+
+.slot-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.slot-btn-captain {
+  background: var(--color-warning);
+  color: var(--bg-primary);
+}
+
+.slot-btn-captain:hover {
+  background: #ffdf00;
+}
+
+.slot-btn-captain.is-captain {
+  background: var(--text-muted);
+  cursor: default;
+}
+
+.slot-btn-remove {
+  background: var(--color-danger);
+  color: white;
+}
+
+.slot-btn-remove:hover {
+  background: #ff6666;
+}
+
+/* Fantasy Actions */
+.fantasy-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--spacing-md);
+}
+
+.fantasy-actions .btn {
+  min-width: 200px;
+}
+
+.fantasy-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Fantasy Filter */
+.fantasy-filter {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.filter-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.filter-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background: var(--color-primary);
+  color: var(--bg-primary);
+  border-color: var(--color-primary);
+}
+
+/* Fantasy Players List - FotMob Style */
+.fantasy-players-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.fantasy-player-card {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.fantasy-player-card:hover {
+  border-color: var(--color-primary);
+  transform: translateX(4px);
+}
+
+.fantasy-player-card.selected {
+  border-color: var(--color-primary);
+  background: rgba(0, 214, 100, 0.1);
+}
+
+.fantasy-player-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fantasy-player-card.disabled:hover {
+  transform: none;
+  border-color: var(--border-color);
+}
+
+.player-avatar {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-card);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-md);
+  font-size: 1.5rem;
+  border: 2px solid var(--border-color);
+}
+
+.player-details {
+  flex: 1;
+}
+
+.player-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.player-position {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.player-position.gk {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.player-position.def {
+  background: rgba(0, 150, 136, 0.2);
+  color: #00bfa5;
+}
+
+.player-position.mid {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ce93d8;
+}
+
+.player-position.fwd {
+  background: rgba(244, 67, 54, 0.2);
+  color: #ef5350;
+}
+
+.player-price {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--color-primary);
+  margin-right: var(--spacing-md);
+}
+
+.player-add-btn {
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--color-primary);
+  background: transparent;
+  border-radius: 50%;
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.player-add-btn:hover {
+  background: var(--color-primary);
+  color: var(--bg-primary);
+}
+
+.fantasy-player-card.selected .player-add-btn {
+  background: var(--color-primary);
+  color: var(--bg-primary);
+}
+
+.fantasy-player-card.selected .player-add-btn::before {
+  content: '✓';
+}
+
+/* Fantasy Results - FotMob Style */
+.fantasy-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.fantasy-result-card {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.result-player-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.result-player-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.result-captain-badge {
+  background: var(--color-warning);
+  color: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.result-stats {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-right: var(--spacing-lg);
+}
+
+.result-stat {
+  text-align: center;
+}
+
+.result-stat-value {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.result-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Rating Badge - FotMob Style */
+.rating-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: white;
+}
+
+.rating-badge.rating-blue {
+  background: #2962ff;
+}
+
+.rating-badge.rating-green {
+  background: #0e9c56;
+}
+
+.rating-badge.rating-orange {
+  background: #f5a623;
+}
+
+.rating-badge.rating-red {
+  background: #d0021b;
+}
+
+.result-points {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--color-primary);
+  min-width: 60px;
+  text-align: right;
+}
+
+.result-points-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* ===================================
+   FPL-STYLE FANTASY UI
+   =================================== */
+
+/* FPL Header */
+.fpl-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, #00d4ff 0%, #7c4dff 100%);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.fpl-nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fpl-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.fpl-gameweek {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Squad/List Toggle */
+.fpl-toggle {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: 25px;
+  padding: 4px;
+  margin-bottom: var(--spacing-md);
+}
+
+.fpl-toggle-btn {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fpl-toggle-btn.active {
+  background: var(--color-primary);
+  color: var(--bg-primary);
+}
+
+/* Stats Bar */
+.fpl-stats-bar {
+  display: flex;
+  justify-content: space-around;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.fpl-stat {
+  text-align: center;
+}
+
+.fpl-stat.main .fpl-stat-value {
+  font-size: 2rem;
+  color: var(--color-primary);
+}
+
+.fpl-stat-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fpl-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+/* Budget Bar - Compact */
+.fpl-budget-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Manager Name Input */
+.fpl-manager-name {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.fpl-manager-name label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.fpl-manager-name input {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.fpl-manager-name input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.btn-save-name {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.btn-save-name:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+/* Saved Manager Name Display */
+.fpl-manager-saved {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, rgba(0, 214, 100, 0.15) 0%, rgba(0, 150, 70, 0.15) 100%);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.fpl-manager-saved span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-edit-name {
+  padding: var(--spacing-xs);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.btn-edit-name:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.budget-text {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.budget-progress {
+  flex: 1;
+  height: 8px;
+  background: var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.budget-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s;
+}
+
+/* Deadline - Compact */
+.fpl-deadline {
+  text-align: center;
+  padding: var(--spacing-sm);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.fpl-deadline.locked {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* Pitch Field */
+.fpl-pitch {
+  margin-bottom: var(--spacing-lg);
+}
+
+.pitch-field {
+  background: linear-gradient(to bottom,
+      #2d8a4e 0%,
+      #3a9d5d 10%,
+      #2d8a4e 10%,
+      #3a9d5d 20%,
+      #2d8a4e 20%,
+      #3a9d5d 30%,
+      #2d8a4e 30%,
+      #3a9d5d 40%,
+      #2d8a4e 40%,
+      #3a9d5d 50%,
+      #2d8a4e 50%,
+      #3a9d5d 60%,
+      #2d8a4e 60%,
+      #3a9d5d 70%,
+      #2d8a4e 70%,
+      #3a9d5d 80%,
+      #2d8a4e 80%,
+      #3a9d5d 90%,
+      #2d8a4e 90%,
+      #3a9d5d 100%);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  min-height: 250px;
+  position: relative;
+}
+
+.pitch-formation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  align-items: center;
+}
+
+.pitch-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+/* Player Slot on Pitch */
+.pitch-player-slot {
+  width: 90px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pitch-player-slot .player-jersey {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.pitch-player-slot.empty .player-jersey {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.pitch-player-slot.captain .player-jersey::before {
+  content: 'C';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: #ffd700;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-weight: bold;
+}
+
+.player-slot-name {
+  font-size: 0.7rem;
+  color: white;
+  background: rgba(55, 0, 60, 0.9);
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-slot-points {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #333;
+  background: #e8f5e9;
+  padding: 2px 8px;
+  border-radius: 0 0 4px 4px;
+}
+
+/* Position Filter Tabs */
+.fpl-position-tabs {
+  display: flex;
+  background: #e8f5e9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+.fpl-pos-btn {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: none;
+  background: transparent;
+  color: #333;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fpl-pos-btn.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Players Grid */
+.fpl-players-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.fpl-player-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.fpl-player-card:hover {
+  border-color: var(--color-primary);
+}
+
+.fpl-player-card.selected {
+  background: rgba(0, 214, 100, 0.2);
+  border-color: var(--color-primary);
+}
+
+.fpl-player-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fpl-player-card .player-mini-jersey {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--spacing-xs);
+  background: #fff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.fpl-player-card .player-card-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fpl-player-card .player-card-price {
+  font-size: 0.7rem;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Save Area */
+.fpl-save-area {
+  padding: var(--spacing-md) 0;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* List View */
+.fpl-list-view {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+}
+
+/* ===================================
+   MOBILE RESPONSIVENESS
+   =================================== */
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-md);
+  }
+
+  /* Main Tabs Mobile */
+  .main-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: var(--spacing-sm);
+  }
+
+  .main-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .main-tab {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  /* Fantasy Tabs Mobile */
+  .fantasy-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .fantasy-tab {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  /* FPL Stats Bar Mobile */
+  .fpl-stats-bar {
+    padding: var(--spacing-sm);
+  }
+
+  .fpl-stat.main .fpl-stat-value {
+    font-size: 1.5rem;
+  }
+
+  .fpl-stat-value {
+    font-size: 1rem;
+  }
+
+  /* Pitch Mobile */
+  .pitch-field {
+    padding: var(--spacing-md);
+    min-height: 200px;
+  }
+
+  .pitch-player-slot {
+    width: 80px;
+  }
+
+  .pitch-player-slot .player-jersey {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+  }
+
+  .player-slot-name {
+    font-size: 0.6rem;
+  }
+
+  /* Players Grid Mobile */
+  .fpl-players-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Fantasy Results Mobile */
+  .fantasy-result-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .result-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  /* Cards Mobile */
+  .card {
+    padding: var(--spacing-md);
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+  }
+
+  .card-title {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+
+  /* Extra small screens */
+  .fpl-players-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fpl-toggle-btn {
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .fpl-pos-btn {
+    font-size: 0.7rem;
+    padding: var(--spacing-xs);
+  }
+
+  .pitch-row {
+    gap: var(--spacing-sm);
+  }
+
+  .pitch-player-slot {
+    width: 70px;
+  }
+
+  .pitch-player-slot .player-jersey {
+    width: 45px;
+    height: 45px;
+  }
+}
+
+/* Slot Action Buttons */
+.player-slot-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  justify-content: center;
+}
+
+.slot-action-btn {
+  width: 28px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.7rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+}
+
+.slot-action-btn:hover {
+  transform: scale(1.1);
+}
+
+.slot-action-btn.is-captain {
+  background: #ffd700;
+  cursor: default;
+}
+
+.slot-action-btn.remove {
+  background: rgba(255, 68, 68, 0.9);
+  color: white;
+}
+
+.slot-action-btn.remove:hover {
+  background: #ff4444;
+}
+
+/* List View Styles */
+.list-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.list-player-row.captain {
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.list-player-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.list-player-emoji {
+  font-size: 1.2rem;
+}
+
+.list-player-name {
+  font-weight: 600;
+}
+
+.list-player-pos {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.list-player-price {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.captain-badge {
+  width: 24px;
+  height: 24px;
+  background: #ffd700;
+  color: #333;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  color: var(--text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.empty-state h3 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.empty-state p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Leaderboard Clickable Rows */
+.leaderboard-row.clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.leaderboard-row.clickable:hover {
+  background: rgba(0, 214, 100, 0.1);
+}
+
+.view-hint {
+  margin-left: var(--spacing-xs);
+  opacity: 0.5;
+}
+
+.leaderboard-row.clickable:hover .view-hint {
+  opacity: 1;
+}
+
+/* Team View Modal Content */
+.team-view-content {
+  padding: var(--spacing-md);
+}
+
+.team-view-player {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.team-view-player.captain {
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid #ffd700;
+}
+
+.team-view-player .player-emoji {
+  font-size: 1.5rem;
+}
+
+.team-view-player .player-info {
+  flex: 1;
+}
+
+.team-view-player .player-name {
+  font-weight: 600;
+}
+
+.team-view-player .player-pos {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.team-view-player .captain-badge {
+  margin-left: auto;
+}

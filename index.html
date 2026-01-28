@@ -35,6 +35,7 @@
             <button class="main-tab active" data-tab="table">Турнирная Таблица</button>
             <button class="main-tab" data-tab="matches">Матчи</button>
             <button class="main-tab" data-tab="stats">Статистика</button>
+            <button class="main-tab" data-tab="fantasy">Fantasy</button>
         </div>
 
         <!-- TAB CONTENT: LEAGUE TABLE -->
@@ -122,6 +123,167 @@
                     </table>
                 </div>
             </section>
+        </div>
+
+        <!-- TAB CONTENT: FANTASY FOOTBALL -->
+        <div id="tab-fantasy" class="tab-content">
+            <!-- Fantasy Sub-tabs -->
+            <div class="fantasy-tabs">
+                <button class="fantasy-tab active" data-fantasy-tab="myteam">Моя Команда</button>
+                <button class="fantasy-tab" data-fantasy-tab="results">Результаты</button>
+                <button class="fantasy-tab" data-fantasy-tab="leaderboard">Лидеры</button>
+            </div>
+
+            <!-- MY TEAM TAB -->
+            <div id="fantasy-myteam" class="fantasy-content active">
+
+                <!-- FPL Header with Gameweek -->
+                <div class="fpl-header">
+                    <button class="fpl-nav-btn" id="prevGameweek">‹</button>
+                    <h3 class="fpl-gameweek">Тур 3</h3>
+                    <button class="fpl-nav-btn" id="nextGameweek">›</button>
+                </div>
+
+                <!-- Squad/List Toggle -->
+                <div class="fpl-toggle">
+                    <button class="fpl-toggle-btn active" data-view="squad">Поле</button>
+                    <button class="fpl-toggle-btn" data-view="list">Список</button>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="fpl-stats-bar">
+                    <div class="fpl-stat">
+                        <span class="fpl-stat-value">—</span>
+                        <span class="fpl-stat-label">Средний</span>
+                    </div>
+                    <div class="fpl-stat main">
+                        <span class="fpl-stat-value" id="fplTotalPoints">—</span>
+                        <span class="fpl-stat-label">Очков</span>
+                    </div>
+                    <div class="fpl-stat">
+                        <span class="fpl-stat-value">—</span>
+                        <span class="fpl-stat-label">Лучший →</span>
+                    </div>
+                </div>
+
+                <!-- Manager Name (shown if not set) -->
+                <div id="managerNameContainer" class="fpl-manager-name">
+                    <label for="managerName">👤 Введите ваш ник:</label>
+                    <input type="text" id="managerName" placeholder="Например: Nach4s" maxlength="20">
+                    <button id="saveManagerName" class="btn-save-name">Сохранить</button>
+                </div>
+
+                <!-- Saved Manager Name (shown after save) -->
+                <div id="savedManagerName" class="fpl-manager-saved hidden">
+                    <span>👤 Менеджер: —</span>
+                    <button id="editManagerName" class="btn-edit-name">✏️</button>
+                </div>
+
+                <!-- Budget Bar -->
+                <div class="fpl-budget-bar">
+                    <span class="budget-text">💰 <span id="fantasyBudgetRemaining">18.0</span> / 18.0 млн</span>
+                    <div class="budget-progress">
+                        <div id="fantasyBudgetBar" class="budget-progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Deadline Timer -->
+                <div id="fantasyDeadline" class="fpl-deadline">
+                    <span id="fantasyDeadlineText">⏰ Дедлайн: Пятница 09:50</span>
+                </div>
+
+                <!-- PITCH VIEW -->
+                <div id="fplPitchView" class="fpl-pitch">
+                    <div class="pitch-field">
+                        <!-- Player Slots on Pitch -->
+                        <div id="fantasySelectedPlayers" class="pitch-formation">
+                            <div class="pitch-row">
+                                <div class="pitch-player-slot empty" data-slot="0">
+                                    <div class="player-jersey">+</div>
+                                    <div class="player-slot-name">Игрок 1</div>
+                                    <div class="player-slot-points">—</div>
+                                </div>
+                            </div>
+                            <div class="pitch-row">
+                                <div class="pitch-player-slot empty" data-slot="1">
+                                    <div class="player-jersey">+</div>
+                                    <div class="player-slot-name">Игрок 2</div>
+                                    <div class="player-slot-points">—</div>
+                                </div>
+                                <div class="pitch-player-slot empty" data-slot="2">
+                                    <div class="player-jersey">+</div>
+                                    <div class="player-slot-name">Игрок 3</div>
+                                    <div class="player-slot-points">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIST VIEW (hidden by default) -->
+                <div id="fplListView" class="fpl-list-view hidden">
+                    <div id="fantasyListPlayers" class="fantasy-list-players">
+                        <!-- Will be rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Position Filter Tabs -->
+                <div class="fpl-position-tabs">
+                    <button class="fpl-pos-btn active" data-position="ALL">ВСЕ</button>
+                    <button class="fpl-pos-btn" data-position="GK">GK</button>
+                    <button class="fpl-pos-btn" data-position="DEF">DEF</button>
+                    <button class="fpl-pos-btn" data-position="MID">MID</button>
+                    <button class="fpl-pos-btn" data-position="FWD">FWD</button>
+                </div>
+
+                <!-- Available Players Grid -->
+                <div id="fantasyPlayersList" class="fpl-players-grid">
+                    <!-- Players will be rendered here by JS -->
+                </div>
+
+                <!-- Save Button -->
+                <div class="fpl-save-area">
+                    <button id="saveFantasyTeam" class="btn btn-primary btn-block" disabled>
+                        💾 Сохранить Команду
+                    </button>
+                </div>
+            </div>
+
+            <!-- RESULTS TAB -->
+            <div id="fantasy-results" class="fantasy-content">
+                <section class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 Результаты Тура</h2>
+                    </div>
+                    <div id="fantasyResults" class="fantasy-results-list">
+                        <!-- Results will be rendered here by JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- LEADERBOARD TAB -->
+            <div id="fantasy-leaderboard" class="fantasy-content">
+                <section class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🏆 Таблица Лидеров</h2>
+                    </div>
+                    <div class="league-table-wrapper">
+                        <table class="league-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Менеджер</th>
+                                    <th class="text-center">Очки Тура</th>
+                                    <th class="text-center">Всего</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fantasyLeaderboard">
+                                <!-- Leaderboard rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </div>
     </main>
 
@@ -293,6 +455,22 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="closeMatchDetails">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEAM VIEW MODAL (for viewing others' squads) -->
+    <div class="modal" id="teamViewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Состав: <span id="viewManagerName">Менеджер</span></h3>
+                <button class="modal-close" onclick="closeModal('teamViewModal')">&times;</button>
+            </div>
+            <div id="viewTeamSquad" class="team-view-content">
+                <!-- Team squad will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('teamViewModal')">Закрыть</button>
             </div>
         </div>
     </div>

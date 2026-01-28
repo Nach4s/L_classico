@@ -13,7 +13,7 @@ const VOTING_DURATION_MS = 24 * 60 * 60 * 1000;
 // Allowed players for voting
 const ALLOWED_PLAYERS = [
     "Мансур Ш.", "Даулет Е.", "Санжар А.", "Айбек А.", "Алишер А.",
-    "Шынгыс Т.", "Асан Т.", "Димаш А.", "Акылбек А.", "Ерасыл К.", "Данияр А."
+    "Шынгыс Т.", "Асан Т.", "Димаш А.", "Акылбек А.", "Ерасыл К.", "Данияр А.", "Хамид Т."
 ];
 
 // === DATA STRUCTURES ===
@@ -1635,3 +1635,913 @@ window.openVotingModal = openVotingModal;
 window.showMatchDetails = showMatchDetails;
 window.resetVoting = resetVoting;
 window.forceEndVoting = forceEndVoting;
+
+// ===================================
+// FANTASY FOOTBALL MODULE
+// El Clasico Fantasy System
+// ===================================
+
+// Fantasy Players Data
+const FANTASY_PLAYERS = [
+    { id: 2, name: "Мансур Ш.", position: "FWD", price: 6.5 },
+    { id: 3, name: "Даулет Е.", position: "MID", price: 7.0 },
+    { id: 4, name: "Санжар А.", position: "MID", price: 7.0 },
+    { id: 5, name: "Айбек А.", position: "FWD", price: 6.5 },
+    { id: 6, name: "Алишер А.", position: "DEF", price: 3.0 },
+    { id: 7, name: "Шынгыс Т.", position: "FWD", price: 6.0 },
+    { id: 8, name: "Асан Т.", position: "DEF", price: 6.0 },
+    { id: 9, name: "Димаш А.", position: "GK", price: 2.5 },
+    { id: 10, name: "Акылбек А.", position: "FWD", price: 9.0 },
+    { id: 11, name: "Ерасыл К.", position: "FWD", price: 7.5 },
+    { id: 12, name: "Данияр А.", position: "MID", price: 5.5 },
+    { id: 13, name: "Хамид Т.", position: "DEF", price: 4.0 }
+];
+
+// Fantasy Configuration
+const FANTASY_CONFIG = {
+    maxPlayers: 3,
+    budget: 18.0,
+    deadlineDay: 5, // Friday (0 = Sunday, 5 = Friday)
+    deadlineHour: 9,
+    deadlineMinute: 50
+};
+
+// Fantasy State
+let fantasyTeam = {
+    players: [], // Array of player IDs
+    captainId: null,
+    managerName: '' // User's nickname
+};
+let fantasyCurrentFilter = 'ALL';
+
+// ===================================
+// FANTASY INITIALIZATION
+// ===================================
+
+function initFantasy() {
+    // Load saved team from localStorage/Firebase
+    loadFantasyTeam();
+
+    // Load manager name
+    loadManagerName();
+
+    // Setup Fantasy Tab Navigation
+    setupFantasyTabs();
+
+    // Setup Position Filter (FPL-style)
+    setupFantasyFilter();
+
+    // Setup Squad/List Toggle
+    setupFPLToggle();
+
+    // Setup Manager Name Save
+    setupManagerName();
+
+    // Initial Render
+    renderFantasyPlayersList();
+    renderSelectedTeam();
+    updateFantasyBudget();
+    updateDeadlineDisplay();
+
+    // Update deadline every minute
+    setInterval(updateDeadlineDisplay, 60000);
+}
+
+// Load Manager Name
+function loadManagerName() {
+    const saved = localStorage.getItem('fantasyManagerName');
+    const nameContainer = document.getElementById('managerNameContainer');
+    const savedNameDisplay = document.getElementById('savedManagerName');
+
+    if (saved) {
+        fantasyTeam.managerName = saved;
+        // Hide input, show saved name
+        if (nameContainer) nameContainer.classList.add('hidden');
+        if (savedNameDisplay) {
+            const spanEl = savedNameDisplay.querySelector('span');
+            if (spanEl) spanEl.textContent = `👤 Менеджер: ${saved}`;
+            savedNameDisplay.classList.remove('hidden');
+        }
+    } else {
+        // Show input for first-time users
+        if (nameContainer) nameContainer.classList.remove('hidden');
+        if (savedNameDisplay) savedNameDisplay.classList.add('hidden');
+    }
+}
+
+// Setup Manager Name
+function setupManagerName() {
+    const input = document.getElementById('managerName');
+    const saveBtn = document.getElementById('saveManagerName');
+    const nameContainer = document.getElementById('managerNameContainer');
+    const savedNameDisplay = document.getElementById('savedManagerName');
+    const editBtn = document.getElementById('editManagerName');
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const name = input?.value.trim();
+            if (name) {
+                fantasyTeam.managerName = name;
+                localStorage.setItem('fantasyManagerName', name);
+                showAlert(`Имя менеджера сохранено: ${name}`, 'success');
+
+                // Hide input, show saved name
+                if (nameContainer) nameContainer.classList.add('hidden');
+                if (savedNameDisplay) {
+                    const spanEl = savedNameDisplay.querySelector('span');
+                    if (spanEl) spanEl.textContent = `👤 Менеджер: ${name}`;
+                    savedNameDisplay.classList.remove('hidden');
+                }
+            } else {
+                showAlert('Введите имя менеджера', 'error');
+            }
+        });
+    }
+
+    // Edit button to change name
+    if (editBtn) {
+        editBtn.addEventListener('click', () => {
+            if (nameContainer) nameContainer.classList.remove('hidden');
+            if (savedNameDisplay) savedNameDisplay.classList.add('hidden');
+            if (input) input.focus();
+        });
+    }
+
+    // Also save on Enter key
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveBtn?.click();
+            }
+        });
+    }
+}
+
+// Setup Fantasy Sub-tabs
+function setupFantasyTabs() {
+    document.querySelectorAll('.fantasy-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.fantasyTab;
+
+            // Update tab buttons
+            document.querySelectorAll('.fantasy-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.fantasy-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`fantasy-${targetTab}`).classList.add('active');
+
+            // Render content if needed
+            if (targetTab === 'results') {
+                renderFantasyResults();
+            } else if (targetTab === 'leaderboard') {
+                renderFantasyLeaderboard();
+            }
+        });
+    });
+
+    // Save button
+    const saveBtn = document.getElementById('saveFantasyTeam');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveFantasyTeam);
+    }
+}
+
+// Setup Position Filter (FPL-style tabs)
+function setupFantasyFilter() {
+    document.querySelectorAll('.fpl-pos-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            fantasyCurrentFilter = btn.dataset.position;
+
+            document.querySelectorAll('.fpl-pos-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            renderFantasyPlayersList();
+        });
+    });
+}
+
+// Setup Squad/List Toggle
+function setupFPLToggle() {
+    document.querySelectorAll('.fpl-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const view = btn.dataset.view;
+
+            // Update toggle buttons
+            document.querySelectorAll('.fpl-toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Show/hide views
+            const pitchView = document.getElementById('fplPitchView');
+            const listView = document.getElementById('fplListView');
+
+            if (view === 'squad') {
+                pitchView?.classList.remove('hidden');
+                listView?.classList.add('hidden');
+            } else {
+                pitchView?.classList.add('hidden');
+                listView?.classList.remove('hidden');
+                renderListView();
+            }
+        });
+    });
+}
+
+// Render List View (alternative to pitch)
+function renderListView() {
+    const container = document.getElementById('fantasyListPlayers');
+    if (!container) return;
+
+    container.innerHTML = fantasyTeam.players.map((playerId, index) => {
+        const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+        if (!player) return '';
+
+        const isCaptain = fantasyTeam.captainId === playerId;
+
+        return `
+            <div class="list-player-row ${isCaptain ? 'captain' : ''}">
+                <div class="list-player-info">
+                    <span class="list-player-emoji">${getPositionEmoji(player.position)}</span>
+                    <span class="list-player-name">${player.name}</span>
+                    <span class="list-player-pos">${player.position}</span>
+                </div>
+                <div class="list-player-price">${player.price.toFixed(1)}M</div>
+                ${isCaptain ? '<span class="captain-badge">C</span>' : ''}
+            </div>
+        `;
+    }).join('') || '<p class="text-muted text-center">Выберите игроков</p>';
+}
+
+// ===================================
+// DEADLINE CHECK
+// ===================================
+
+function checkTransferDeadline() {
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+
+    // Check if it's Friday 09:50 or later until end of day
+    if (day === FANTASY_CONFIG.deadlineDay) {
+        if (hour > FANTASY_CONFIG.deadlineHour ||
+            (hour === FANTASY_CONFIG.deadlineHour && minute >= FANTASY_CONFIG.deadlineMinute)) {
+            return true; // Transfers locked
+        }
+    }
+
+    return false; // Transfers open
+}
+
+function updateDeadlineDisplay() {
+    const deadlineEl = document.getElementById('fantasyDeadline');
+    const deadlineTextEl = document.getElementById('fantasyDeadlineText');
+
+    if (!deadlineEl || !deadlineTextEl) return;
+
+    const isLocked = checkTransferDeadline();
+
+    if (isLocked) {
+        deadlineEl.classList.add('locked');
+        deadlineTextEl.textContent = '🔒 Трансферы закрыты до следующей недели';
+    } else {
+        deadlineEl.classList.remove('locked');
+        const timeUntil = getTimeUntilDeadline();
+        deadlineTextEl.textContent = `Дедлайн: Пятница 09:50 (осталось ${timeUntil})`;
+    }
+
+    // Update save button state
+    updateSaveButtonState();
+}
+
+function getTimeUntilDeadline() {
+    const now = new Date();
+    const deadline = getNextDeadline();
+    const diff = deadline - now;
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) {
+        return `${days}д ${hours}ч`;
+    }
+    return `${hours}ч ${minutes}мин`;
+}
+
+function getNextDeadline() {
+    const now = new Date();
+    const deadline = new Date(now);
+
+    // Find next Friday
+    const daysUntilFriday = (FANTASY_CONFIG.deadlineDay - now.getDay() + 7) % 7;
+    deadline.setDate(deadline.getDate() + (daysUntilFriday === 0 ? 7 : daysUntilFriday));
+    deadline.setHours(FANTASY_CONFIG.deadlineHour, FANTASY_CONFIG.deadlineMinute, 0, 0);
+
+    // If deadline is in the past today, move to next week
+    if (deadline <= now) {
+        deadline.setDate(deadline.getDate() + 7);
+    }
+
+    return deadline;
+}
+
+// ===================================
+// TEAM SELECTION
+// ===================================
+
+function selectFantasyPlayer(playerId) {
+    if (checkTransferDeadline()) {
+        showAlert('Трансферы закрыты!', 'error');
+        return;
+    }
+
+    const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+    if (!player) return;
+
+    // Check if already selected
+    if (fantasyTeam.players.includes(playerId)) {
+        removeFantasyPlayer(playerId);
+        return;
+    }
+
+    // Check max players
+    if (fantasyTeam.players.length >= FANTASY_CONFIG.maxPlayers) {
+        showAlert(`Максимум ${FANTASY_CONFIG.maxPlayers} игрока!`, 'error');
+        return;
+    }
+
+    // Check budget
+    const currentSpent = calculateSpentBudget();
+    if (currentSpent + player.price > FANTASY_CONFIG.budget) {
+        showAlert('Недостаточно бюджета!', 'error');
+        return;
+    }
+
+    // Add player
+    fantasyTeam.players.push(playerId);
+
+    // Set first player as captain by default
+    if (fantasyTeam.players.length === 1) {
+        fantasyTeam.captainId = playerId;
+    }
+
+    // Update UI
+    renderFantasyPlayersList();
+    renderSelectedTeam();
+    updateFantasyBudget();
+    updateSaveButtonState();
+}
+
+function removeFantasyPlayer(playerId) {
+    if (checkTransferDeadline()) {
+        showAlert('Трансферы закрыты!', 'error');
+        return;
+    }
+
+    fantasyTeam.players = fantasyTeam.players.filter(id => id !== playerId);
+
+    // Reset captain if removed
+    if (fantasyTeam.captainId === playerId) {
+        fantasyTeam.captainId = fantasyTeam.players[0] || null;
+    }
+
+    renderFantasyPlayersList();
+    renderSelectedTeam();
+    updateFantasyBudget();
+    updateSaveButtonState();
+}
+
+function setCaptain(playerId) {
+    if (!fantasyTeam.players.includes(playerId)) return;
+
+    fantasyTeam.captainId = playerId;
+    renderSelectedTeam();
+}
+
+function calculateSpentBudget() {
+    return fantasyTeam.players.reduce((total, playerId) => {
+        const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+        return total + (player ? player.price : 0);
+    }, 0);
+}
+
+// ===================================
+// FANTASY UI RENDERING
+// ===================================
+
+function renderFantasyPlayersList() {
+    const container = document.getElementById('fantasyPlayersList');
+    if (!container) return;
+
+    let filteredPlayers = FANTASY_PLAYERS;
+
+    if (fantasyCurrentFilter !== 'ALL') {
+        filteredPlayers = FANTASY_PLAYERS.filter(p => p.position === fantasyCurrentFilter);
+    }
+
+    // Sort by price descending
+    filteredPlayers = [...filteredPlayers].sort((a, b) => b.price - a.price);
+
+    container.innerHTML = filteredPlayers.map(player => {
+        const isSelected = fantasyTeam.players.includes(player.id);
+        const canAfford = calculateSpentBudget() + player.price <= FANTASY_CONFIG.budget || isSelected;
+        const teamFull = fantasyTeam.players.length >= FANTASY_CONFIG.maxPlayers && !isSelected;
+        const isDisabled = !canAfford || teamFull;
+
+        return `
+            <div class="fpl-player-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
+                 onclick="${isDisabled && !isSelected ? '' : `selectFantasyPlayer(${player.id})`}">
+                <div class="player-mini-jersey">
+                    ${getPositionEmoji(player.position)}
+                </div>
+                <div class="player-card-name">${player.name}</div>
+                <div class="player-card-price">${player.price.toFixed(1)}M</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getPositionEmoji(position) {
+    const emojis = {
+        'GK': '🧤',
+        'DEF': '🛡️',
+        'MID': '⚡',
+        'FWD': '⚽'
+    };
+    return emojis[position] || '👤';
+}
+
+function renderSelectedTeam() {
+    const container = document.getElementById('fantasySelectedPlayers');
+    if (!container) return;
+
+    // Generate pitch-style rows
+    let row1 = ''; // First player
+    let row2 = ''; // Second and third players
+
+    for (let i = 0; i < FANTASY_CONFIG.maxPlayers; i++) {
+        const playerId = fantasyTeam.players[i];
+        let slotHtml = '';
+
+        if (playerId) {
+            const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+            const isCaptain = fantasyTeam.captainId === playerId;
+
+            slotHtml = `
+                <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}" data-slot="${i}">
+                    <div class="player-jersey">${getPositionEmoji(player.position)}</div>
+                    <div class="player-slot-name">${player.name}</div>
+                    <div class="player-slot-actions">
+                        <button class="slot-action-btn ${isCaptain ? 'is-captain' : ''}" 
+                                onclick="setCaptain(${playerId})" 
+                                ${isCaptain ? 'disabled' : ''}>
+                            ${isCaptain ? '👑' : 'C'}
+                        </button>
+                        <button class="slot-action-btn remove" onclick="removeFantasyPlayer(${playerId})">✕</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            slotHtml = `
+                <div class="pitch-player-slot empty" data-slot="${i}">
+                    <div class="player-jersey">+</div>
+                    <div class="player-slot-name">Игрок ${i + 1}</div>
+                </div>
+            `;
+        }
+
+        if (i === 0) {
+            row1 = slotHtml;
+        } else {
+            row2 += slotHtml;
+        }
+    }
+
+    container.innerHTML = `
+        <div class="pitch-row">${row1}</div>
+        <div class="pitch-row">${row2}</div>
+    `;
+}
+
+function updateFantasyBudget() {
+    const budgetValueEl = document.getElementById('fantasyBudgetRemaining');
+    const budgetBarEl = document.getElementById('fantasyBudgetBar');
+
+    if (!budgetValueEl || !budgetBarEl) return;
+
+    const spent = calculateSpentBudget();
+    const remaining = FANTASY_CONFIG.budget - spent;
+    const percentage = (spent / FANTASY_CONFIG.budget) * 100;
+
+    budgetValueEl.textContent = remaining.toFixed(1);
+    budgetBarEl.style.width = `${percentage}%`;
+
+    if (remaining < 0) {
+        budgetValueEl.classList.add('over-budget');
+        budgetBarEl.classList.add('over-budget');
+    } else {
+        budgetValueEl.classList.remove('over-budget');
+        budgetBarEl.classList.remove('over-budget');
+    }
+}
+
+function updateSaveButtonState() {
+    const saveBtn = document.getElementById('saveFantasyTeam');
+    if (!saveBtn) return;
+
+    const isValidTeam = fantasyTeam.players.length === FANTASY_CONFIG.maxPlayers;
+    const isWithinBudget = calculateSpentBudget() <= FANTASY_CONFIG.budget;
+    const isNotLocked = !checkTransferDeadline();
+
+    saveBtn.disabled = !(isValidTeam && isWithinBudget && isNotLocked);
+}
+
+// ===================================
+// FANTASY POINT CALCULATION
+// ===================================
+
+/**
+ * Calculate fantasy points for a player
+ * @param {Object} stats - Player statistics { goals: number, assists: number, isMVP: boolean }
+ * @param {number} userRating - Average user rating (1-10)
+ * @param {boolean} isCaptain - Whether the player is captain (x2 multiplier)
+ * @returns {Object} - { total: number, breakdown: { goals, assists, mvp, rating } }
+ */
+function calculateFantasyPoints(stats, userRating, isCaptain = false) {
+    let points = 0;
+    const breakdown = {
+        goals: 0,
+        assists: 0,
+        mvp: 0,
+        rating: 0
+    };
+
+    // Goals: +3 per goal
+    if (stats.goals) {
+        breakdown.goals = stats.goals * 3;
+        points += breakdown.goals;
+    }
+
+    // Assists: +2 per assist
+    if (stats.assists) {
+        breakdown.assists = stats.assists * 2;
+        points += breakdown.assists;
+    }
+
+    // MVP: +3
+    if (stats.isMVP) {
+        breakdown.mvp = 3;
+        points += breakdown.mvp;
+    }
+
+    // Rating Bonus
+    if (userRating >= 9.0) {
+        breakdown.rating = 5;
+    } else if (userRating >= 8.0) {
+        breakdown.rating = 3;
+    } else if (userRating >= 7.0) {
+        breakdown.rating = 1;
+    } else if (userRating < 6.0) {
+        breakdown.rating = -1;
+    }
+    points += breakdown.rating;
+
+    // Captain multiplier (x2)
+    if (isCaptain) {
+        points *= 2;
+    }
+
+    return {
+        total: points,
+        breakdown,
+        isCaptain
+    };
+}
+
+/**
+ * Get rating color class based on FotMob style
+ * @param {number} rating - Rating from 1-10
+ * @returns {string} - CSS class for color
+ */
+function getRatingColorClass(rating) {
+    if (rating >= 9.0) return 'rating-blue';
+    if (rating >= 8.0) return 'rating-green';
+    if (rating >= 6.0) return 'rating-orange';
+    return 'rating-red';
+}
+
+// ===================================
+// FANTASY RESULTS RENDERING
+// ===================================
+
+function renderFantasyResults() {
+    const container = document.getElementById('fantasyResults');
+    if (!container) return;
+
+    // TODO: In production, fetch real match results from Firebase
+    // For now, show empty state - no random demo data
+    const hasMatchResults = false; // This will be true when real match data exists
+
+    if (!hasMatchResults) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h3>Результатов пока нет</h3>
+                <p>Результаты появятся после завершения матча Тура 3</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Real results rendering will go here when match data is available
+    // container.innerHTML = realResults.map(result => ...).join('');
+}
+
+// ===================================
+// FANTASY LEADERBOARD
+// ===================================
+
+async function renderFantasyLeaderboard() {
+    const container = document.getElementById('fantasyLeaderboard');
+    if (!container) return;
+
+    // Show loading state
+    container.innerHTML = `
+        <tr>
+            <td colspan="4" class="text-center" style="padding: 1rem;">
+                Загрузка...
+            </td>
+        </tr>
+    `;
+
+    // This flag would be set based on match completion status
+    const isRoundComplete = false; // Set to true after match is played
+
+    try {
+        // Fetch all teams from Firebase
+        const snapshot = await db.collection('fantasyTeams').get();
+
+        const leaderboardData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            leaderboardData.push({
+                id: doc.id,
+                manager: data.managerName || data.userEmail?.split('@')[0] || 'Аноним',
+                players: data.players || [],
+                captainId: data.captainId,
+                weekPoints: data.weekPoints || 0, // Will be calculated after match
+                totalPoints: data.totalPoints || 0
+            });
+        });
+
+        // Sort by total points
+        leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+        if (leaderboardData.length === 0) {
+            container.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
+                        <div class="empty-state-icon">🏆</div>
+                        <p>Таблица лидеров пока пуста.</p>
+                        <p style="font-size: 0.8rem;">Сохраните свою команду, чтобы участвовать!</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const myName = fantasyTeam.managerName || currentUser?.email?.split('@')[0] || 'Вы';
+
+        container.innerHTML = leaderboardData.map((entry, index) => `
+            <tr class="leaderboard-row ${entry.manager === myName ? 'highlight-row' : ''} ${isRoundComplete ? 'clickable' : ''}" 
+                ${isRoundComplete ? `onclick="viewTeamSquad('${entry.id}', '${entry.manager}')"` : ''}>
+                <td>${index + 1}</td>
+                <td class="team-name">
+                    ${entry.manager}
+                    ${isRoundComplete ? '<span class="view-hint">👁</span>' : ''}
+                </td>
+                <td class="text-center">${entry.weekPoints}</td>
+                <td class="text-center points">${entry.totalPoints}</td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        container.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
+                    Ошибка загрузки. Попробуйте позже.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// View another manager's team squad (only after round is complete)
+window.viewTeamSquad = async function (managerId, managerName) {
+    const modal = document.getElementById('teamViewModal');
+    if (!modal) return;
+
+    document.getElementById('viewManagerName').textContent = managerName;
+    document.getElementById('viewTeamSquad').innerHTML = `
+        <div class="empty-state">
+            <p>Загрузка состава...</p>
+        </div>
+    `;
+    openModal('teamViewModal');
+
+    try {
+        // Fetch team data from Firebase
+        const doc = await db.collection('fantasyTeams').doc(managerId).get();
+
+        if (!doc.exists) {
+            document.getElementById('viewTeamSquad').innerHTML = `
+                <div class="empty-state">
+                    <p>Команда не найдена</p>
+                </div>
+            `;
+            return;
+        }
+
+        const teamData = doc.data();
+        const players = teamData.players || [];
+        const captainId = teamData.captainId;
+
+        // Render team squad
+        const squadHtml = players.map(playerId => {
+            const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+            if (!player) return '';
+
+            const isCaptain = captainId === playerId;
+            return `
+                <div class="team-view-player ${isCaptain ? 'captain' : ''}">
+                    <span class="player-emoji">${getPositionEmoji(player.position)}</span>
+                    <div class="player-info">
+                        <div class="player-name">${player.name}</div>
+                        <div class="player-pos">${player.position}</div>
+                    </div>
+                    ${isCaptain ? '<span class="captain-badge">C</span>' : ''}
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('viewTeamSquad').innerHTML = squadHtml || '<p class="text-center text-muted">Команда пуста</p>';
+
+    } catch (error) {
+        console.error('Error loading team:', error);
+        document.getElementById('viewTeamSquad').innerHTML = `
+            <div class="empty-state">
+                <p>Ошибка загрузки команды</p>
+            </div>
+        `;
+    }
+};
+
+// ===================================
+// FANTASY SAVE/LOAD
+// ===================================
+
+async function saveFantasyTeam() {
+    if (!currentUser) {
+        showAlert('Войдите для сохранения команды', 'error');
+        openModal('authModal');
+        return;
+    }
+
+    if (checkTransferDeadline()) {
+        showAlert('Трансферы закрыты!', 'error');
+        return;
+    }
+
+    if (fantasyTeam.players.length !== FANTASY_CONFIG.maxPlayers) {
+        showAlert(`Выберите ${FANTASY_CONFIG.maxPlayers} игроков`, 'error');
+        return;
+    }
+
+    if (calculateSpentBudget() > FANTASY_CONFIG.budget) {
+        showAlert('Превышен бюджет!', 'error');
+        return;
+    }
+
+    try {
+        await db.collection('fantasyTeams').doc(currentUser.uid).set({
+            players: fantasyTeam.players,
+            captainId: fantasyTeam.captainId,
+            managerName: fantasyTeam.managerName || currentUser.email.split('@')[0],
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            userEmail: currentUser.email
+        });
+
+        showAlert('Команда сохранена!', 'success');
+    } catch (error) {
+        console.error('Error saving fantasy team:', error);
+        showAlert('Ошибка сохранения', 'error');
+    }
+}
+
+async function loadFantasyTeam() {
+    // Try localStorage first
+    const savedTeam = localStorage.getItem('fantasyTeam');
+    if (savedTeam) {
+        try {
+            const parsed = JSON.parse(savedTeam);
+            fantasyTeam.players = parsed.players || [];
+            fantasyTeam.captainId = parsed.captainId || null;
+        } catch (e) {
+            console.error('Error parsing saved team:', e);
+        }
+    }
+
+    // If user is logged in, try Firebase
+    if (currentUser && typeof db !== 'undefined') {
+        try {
+            const doc = await db.collection('fantasyTeams').doc(currentUser.uid).get();
+            if (doc.exists) {
+                const data = doc.data();
+                fantasyTeam.players = data.players || [];
+                fantasyTeam.captainId = data.captainId || null;
+            }
+        } catch (error) {
+            console.error('Error loading fantasy team from Firebase:', error);
+        }
+    }
+
+    // Save to localStorage for offline access
+    localStorage.setItem('fantasyTeam', JSON.stringify(fantasyTeam));
+}
+
+// Make fantasy functions globally accessible
+window.selectFantasyPlayer = selectFantasyPlayer;
+window.removeFantasyPlayer = removeFantasyPlayer;
+window.setCaptain = setCaptain;
+window.openRatingModal = openRatingModal; // Expose for testing/admin
+
+// ===================================
+// RATING SYSTEM UI
+// ===================================
+
+function openRatingModal() {
+    renderRatingPlayers();
+    openModal('ratingModal');
+}
+
+function renderRatingPlayers() {
+    const container = document.getElementById('ratingPlayersList');
+    if (!container) return;
+
+    // Use FANTASY_PLAYERS as the source for now
+    container.innerHTML = FANTASY_PLAYERS.map(player => `
+        <div class="rating-player-row">
+            <div class="rating-player-info">
+                <span class="rating-player-name">${player.name}</span>
+                <span class="rating-player-pos">${player.position}</span>
+            </div>
+            <div class="rating-control">
+                <div id="rating-val-${player.id}" class="rating-value-display rating-orange">6.0</div>
+                <input type="range" min="1.0" max="10.0" step="0.1" value="6.0" 
+                       class="rating-slider" 
+                       oninput="updateRatingColor(this.value, ${player.id})">
+            </div>
+        </div>
+    `).join('');
+}
+
+window.updateRatingColor = function (value, playerId) {
+    const display = document.getElementById(`rating-val-${playerId}`);
+    const floatVal = parseFloat(value);
+
+    display.textContent = floatVal.toFixed(1);
+
+    // Remove old classes
+    display.classList.remove('rating-blue', 'rating-green', 'rating-orange', 'rating-red');
+
+    // Add new class based on value
+    if (floatVal >= 9.0) display.classList.add('rating-blue');
+    else if (floatVal >= 8.0) display.classList.add('rating-green');
+    else if (floatVal >= 6.0) display.classList.add('rating-orange');
+    else display.classList.add('rating-red');
+};
+
+// Initialize Fantasy when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Delay fantasy init slightly to ensure main app is loaded
+    setTimeout(initFantasy, 100);
+
+    // Rating Modal Events
+    const closeRatingBtn = document.getElementById('closeRatingModal');
+    const cancelRatingBtn = document.getElementById('cancelRating');
+    const submitRatingBtn = document.getElementById('submitRating');
+
+    if (closeRatingBtn) closeRatingBtn.addEventListener('click', () => closeModal('ratingModal'));
+    if (cancelRatingBtn) cancelRatingBtn.addEventListener('click', () => closeModal('ratingModal'));
+
+    if (submitRatingBtn) {
+        submitRatingBtn.addEventListener('click', async () => {
+            // Here we would collect all inputs and send to Firebase
+            // For now just show success
+            showAlert('Спасибо! Ваши оценки приняты.', 'success');
+            closeModal('ratingModal');
+        });
+    }
+});
