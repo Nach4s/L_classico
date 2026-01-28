@@ -1679,32 +1679,37 @@ let fantasyCurrentFilter = 'ALL';
 // ===================================
 
 function initFantasy() {
-    // Load saved team from localStorage/Firebase
-    loadFantasyTeam();
+    try {
+        // Load saved team from localStorage/Firebase
+        loadFantasyTeam();
 
-    // Load manager name
-    loadManagerName();
+        // Load manager name
+        loadManagerName();
 
-    // Setup Fantasy Tab Navigation
-    setupFantasyTabs();
+        // Setup Fantasy Tab Navigation
+        setupFantasyTabs();
 
-    // Setup Position Filter (FPL-style)
-    setupFantasyFilter();
+        // Setup Position Filter (FPL-style)
+        setupFantasyFilter();
 
-    // Setup Squad/List Toggle
-    setupFPLToggle();
+        // Setup Squad/List Toggle
+        setupFPLToggle();
 
-    // Setup Manager Name Save
-    setupManagerName();
+        // Setup Manager Name Save
+        setupManagerName();
 
-    // Initial Render
-    renderFantasyPlayersList();
-    renderSelectedTeam();
-    updateFantasyBudget();
-    updateDeadlineDisplay();
+        // Initial Render
+        renderFantasyPlayersList();
+        renderSelectedTeam();
+        updateFantasyBudget();
+        updateDeadlineDisplay();
 
-    // Update deadline every minute
-    setInterval(updateDeadlineDisplay, 60000);
+        // Update deadline every minute
+        setInterval(updateDeadlineDisplay, 60000);
+    } catch (e) {
+        alert('Ошибка запуска Fantasy: ' + e.message);
+        console.error('Critical Error in initFantasy:', e);
+    }
 }
 
 // Load Manager Name
@@ -2031,17 +2036,16 @@ function calculateSpentBudget() {
 // ===================================
 
 function renderFantasyPlayersList() {
-    const container = document.getElementById('fantasyPlayersList');
+    const container = document.getElementById('fantasyPlayersGrid');
     if (!container) return;
 
     let filteredPlayers = FANTASY_PLAYERS;
-
     if (fantasyCurrentFilter !== 'ALL') {
         filteredPlayers = FANTASY_PLAYERS.filter(p => p.position === fantasyCurrentFilter);
     }
 
     // Sort by price descending
-    filteredPlayers = [...filteredPlayers].sort((a, b) => b.price - a.price);
+    filteredPlayers.sort((a, b) => b.price - a.price);
 
     container.innerHTML = filteredPlayers.map(player => {
         const isSelected = fantasyTeam.players.includes(player.id);
@@ -2052,11 +2056,16 @@ function renderFantasyPlayersList() {
         return `
             <div class="fpl-player-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
                  onclick="${isDisabled && !isSelected ? '' : `selectFantasyPlayer(${player.id})`}">
-                <div class="player-mini-jersey">
-                    ${getPositionEmoji(player.position)}
+                <div class="fpl-card-header">
+                    <span class="fpl-position-badge ${player.position}">${player.position}</span>
+                    <span class="fpl-price-badge">${player.price.toFixed(1)}</span>
                 </div>
-                <div class="player-card-name">${player.name}</div>
-                <div class="player-card-price">${player.price.toFixed(1)}M</div>
+                <div class="fpl-card-body">
+                    <div class="fpl-jersey">👕</div>
+                    <div class="fpl-player-name">${player.name}</div>
+                    <div class="fpl-team-name">L Clasico</div>
+                </div>
+                ${isSelected ? '<div class="fpl-selected-overlay">✔</div>' : ''}
             </div>
         `;
     }).join('');
@@ -2077,7 +2086,7 @@ function renderSelectedTeam() {
     if (!container) return;
 
     // Generate pitch-style rows
-    let row1 = ''; // First player
+    let row1 = ''; // First player (GK usually, but here 1st slot)
     let row2 = ''; // Second and third players
 
     for (let i = 0; i < FANTASY_CONFIG.maxPlayers; i++) {
@@ -2086,36 +2095,43 @@ function renderSelectedTeam() {
 
         if (playerId) {
             const player = FANTASY_PLAYERS.find(p => p.id === playerId);
-            const isCaptain = fantasyTeam.captainId === playerId;
+            if (player) {
+                const isCaptain = fantasyTeam.captainId === playerId;
 
-            slotHtml = `
-                <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}" data-slot="${i}">
-                    <div class="player-jersey">${getPositionEmoji(player.position)}</div>
-                    <div class="player-slot-name">${player.name}</div>
-                    <div class="player-slot-actions">
-                        <button class="slot-action-btn ${isCaptain ? 'is-captain' : ''}" 
-                                onclick="setCaptain(${playerId})" 
-                                ${isCaptain ? 'disabled' : ''}>
-                            ${isCaptain ? '👑' : 'C'}
-                        </button>
-                        <button class="slot-action-btn remove" onclick="removeFantasyPlayer(${playerId})">✕</button>
+                slotHtml = `
+                    <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}">
+                        <div class="player-jersey-icon">👕</div>
+                        <div class="player-slot-name">${player.name}</div>
+                        <div class="player-slot-pos">${player.position}</div>
+                        <div class="player-slot-actions">
+                            <button class="slot-action-btn ${isCaptain ? 'captain-active' : ''}" 
+                                    onclick="event.stopPropagation(); setCaptain(${player.id})" 
+                                    title="Назначить капитаном">
+                                    ${isCaptain ? '👑' : 'C'}
+                            </button>
+                            <button class="slot-action-btn remove" 
+                                    onclick="event.stopPropagation(); removeFantasyPlayer(${player.id})" 
+                                    title="Удалить">
+                                    ✕
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
-        } else {
+                `;
+            }
+        }
+
+        if (!slotHtml) {
             slotHtml = `
-                <div class="pitch-player-slot empty" data-slot="${i}">
+                <div class="pitch-player-slot empty">
                     <div class="player-jersey">+</div>
-                    <div class="player-slot-name">Игрок ${i + 1}</div>
+                    <div class="player-slot-name">Пусто</div>
+                    <div class="player-slot-points">—</div>
                 </div>
             `;
         }
 
-        if (i === 0) {
-            row1 = slotHtml;
-        } else {
-            row2 += slotHtml;
-        }
+        if (i === 0) row1 = slotHtml;
+        else row2 += slotHtml;
     }
 
     container.innerHTML = `
