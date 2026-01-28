@@ -2397,7 +2397,7 @@ body {
 
 /* FPL Header */
 .fpl-header {
-  display: flex;
+  display: flex !important;
   justify-content: center;
   align-items: center;
   gap: var(--spacing-lg);
@@ -2508,6 +2508,19 @@ body {
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   margin-bottom: var(--spacing-sm);
+}
+
+/* Mobile fix for manager name input */
+@media (max-width: 480px) {
+  .fpl-manager-name {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .fpl-manager-name label {
+    margin-bottom: 2px;
+  }
 }
 
 .fpl-manager-name label {
