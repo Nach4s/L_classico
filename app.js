@@ -2098,7 +2098,7 @@ function renderFantasyPlayersList() {
                 <div class="fpl-card-body">
                     <div class="fpl-jersey team-${player.team}">👕</div>
                     <div class="fpl-player-name">${player.name}</div>
-                    <div class="fpl-team-name">Team ${player.team}</div>
+                    <div class="fpl-team-name">${player.team === 'A' ? '1 группа' : '2 группа'}</div>
                 </div>
                 ${isSelected ? '<div class="fpl-selected-overlay">✔</div>' : ''}
             </div>
@@ -2488,11 +2488,41 @@ async function saveFantasyTeam() {
             userEmail: currentUser.email
         });
 
-        showAlert('Команда сохранена!', 'success');
+        // Show success confirmation modal
+        showSaveConfirmation(true, 'Ваша команда успешно сохранена в базе данных!');
     } catch (error) {
         console.error('Error saving fantasy team:', error);
-        showAlert('Ошибка сохранения', 'error');
+        // Show error confirmation modal
+        showSaveConfirmation(false, 'Произошла ошибка при сохранении. Попробуйте ещё раз.');
     }
+}
+
+// Show Save Confirmation Modal
+function showSaveConfirmation(isSuccess, message) {
+    const modal = document.getElementById('saveConfirmModal');
+    const titleEl = document.getElementById('saveConfirmTitle');
+    const iconEl = document.getElementById('saveConfirmIcon');
+    const messageEl = document.getElementById('saveConfirmMessage');
+
+    if (!modal || !titleEl || !iconEl || !messageEl) {
+        // Fallback to showAlert if modal elements not found
+        showAlert(message, isSuccess ? 'success' : 'error');
+        return;
+    }
+
+    if (isSuccess) {
+        modal.classList.remove('error');
+        titleEl.textContent = '✅ Команда сохранена!';
+        iconEl.textContent = '✅';
+        messageEl.textContent = message;
+    } else {
+        modal.classList.add('error');
+        titleEl.textContent = '❌ Ошибка сохранения';
+        iconEl.textContent = '❌';
+        messageEl.textContent = message;
+    }
+
+    openModal('saveConfirmModal');
 }
 
 async function loadFantasyTeam() {

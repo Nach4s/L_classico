@@ -3326,3 +3326,76 @@ body {
 .team-view-player .captain-badge {
   margin-left: auto;
 }
+
+/* ===================================
+   SAVE CONFIRMATION MODAL
+   =================================== */
+
+.modal-content.modal-small {
+  max-width: 360px;
+  text-align: center;
+}
+
+.save-confirm-content {
+  padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.save-confirm-icon {
+  font-size: 4rem;
+  animation: bounceIn 0.5s ease-out;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.save-confirm-content p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+#saveConfirmModal .modal-header {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+#saveConfirmModal .modal-title {
+  color: var(--color-primary);
+  font-size: 1.25rem;
+}
+
+#saveConfirmModal.error .modal-title {
+  color: var(--color-danger);
+}
+
+#saveConfirmModal.error .save-confirm-icon {
+  color: var(--color-danger);
+}
+
+#saveConfirmModal .modal-footer {
+  border-top: none;
+  padding-top: 0;
+  justify-content: center;
+}
+
+#saveConfirmModal .modal-footer .btn {
+  min-width: 120px;
+  flex: none;
+}
