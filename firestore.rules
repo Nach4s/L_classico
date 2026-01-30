@@ -60,4 +60,65 @@ service cloud.firestore {
       // Users can only write their own team
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ===================================
+    // GAMEWEEKS COLLECTION
+    // ===================================
+    match /gameweeks/{gameweekId} {
+      // Everyone can read gameweeks
+      allow read: if true;
+      
+      // Only authenticated users can create/update (admin check on client)
+      allow create, update: if request.auth != null;
+      
+      // No deletion allowed
+      allow delete: if false;
+    }
+
+    // ===================================
+    // MATCH STATS COLLECTION
+    // ===================================
+    match /match_stats/{statId} {
+      // Everyone can read match stats (for leaderboard)
+      allow read: if true;
+      
+      // Only authenticated users can write (admin check on client)
+      allow create, update: if request.auth != null;
+      
+      // No deletion
+      allow delete: if false;
+    }
+
+    // ===================================
+    // PLAYER VOTES COLLECTION
+    // ===================================
+    match /player_votes/{voteId} {
+      // Everyone can read votes (for average calculation)
+      allow read: if true;
+      
+      // Vote creation rules:
+      // 1. User must be authenticated
+      // 2. Vote must include required fields
+      // 3. User can only create votes with their own userId
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['gameweekId', 'playerId', 'userId', 'rating', 'votedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating >= 1.0
+        && request.resource.data.rating <= 10.0;
+      
+      // Votes cannot be updated or deleted
+      allow update, delete: if false;
+    }
+
+    // ===================================
+    // PLAYERS COLLECTION
+    // ===================================
+    match /players/{playerId} {
+      // Everyone can read player data
+      allow read: if true;
+      
+      // Only authenticated users can write (admin check on client)
+      allow write: if request.auth != null;
+    }
+  }
 }

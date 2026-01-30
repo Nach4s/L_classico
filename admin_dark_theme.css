@@ -1,0 +1,424 @@
+/* ===================================
+   ADMIN PANEL - FOTMOB DARK STYLE
+   Minimalist, data-driven design
+   =================================== */
+
+/* Dark theme colors */
+:root {
+    --admin-bg-primary: #1A1A1A;
+    --admin-bg-secondary: #252525;
+    --admin-bg-tertiary: #2F2F2F;
+    --admin-text-primary: #FFFFFF;
+    --admin-text-secondary: #9CA3AF;
+    --admin-text-muted: #6B7280;
+    --admin-accent-green: #00FF88;
+    --admin-accent-green-dim: #00CC6D;
+    --admin-border: #3F3F3F;
+    --admin-error: #EF4444;
+    --admin-warning: #F59E0B;
+}
+
+/* Admin panel container */
+#fantasy-admin {
+    background: var(--admin-bg-primary);
+    min-height: 600px;
+    border-radius: 8px;
+    padding: 0;
+}
+
+.admin-stage {
+    padding: 24px;
+    background: var(--admin-bg-primary);
+    color: var(--admin-text-primary);
+}
+
+.admin-stage h3 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+}
+
+.stage-description {
+    color: var(--admin-text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+    line-height: 1.4;
+}
+
+/* Gameweek selector */
+.gameweek-selector {
+    background: var(--admin-bg-secondary);
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.gameweek-selector h4 {
+    color: var(--admin-text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.create-gameweek-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.create-gameweek-section h4 {
+    color: var(--admin-text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+/* Form controls */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    color: var(--admin-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.form-select,
+.form-control {
+    width: 100%;
+    background: var(--admin-bg-tertiary);
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--admin-text-primary);
+    font-size: 0.95rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: border-color 0.15s;
+}
+
+.form-select:focus,
+.form-control:focus {
+    outline: none;
+    border-color: var(--admin-accent-green);
+    box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+}
+
+.form-select option {
+    background: var(--admin-bg-tertiary);
+    color: var(--admin-text-primary);
+}
+
+/* Player selection grid */
+.players-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.player-selection-item {
+    background: var(--admin-bg-secondary);
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.player-selection-item:hover {
+    background: var(--admin-bg-tertiary);
+    border-color: var(--admin-accent-green-dim);
+}
+
+.player-selection-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--admin-accent-green);
+}
+
+.player-info {
+    flex: 1;
+}
+
+.player-info .player-name {
+    color: var(--admin-text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: block;
+}
+
+.player-info .player-details {
+    color: var(--admin-text-muted);
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+/* Position badges - FotMob style */
+.position-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-left: 6px;
+}
+
+.position-badge.gk {
+    background: #F59E0B;
+    color: #000;
+}
+
+.position-badge.def {
+    background: #3B82F6;
+    color: #FFF;
+}
+
+.position-badge.mid {
+    background: #10B981;
+    color: #FFF;
+}
+
+.position-badge.fwd {
+    background: #EF4444;
+    color: #FFF;
+}
+
+/* Stats input grid (Stage 2) */
+.stats-input-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.stats-player-row {
+    background: var(--admin-bg-secondary);
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+.stats-player-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stats-player-name {
+    color: var(--admin-text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.stats-player-position {
+    color: var(--admin-text-muted);
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+.stats-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stats-input-label {
+    color: var(--admin-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.stats-input-group input[type="number"] {
+    background: var(--admin-bg-tertiary);
+    border: 1px solid var(--admin-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--admin-text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    width: 60px;
+}
+
+.stats-input-group input[type="number"]:focus {
+    outline: none;
+    border-color: var(--admin-accent-green);
+}
+
+.mvp-checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mvp-checkbox-container input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--admin-accent-green);
+}
+
+.mvp-label {
+    color: var(--admin-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Buttons - FotMob minimalist style */
+.btn {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.01em;
+}
+
+.btn-primary {
+    background: var(--admin-accent-green);
+    color: #000;
+}
+
+.btn-primary:hover {
+    background: var(--admin-accent-green-dim);
+    transform: translateY(-1px);
+}
+
+.btn-success {
+    background: #10B981;
+    color: #FFF;
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+.btn-secondary {
+    background: var(--admin-bg-tertiary);
+    color: var(--admin-text-primary);
+    border: 1px solid var(--admin-border);
+}
+
+.btn-secondary:hover {
+    background: var(--admin-bg-secondary);
+    border-color: var(--admin-text-muted);
+}
+
+.btn-large {
+    font-size: 1rem;
+    padding: 14px 24px;
+}
+
+/* Info messages */
+.info-message {
+    background: var(--admin-bg-secondary);
+    border: 1px solid var(--admin-border);
+    border-left: 3px solid var(--admin-accent-green);
+    padding: 12px 16px;
+    border-radius: 6px;
+    color: var(--admin-text-secondary);
+    font-size: 0.9rem;
+    margin: 16px 0;
+}
+
+/* Initialization warning */
+.init-warning {
+    background: var(--admin-bg-secondary);
+    border: 1px solid var(--admin-warning);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    margin: 40px auto;
+    max-width: 600px;
+}
+
+.init-warning h3 {
+    color: var(--admin-warning);
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+}
+
+.init-warning p {
+    color: var(--admin-text-secondary);
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.init-warning button {
+    margin-top: 20px;
+}
+
+/* Stage 3 summary */
+.voting-summary {
+    background: var(--admin-bg-secondary);
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.voting-summary h4 {
+    color: var(--admin-text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+}
+
+.summary-stat-item {
+    background: var(--admin-bg-tertiary);
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.summary-stat-label {
+    color: var(--admin-text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.summary-stat-value {
+    color: var(--admin-text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .players-selection-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-player-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .stats-input-group input[type="number"] {
+        width: 100%;
+    }
+}

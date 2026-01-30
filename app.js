@@ -7,8 +7,7 @@
 // Admin access by email (Firebase Auth)
 const ADMIN_EMAIL = 'tokkozha.s@gmail.com';
 
-// Voting duration in milliseconds (24 hours)
-const VOTING_DURATION_MS = 24 * 60 * 60 * 1000;
+// Voting duration is defined in match_voting.js
 
 // Allowed players for voting
 const ALLOWED_PLAYERS = [
@@ -43,8 +42,8 @@ let teams = [
 ];
 
 let matches = [];
-let isAdminLoggedIn = false;
-let currentUser = null;
+var isAdminLoggedIn = false;
+var currentUser = null;
 let editingMatchId = null;
 let selectedVotePlayer = null;
 let currentVotingMatchId = null;
@@ -77,6 +76,10 @@ function initializeAuth() {
         } else {
             isAdminLoggedIn = false;
         }
+
+        // Make globally accessible
+        window.isAdminLoggedIn = isAdminLoggedIn;
+        window.currentUser = user;
 
         updateAuthUI();
         updateAdminUI();
@@ -1094,6 +1097,9 @@ function renderMatches() {
             <div class="match-details" id="details-${match.id}">
                 ${scorersHTML}
                 ${votingStatus}
+                
+                <!-- Live Rating Block -->
+                <div id="matchVotingContainer_${match.id}" class="match-voting-wrapper"></div>
             </div>
             
             <div class="match-footer">
@@ -1192,6 +1198,14 @@ function toggleMatchDetails(matchId) {
     const detailsElement = document.getElementById(`details-${matchId}`);
     if (detailsElement) {
         detailsElement.classList.toggle('expanded');
+
+        // Load voting block when expanded
+        if (detailsElement.classList.contains('expanded')) {
+            const votingContainer = document.getElementById(`matchVotingContainer_${matchId}`);
+            if (votingContainer && typeof renderMatchVotingBlock === 'function') {
+                renderMatchVotingBlock(matchId, `#matchVotingContainer_${matchId}`);
+            }
+        }
     }
 }
 
@@ -1660,8 +1674,8 @@ const FANTASY_PLAYERS = [
     { id: 13, name: "Хамид Т.", position: "DEF", price: 4.0, team: "B" }
 ];
 
-// Fantasy Configuration
-const FANTASY_CONFIG = {
+// Fantasy Configuration (team building)
+const FANTASY_TEAM_CONFIG = {
     maxPlayers: 3,
     budget: 18.0,
     deadlineDay: 5, // Friday (0 = Sunday, 5 = Friday)

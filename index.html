@@ -6,7 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L Clasico</title>
     <meta name="description" content="Футбольная лига школьного класса - турнирная таблица, матчи и голосование за MVP">
-    <link rel="stylesheet" href="/styles.css?v=1.3">
+    <link rel="stylesheet" href="styles.css?v=1.3">
+    <link rel="stylesheet" href="fantasy_styles.css">
+    <link rel="stylesheet" href="admin_dark_theme.css">
+    <link rel="stylesheet" href="match_voting_styles.css">
+    <link rel="stylesheet" href="voting_styles.css?v=2.0">
 </head>
 
 <body>
@@ -130,6 +134,9 @@
             <!-- Fantasy Sub-tabs -->
             <div class="fantasy-tabs">
                 <button class="fantasy-tab active" data-fantasy-tab="myteam">Моя Команда</button>
+                <button class="fantasy-tab" data-fantasy-tab="voting">Голосование</button>
+                <button class="fantasy-tab" data-fantasy-tab="admin" id="fantasyAdminTab" style="display: none;">⚙️
+                    Админ</button>
                 <button class="fantasy-tab" data-fantasy-tab="results">Результаты</button>
                 <button class="fantasy-tab" data-fantasy-tab="leaderboard">Лидеры</button>
             </div>
@@ -247,6 +254,30 @@
                         💾 Сохранить Команду
                     </button>
                 </div>
+            </div>
+
+            <!-- VOTING TAB -->
+            <div id="fantasy-voting" class="fantasy-content">
+                <section class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🗳️ Голосование за Игроков</h2>
+                    </div>
+                    <div id="fantasyVotingContent" class="fantasy-voting-container">
+                        <!-- Voting UI will be rendered here by JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- ADMIN TAB -->
+            <div id="fantasy-admin" class="fantasy-content" style="display: none;">
+                <section class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">⚙️ Управление Турами</h2>
+                    </div>
+                    <div id="adminStageContent" class="admin-management-container">
+                        <!-- Admin panel will be rendered here by JS -->
+                    </div>
+                </section>
             </div>
 
             <!-- RESULTS TAB -->
@@ -498,10 +529,20 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <!-- Firebase Configuration -->
-    <script src="/firebase-config.js?v=1.0"></script>
+    <script src="firebase-config.js?v=1.0"></script>
 
-    <!-- Application Logic -->
-    <script src="/app.js?v=1.3"></script>
+    <!-- Fantasy Football Modules -->
+    <script src="players_data.js"></script>
+    <script src="manual_stats_fix.js"></script>
+    <script src="points_engine.js"></script>
+    <script src="admin_panel.js"></script>
+    <script src="admin_stages.js"></script>
+    <script src="voting_system.js"></script>
+    <script src="match_voting.js"></script>
+    <script src="voting_cron.js"></script>
+    <script src="leaderboard.js"></script>
+    <script src="app.js?v=1.8"></script>
+    <script src="fantasy_core.js"></script>
 </body>
 
 </html>
