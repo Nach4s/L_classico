@@ -26,11 +26,17 @@ async function renderFantasyLeaderboard(gameweekId) {
 
             if (!gwSquad || !gwSquad.players) continue;
 
-            // Calculate total points for this gameweek
+            // Calculate total points for this gameweek (LIVE calculation)
             let gwPoints = 0;
             for (const playerId of gwSquad.players) {
                 const stats = await getMatchStats(gameweekId, playerId);
-                gwPoints += stats ? (stats.totalPoints || 0) : 0;
+                if (stats) {
+                    // Use components for Live Scoring
+                    let playerPoints = (stats.statsPoints || 0) + (stats.mvpBonus || 0) + (stats.ratingBonus || 0);
+                    // Apply Captain multiplier
+                    if (gwSquad.captainId === playerId) playerPoints *= 2;
+                    gwPoints += playerPoints;
+                }
             }
 
             leaderboardData.push({
@@ -91,37 +97,57 @@ async function renderOverallLeaderboard() {
     if (!tbody) return;
 
     try {
-        const teamsSnapshot = await db.collection('fantasyTeams')
-            .orderBy('totalPointsAllTime', 'desc')
-            .get();
+        // 1. Get current gameweek to include live points
+        const gwId = window.currentGameweekId || 'gw1';
 
-        if (teamsSnapshot.empty) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="4" style="text-align: center; padding: 20px;">
-                        Нет данных для отображения
-                    </td>
-                </tr>
-            `;
-            return;
-        }
+        // 2. Fetch all match stats for this GW to calculate live overlay
+        const liveStatsMap = {};
+        const statsSnapshot = await db.collection('match_stats').doc(gwId).collection('players').get();
+        statsSnapshot.forEach(doc => {
+            const data = doc.data();
+            liveStatsMap[data.playerId] = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
+        });
 
-        let html = '';
-        let rank = 1;
+        // 3. Fetch all teams
+        const teamsSnapshot = await db.collection('fantasyTeams').get();
+        const leaderboardData = [];
 
         teamsSnapshot.forEach(doc => {
             const data = doc.data();
-            const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+            let total = data.totalPointsAllTime || 0;
 
+            // Add live points from current GW squad
+            const currentSquad = data.squads ? data.squads[gwId] : null;
+            let livePoints = 0;
+            if (currentSquad && currentSquad.players) {
+                currentSquad.players.forEach(pid => {
+                    let pts = liveStatsMap[pid] || 0;
+                    if (currentSquad.captainId === pid) pts *= 2;
+                    livePoints += pts;
+                });
+            }
+
+            leaderboardData.push({
+                managerName: data.managerName || 'Анонимный менеджер',
+                livePoints: livePoints,
+                totalPoints: total + livePoints // Live Total
+            });
+        });
+
+        // 4. Sort by total
+        leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+        let html = '';
+        leaderboardData.forEach((entry, idx) => {
+            const icon = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1;
             html += `
                 <tr class="leaderboard-row">
                     <td class="rank-cell">${icon}</td>
-                    <td class="manager-cell">${data.managerName || 'Анонимный менеджер'}</td>
-                    <td class="text-center">—</td>
-                    <td class="text-center total-points-cell">${data.totalPointsAllTime || 0}</td>
+                    <td class="manager-cell">${entry.managerName}</td>
+                    <td class="text-center points-cell">${entry.livePoints > 0 ? `+${entry.livePoints}` : entry.livePoints}</td>
+                    <td class="text-center total-points-cell">${entry.totalPoints}</td>
                 </tr>
             `;
-            rank++;
         });
 
         tbody.innerHTML = html;
@@ -165,6 +191,9 @@ async function viewUserSquad(userId, gameweekId) {
             const stats = await getMatchStats(gameweekId, playerId);
 
             if (playerDoc.exists && stats) {
+                // Live Score calculation
+                const livePts = (stats.statsPoints || 0) + (stats.mvpBonus || 0) + (stats.ratingBonus || 0);
+
                 const playerData = {
                     name: playerDoc.data().name,
                     position: playerDoc.data().position,
@@ -172,14 +201,16 @@ async function viewUserSquad(userId, gameweekId) {
                     goals: stats.goals || 0,
                     assists: stats.assists || 0,
                     avgRating: stats.averageRating || 0,
-                    totalPoints: stats.totalPoints || 0,
+                    totalPoints: livePts, // LIVE
                     statsPoints: stats.statsPoints || 0,
                     mvpBonus: stats.mvpBonus || 0,
                     ratingBonus: stats.ratingBonus || 0
                 };
 
                 squadPlayers.push(playerData);
-                totalPoints += playerData.totalPoints;
+                // Apply Captain multiplier for the squad total
+                const multiplier = (squad.captainId === playerId ? 2 : 1);
+                totalPoints += (livePts * multiplier);
             }
         }
 
@@ -475,6 +506,9 @@ async function renderFantasyResults(gameweekId) {
             const data = doc.data();
             const player = playersMap.get(data.playerId);
             if (player) {
+                // Live calculation components
+                const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
+
                 playerResults.push({
                     name: player.name,
                     position: player.position,
@@ -483,7 +517,7 @@ async function renderFantasyResults(gameweekId) {
                     goals: data.goals || 0,
                     assists: data.assists || 0,
                     avgRating: data.averageRating || 0,
-                    totalPoints: data.totalPoints || 0,
+                    totalPoints: total,
                     played: data.played || false
                 });
             }

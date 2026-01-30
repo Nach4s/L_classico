@@ -98,10 +98,12 @@
 .voting-player-name {
     color: var(--voting-text-primary);
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 600; /* Bolder for better readability */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
 }
 
 /* Position Badge - Minimal */
@@ -143,8 +145,11 @@
 }
 
 .stat-badge {
-    font-size: 12px;
-    color: var(--voting-text-secondary);
+    font-size: 11px; /* Smaller */
+    color: #fff; /* White text */
+    background: rgba(255, 255, 255, 0.1); /* Subtle dark background for the badge itself */
+    padding: 2px 6px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     gap: 2px;
@@ -415,17 +420,22 @@
 /* Mobile Responsive */
 @media (max-width: 480px) {
     .voting-slider {
-        width: 80px;
+        width: 70px; /* Even smaller to give space to names */
     }
 
     .voting-player-name {
         font-size: 14px;
-        max-width: 100px;
+        max-width: none; /* Remove small max-width */
+        flex: 1;
     }
 
-    .voting-player-badge {
-        font-size: 10px;
-        padding: 2px 4px;
+    .voting-player-info {
+        gap: 4px;
+    }
+
+    .voting-player-card {
+        padding: 12px 10px;
+        gap: 8px;
     }
 }
 
