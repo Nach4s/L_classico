@@ -112,31 +112,102 @@ async function loadVotingInterface(gameweekId) {
         return;
     }
 
-    // Get players who played
-    const statsSnapshot = await db.collection('match_stats')
-        .where('gameweekId', '==', currentVotingGameweekId)
-        .where('played', '==', true)
-        .get();
+    // DYNAMIC LOADING: Fetch players who actually played in this gameweek
+    console.log('🗳️ Fetching players for gameweek:', currentVotingGameweekId);
 
-    const playersToVote = [];
-    for (const doc of statsSnapshot.docs) {
-        const data = doc.data();
-        const playerDoc = await db.collection('players').doc(data.playerId).get();
+    try {
+        // 1. Get stats from match_stats/{gwId}/players
+        // We can filter by 'played' field if we store it.
+        // In Admin Panel saveStage1, we set 'played: true'.
+        const statsSnapshot = await db.collection('match_stats')
+            .doc(currentVotingGameweekId)
+            .collection('players')
+            .where('played', '==', true)
+            .get();
 
-        if (playerDoc.exists) {
-            playersToVote.push({
-                id: data.playerId,
-                name: playerDoc.data().name,
-                position: playerDoc.data().position,
-                team: playerDoc.data().team,
-                goals: data.goals || 0,
-                assists: data.assists || 0,
-                isMVP: data.isMVP || false
-            });
+        if (statsSnapshot.empty) {
+            document.getElementById('fantasyVotingContent').innerHTML = `
+                <div class="voting-empty">
+                    <p>Список игроков еще не сформирован администратором.</p>
+                </div>
+            `;
+            return;
         }
-    }
 
-    renderVotingUI(playersToVote);
+        const playersToVote = [];
+
+        // 2. Fetch Player Details and construct list
+        // Use Promise.all for parallel fetching
+        const playerPromises = statsSnapshot.docs.map(async (doc) => {
+            const stats = doc.data();
+            const playerId = stats.playerId;
+
+            // OPTIMIZATION: Use snapshot data from match_stats if available (saved by Admin Panel Stage 1)
+            if (stats.name && stats.position) {
+                return {
+                    id: playerId,
+                    name: stats.name,
+                    position: stats.position,
+                    goals: stats.goals || 0,
+                    assists: stats.assists || 0,
+                    isMVP: stats.isMVP || false
+                };
+            }
+
+            // Fallback: Get static player data (Name, Position) from 'players' collection
+            // Optimally, we could cache this or use a global Players map if available
+            let playerDoc = null;
+            if (typeof PLAYERS_DATA !== 'undefined') {
+                // Try finding in local constant first to save reads
+                const localP = PLAYERS_DATA.find(p => p.id === playerId);
+                if (localP) playerDoc = { data: () => localP, exists: true };
+            }
+
+            if (!playerDoc) {
+                playerDoc = await db.collection('players').doc(playerId).get();
+            }
+
+            if (playerDoc.exists) {
+                const pData = playerDoc.data();
+                return {
+                    id: playerId,
+                    name: pData.name,
+                    position: pData.position || 'MID', // Fallback
+                    goals: stats.goals || 0,
+                    assists: stats.assists || 0,
+                    isMVP: stats.isMVP || false
+                };
+            }
+            return null;
+        });
+
+        const results = await Promise.all(playerPromises);
+
+        // Filter out nulls and sort by position (GK, DEF, MID, FWD) or alphabetical
+        const positionOrder = { 'GK': 1, 'DEF': 2, 'MID': 3, 'FWD': 4 };
+
+        results.forEach(p => {
+            if (p) playersToVote.push(p);
+        });
+
+        // Sort: Position first, then Name
+        playersToVote.sort((a, b) => {
+            const posA = positionOrder[a.position] || 99;
+            const posB = positionOrder[b.position] || 99;
+            if (posA !== posB) return posA - posB;
+            return a.name.localeCompare(b.name);
+        });
+
+        renderVotingUI(playersToVote);
+
+    } catch (error) {
+        console.error('Error loading voting players:', error);
+        document.getElementById('fantasyVotingContent').innerHTML = `
+            <div class="error-message">
+                ❌ Ошибка загрузки списка игроков: ${error.message}
+            </div>
+        `;
+    }
 }
 
 /**
@@ -331,7 +402,8 @@ async function submitAllVotes() {
         }
         await Promise.all(recalcPromises);
 
-        showAlert('✅ Ваши оценки сохранены!', 'success');
+        // showAlert('✅ Ваши оценки сохранены!', 'success');
+        showVoteSuccessModal();
 
         // Clear votes and reload
         userVotes.clear();
@@ -415,4 +487,38 @@ async function renderVotingResults(gameweekId) {
             </div>
         </div>
     `;
+}
+
+/**
+ * Show success modal for votes
+ */
+function showVoteSuccessModal() {
+    let modal = document.getElementById('voteSuccessModal');
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'voteSuccessModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+    < div class="modal-content" style = "text-align: center; max-width: 400px;" >
+                <span class="close" onclick="document.getElementById('voteSuccessModal').style.display='none'">&times;</span>
+                <div style="font-size: 4rem; margin-bottom: 15px;">✅</div>
+                <h2 style="color: #4CAF50; margin-bottom: 10px;">Оценки Отправлены!</h2>
+                <p style="color: #ccc; margin-bottom: 20px;">Спасибо за ваше участие в голосовании.</p>
+                <button class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1.1em;" onclick="document.getElementById('voteSuccessModal').style.display='none'">
+                    Продолжить
+                </button>
+            </div >
+    `;
+        document.body.appendChild(modal);
+
+        // Add click outside to close
+        window.addEventListener('click', (event) => {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+
+    modal.style.display = 'block';
 }

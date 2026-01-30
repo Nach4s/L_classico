@@ -51,6 +51,9 @@ window.renderStage2_StatsInput = async function () {
                 </p>
             </div>
 
+            <button class="btn btn-secondary" onclick="forceEditStage1()" style="margin-top: 20px; margin-right: 10px;">
+                👥 Изменить Состав (Этап 1)
+            </button>
             <button class="btn btn-secondary" onclick="renderGameweekSelector()" style="margin-top: 20px;">
                 ← Выбрать Другой Тур
             </button>
@@ -192,26 +195,46 @@ window.saveStage2_OpenRating = async function () {
     try {
         const batch = db.batch();
 
-        const statsSnapshot = await db.collection('match_stats')
-            .where('gameweekId', '==', currentGameweekId)
-            .where('played', '==', true)
-            .get();
+        // 1. Save Match Data to match_stats/{gameweekId}/matches/{matchId}
+        const matchStatsRef = db.collection('match_stats')
+            .doc(currentGameweekId)
+            .collection('matches')
+            .doc(window.selectedMatchId);
 
-        for (const doc of statsSnapshot.docs) {
+        // Convert Map to Object for Firestore
+        const matchDataToSave = {
+            matchId: window.selectedMatchId,
+            linkedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            // Store raw stats map: { "Player Name": { goals: 1, assists: 0 } }
+            playerStats: Object.fromEntries(window.matchPlayerStats)
+        };
+
+        batch.set(matchStatsRef, matchDataToSave);
+
+
+        // 2. Update Players in match_stats/{gameweekId}/players/{playerId}
+        // We need to map Player Names (from match stats) to Player IDs (from our DB)
+        // We iterate through ALL players who played (from Stage 1)
+        const playersSnapshot = await db.collection('match_stats')
+            .doc(currentGameweekId)
+            .collection('players')
+            .get(); // We might want to filter where('played', '==', true) if we only care about them
+
+        for (const doc of playersSnapshot.docs) {
             const playerId = doc.data().playerId;
+            // Get Name to match
             const playerDoc = await db.collection('players').doc(playerId).get();
-            const playerName = playerDoc.data().name;
+            if (!playerDoc.exists) continue;
 
+            const playerName = playerDoc.data().name;
             const stats = window.matchPlayerStats.get(playerName) || { goals: 0, assists: 0 };
 
+            // Update player doc
             batch.update(doc.ref, {
                 goals: stats.goals,
                 assists: stats.assists,
                 isMVP: false,
-                statsPoints: (stats.goals * 3) + (stats.assists * 2),
-                mvpBonus: 0,
-                averageRating: 0,
-                ratingBonus: 0,
+                statsPoints: (stats.goals * 3) + (stats.assists * 2), // Basic calc, will be refined by engine
                 totalPoints: (stats.goals * 3) + (stats.assists * 2)
             });
         }
@@ -224,7 +247,7 @@ window.saveStage2_OpenRating = async function () {
 
         await batch.commit();
 
-        alert('✅ Голосование за рейтинги открыто!');
+        alert('✅ Голосование за рейтинги открыто!\nМатч привязан, статистика обновлена.');
 
         if (typeof loadGameweek === 'function') await loadGameweek(currentGameweekId);
         if (typeof renderAdminPanel === 'function') renderAdminPanel();
@@ -321,7 +344,8 @@ window.closeVotingAndFinalize = async function () {
         const batch = db.batch();
 
         const statsSnapshot = await db.collection('match_stats')
-            .where('gameweekId', '==', currentGameweekId)
+            .doc(currentGameweekId)
+            .collection('players')
             .where('played', '==', true)
             .get();
 
@@ -384,9 +408,17 @@ window.closeVotingAndFinalize = async function () {
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        await batch.commit();
+        // Recalculate all player points with final votes
+        await recalculateAllPlayersInGameweek(currentGameweekId);
 
-        alert(`✅ Голосование закрыто!\n\nMVP: ${mvpName}\nОчки начислены.`);
+        // NEW: Aggregate all user points for global leaderboard
+        if (typeof aggregateAllUsersPoints === 'function') {
+            await aggregateAllUsersPoints(currentGameweekId);
+        } else {
+            console.warn('aggregateAllUsersPoints function not found');
+        }
+
+        alert(`✅ Голосование закрыто!\n\nMVP: ${mvpName}\nОчки начислены.\nТаблица лидеров обновлена.`);
 
         if (typeof loadGameweek === 'function') await loadGameweek(currentGameweekId);
         if (typeof renderAdminPanel === 'function') renderAdminPanel();

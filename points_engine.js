@@ -78,13 +78,17 @@ async function calculateAverageRating(gameweekId, playerId) {
     }
 }
 
+
 /**
  * Get match stats for a specific player in a gameweek
  */
 async function getMatchStats(gameweekId, playerId) {
     try {
-        const docId = `${gameweekId}_${playerId}`;
-        const doc = await db.collection('match_stats').doc(docId).get();
+        const doc = await db.collection('match_stats')
+            .doc(gameweekId)
+            .collection('players')
+            .doc(playerId)
+            .get();
 
         if (!doc.exists) {
             return {
@@ -113,10 +117,13 @@ async function getMatchStats(gameweekId, playerId) {
  */
 async function recalculatePlayerPoints(gameweekId, playerId) {
     try {
-        const docId = `${gameweekId}_${playerId}`;
+        const docRef = db.collection('match_stats')
+            .doc(gameweekId)
+            .collection('players')
+            .doc(playerId);
 
         // Get current match stats
-        const statsDoc = await db.collection('match_stats').doc(docId).get();
+        const statsDoc = await docRef.get();
         if (!statsDoc.exists) {
             console.warn(`No match stats found for ${playerId} in ${gameweekId}`);
             return;
@@ -152,7 +159,7 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
         const totalPoints = statsPoints + mvpBonus + ratingBonus;
 
         // 6. Update match_stats document
-        await db.collection('match_stats').doc(docId).update({
+        await docRef.update({
             statsPoints,
             mvpBonus,
             ratingBonus,
@@ -189,7 +196,8 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
 async function recalculateAllPlayersInGameweek(gameweekId) {
     try {
         const statsSnapshot = await db.collection('match_stats')
-            .where('gameweekId', '==', gameweekId)
+            .doc(gameweekId)
+            .collection('players')
             .where('played', '==', true)
             .get();
 
@@ -213,11 +221,13 @@ async function recalculateAllPlayersInGameweek(gameweekId) {
 async function getTopScorers(gameweekId, limit = 10) {
     try {
         const snapshot = await db.collection('match_stats')
-            .where('gameweekId', '==', gameweekId)
+            .doc(gameweekId)
+            .collection('players')
             .where('played', '==', true)
             .orderBy('totalPoints', 'desc')
             .limit(limit)
             .get();
+
 
         const topScorers = [];
         for (const doc of snapshot.docs) {
@@ -238,4 +248,120 @@ async function getTopScorers(gameweekId, limit = 10) {
         console.error('Error getting top scorers:', error);
         return [];
     }
-}
+
+    // ===================================
+    // USER POINTS AGGREGATION
+    // ===================================
+
+    /**
+     * Calculate total points for a single user's squad in a gameweek
+     * Returns total squad points
+     */
+    async function calculateUserSquadPoints(userId, gameweekId) {
+        try {
+            const teamDoc = await db.collection('fantasyTeams').doc(userId).get();
+            if (!teamDoc.exists) return 0;
+
+            const data = teamDoc.data();
+            const squad = data.squads ? data.squads[gameweekId] : null;
+
+            if (!squad || !squad.players) return 0;
+
+            let totalSquadPoints = 0;
+
+            // Fetch stats for each player in squad
+            for (const playerId of squad.players) {
+                const stats = await getMatchStats(gameweekId, playerId);
+                if (stats) {
+                    totalSquadPoints += (stats.totalPoints || 0);
+                }
+            }
+
+            return totalSquadPoints;
+        } catch (error) {
+            console.error(`Error calculating squad points for ${userId}:`, error);
+            return 0;
+        }
+    }
+
+    /**
+     * Aggregate points for ALL users for a specific gameweek
+     * Updates 'fantasyTeams' collection: 
+     * - sets gw_points (latests score)
+     * - updates totalPointsAllTime (recalculated from history)
+     */
+    async function aggregateAllUsersPoints(gameweekId) {
+        try {
+            console.log(`📊 Aggregating user points for ${gameweekId}...`);
+
+            const teamsSnapshot = await db.collection('fantasyTeams').get();
+
+            // Chunking for batch limits
+            const chunkArray = (arr, size) => {
+                return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+                    arr.slice(i * size, i * size + size)
+                );
+            };
+
+            const chunks = chunkArray(teamsSnapshot.docs, 400);
+
+            for (const chunk of chunks) {
+                const batch = db.batch();
+                const operations = [];
+
+                for (const teamDoc of chunk) {
+                    const userId = teamDoc.id;
+
+                    // We perform async calcs in parallel for speed within the chunk
+                    operations.push((async () => {
+                        const gwPoints = await calculateUserSquadPoints(userId, gameweekId);
+                        const totalPointsAllTime = await recalculateUserTotalHistory(userId);
+
+                        const userRef = db.collection('fantasyTeams').doc(userId);
+                        batch.update(userRef, {
+                            gw_points: gwPoints,
+                            totalPointsAllTime: totalPointsAllTime,
+                            lastUpdatedGameweek: gameweekId,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    })());
+                }
+
+                // Wait for all calculations in this chunk
+                await Promise.all(operations);
+
+                // Commit batch
+                await batch.commit();
+                console.log(`✅ Processed batch of ${chunk.length} users`);
+            }
+
+            console.log('✅ User points aggregation complete.');
+
+        } catch (error) {
+            console.error('Error aggregating user points:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Helper to recalculate total points from all gameweeks
+     * Ensures 100% accuracy vs increment drift
+     */
+    async function recalculateUserTotalHistory(userId) {
+        try {
+            const teamDoc = await db.collection('fantasyTeams').doc(userId).get();
+            if (!teamDoc.exists) return 0;
+
+            const data = teamDoc.data();
+            const squads = data.squads || {};
+
+            let total = 0;
+            for (const gwId of Object.keys(squads)) {
+                total += await calculateUserSquadPoints(userId, gwId);
+            }
+            return total;
+        } catch (error) {
+            console.error(`Error recalculating history for ${userId}:`, error);
+            return 0;
+        }
+    }

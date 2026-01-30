@@ -77,8 +77,8 @@ function switchFantasyTab(tabName) {
 function loadFantasyTabContent(tabName) {
     console.log(`📂 Loading Fantasy tab: ${tabName}`);
 
-    // If gameweek not loaded yet, show loading state
-    if (!currentGameweekId) {
+    // If gameweek not loaded yet, show loading state (unless it's admin tab, which handles empty state)
+    if (!currentGameweekId && tabName !== 'admin') {
         const activeContent = document.getElementById(`fantasy-${tabName}`);
         if (activeContent) {
             activeContent.innerHTML = '<div class="loading-spinner" style="text-align:center; padding:50px;">⏳ Загрузка данных тура...</div>';

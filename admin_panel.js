@@ -104,6 +104,9 @@ async function getAllGameweeks() {
 /**
  * Render Stage 1: Player Selection UI
  */
+/**
+ * Render Stage 1: Player Selection UI
+ */
 async function renderStage1_PlayerSelection() {
     const container = document.getElementById('adminStageContent');
 
@@ -112,9 +115,11 @@ async function renderStage1_PlayerSelection() {
     const players = await getAllPlayers();
 
     // Get existing match stats to show who's already marked
+    // NEW STRUCTURE: match_stats/{gameweekId}/players/{playerId}
     const existingStats = new Map();
     const statsSnapshot = await db.collection('match_stats')
-        .where('gameweekId', '==', currentGameweekId)
+        .doc(currentGameweekId)
+        .collection('players')
         .get();
 
     statsSnapshot.forEach(doc => {
@@ -163,27 +168,45 @@ async function saveStage1_PlayedPlayers() {
     try {
         const checkboxes = document.querySelectorAll('.player-played-checkbox');
         const playersWhoPlayed = [];
+        const activePlayersObjects = []; // New array for rich data
         const batch = db.batch();
+
+        // Fetch all players to get details (Position, Name)
+        const playersSnapshot = await db.collection('players').get();
+        const playersMap = new Map();
+        playersSnapshot.forEach(doc => playersMap.set(doc.id, doc.data()));
 
         for (const checkbox of checkboxes) {
             const playerId = checkbox.dataset.playerId;
             const played = checkbox.checked;
+            const playerDetails = playersMap.get(playerId) || {};
 
             if (played) {
                 playersWhoPlayed.push(playerId);
+                activePlayersObjects.push({
+                    id: playerId,
+                    name: playerDetails.name || 'Unknown',
+                    position: playerDetails.position || 'MID',
+                    team: playerDetails.team || 'Unknown'
+                });
             }
 
             // Create/update match_stats document
-            const docId = `${currentGameweekId}_${playerId}`;
-            const docRef = db.collection('match_stats').doc(docId);
+            // NEW STRUCTURE: match_stats/{gameweekId}/players/{playerId}
+            const docRef = db.collection('match_stats')
+                .doc(currentGameweekId)
+                .collection('players')
+                .doc(playerId);
 
             batch.set(docRef, {
-                gameweekId: currentGameweekId,
+                gameweekId: currentGameweekId, // Redundant but good for double-check
                 playerId,
                 played,
-                goals: 0,
-                assists: 0,
-                isMVP: false,
+                // Snapshot player details
+                name: playerDetails.name || 'Unknown',
+                position: playerDetails.position || 'MID',
+                team: playerDetails.team || 'Unknown',
+                // Initial values for points
                 statsPoints: 0,
                 mvpBonus: 0,
                 ratingBonus: 0,
@@ -197,7 +220,8 @@ async function saveStage1_PlayedPlayers() {
         const gameweekRef = db.collection('gameweeks').doc(currentGameweekId);
         batch.update(gameweekRef, {
             status: 'stats_entry',
-            playersWhoPlayed,
+            playersWhoPlayed, // Keep legacy array of IDs
+            active_players: activePlayersObjects, // NEW: Full objects for voting/display
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -566,17 +590,22 @@ async function renderGameweekSelector() {
             
             <div class="gameweek-selector">
                 <h4>Выберите тур:</h4>
-                <select id="gameweekSelect" class="form-select">
-                    <option value="">-- Выберите тур --</option>
-                    ${gameweeks.map(gw => `
-                        <option value="${gw.id}">
-                            Тур ${gw.gameweekNumber} - ${gw.status === 'completed' ? '✅ Завершён' : '🔄 Активен'}
-                        </option>
-                    `).join('')}
-                </select>
-                <button class="btn btn-primary" onclick="selectGameweek()">
-                    Загрузить Тур
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <select id="gameweekSelect" class="form-select" style="flex: 1;">
+                        <option value="">-- Выберите тур --</option>
+                        ${gameweeks.map(gw => `
+                            <option value="${gw.id}">
+                                Тур ${gw.gameweekNumber} - ${gw.status === 'completed' ? '✅ Завершён' : '🔄 Активен'}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <button class="btn btn-primary" onclick="selectGameweek()">
+                        Загрузить
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteSelectedGameweek()" title="Удалить тур и все данные">
+                        🗑️
+                    </button>
+                </div>
             </div>
 
             <div class="create-gameweek-section">
@@ -600,12 +629,7 @@ async function renderGameweekSelector() {
                 </div>
             </div>
             
-            <div class="create-gameweek-section" style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
-                <h4>🔧 Инструменты исправления:</h4>
-                <button class="btn btn-warning" onclick="applyManualStats(currentGameweekId)">
-                    📝 Исправить статистику (Текущий Тур)
-                </button>
-            </div>
+
         </div>
     `;
 
@@ -615,6 +639,121 @@ async function renderGameweekSelector() {
         const nextFriday = getNextFriday();
         nextFriday.setHours(9, 50, 0, 0);
         deadlineInput.value = nextFriday.toISOString().slice(0, 16);
+    }
+}
+
+/**
+ * Delete selected gameweek
+ */
+async function deleteSelectedGameweek() {
+    const select = document.getElementById('gameweekSelect');
+    const gameweekId = select.value;
+
+    if (!gameweekId) {
+        showAlert('Выберите тур для удаления', 'error');
+        return;
+    }
+
+    if (!confirm(`⚠️ ВНИМАНИЕ! \n\nВы собираетесь удалить ${gameweekId}.\nЭто действие удалит:\n- Сам тур\n- Всю статистику матчей этого тура\n- Все голоса пользователей за этот тур\n\nЭто действие НЕОБРАТИМО. Продолжить?`)) {
+        return;
+    }
+
+    // Double confirmation
+    const verifyCode = Math.floor(1000 + Math.random() * 9000);
+    const userInput = prompt(`Для подтверждения введите код: ${verifyCode}`);
+
+    if (userInput != verifyCode) {
+        alert('Код неверен. Удаление отменено.');
+        return;
+    }
+
+    await deleteGameweekFull(gameweekId);
+}
+
+/**
+ * Perform full deletion of gameweek data
+ */
+async function deleteGameweekFull(gameweekId) {
+    try {
+        // Show loading state implies checking/deleting many docs
+        const loadingMsg = document.createElement('div');
+        loadingMsg.id = 'deleteLoading';
+        loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px;border-radius:10px;z-index:9999;';
+        loadingMsg.innerHTML = '⏳ Удаление данных... Пожалуйста, подождите.';
+        document.body.appendChild(loadingMsg);
+
+        // Helper to delete in batches
+        const deleteCollectionByQuery = async (queryText, query) => {
+            let deletedTotal = 0;
+            while (true) {
+                // Fetch small batches to delete
+                const snapshot = await query.limit(400).get();
+                if (snapshot.empty) break;
+
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+
+                deletedTotal += snapshot.size;
+                console.log(`Deleted ${snapshot.size} docs from ${queryText}`);
+            }
+            return deletedTotal;
+        };
+
+        const batch = db.batch();
+
+        // 1. Delete Gameweek Doc
+        const gwRef = db.collection('gameweeks').doc(gameweekId);
+        batch.delete(gwRef);
+
+        // 2. Delete Match Stats Subcollections (NEW)
+        console.log('Deleting match_stats/matches...');
+        await deleteCollectionByQuery('match_stats/matches',
+            db.collection('match_stats').doc(gameweekId).collection('matches')
+        );
+
+        console.log('Deleting match_stats/players...');
+        await deleteCollectionByQuery('match_stats/players',
+            db.collection('match_stats').doc(gameweekId).collection('players')
+        );
+
+        // Delete the parent match_stats document
+        await db.collection('match_stats').doc(gameweekId).delete();
+
+        // 3. Delete Player Votes
+        const votesSnapshot = await db.collection('player_votes')
+            .where('gameweekId', '==', gameweekId)
+            .get();
+
+        votesSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // 4. Delete Votes (legacy/alternative collection check)
+        const legacyVotesSnapshot = await db.collection('votes')
+            .where('gameweekId', '==', gameweekId)
+            .get();
+
+        legacyVotesSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+
+        showAlert(`✅ Тур ${gameweekId} и все данные удалены`, 'success');
+
+        // Reset state if current was deleted
+        if (currentGameweekId === gameweekId) {
+            currentGameweekId = null;
+            currentGameweekData = null;
+        }
+
+        // Refresh selector
+        renderGameweekSelector();
+
+    } catch (error) {
+        console.error('Error deleting gameweek:', error);
+        showAlert('Ошибка при удалении: ' + error.message, 'error');
     }
 }
 
@@ -671,6 +810,17 @@ function getNextFriday() {
 /**
  * Render voting open status
  */
+async function forceEditStage1() {
+    if (!currentGameweekId) return;
+    if (!confirm('Вернуться к Этапу 1 (Выбор Игроков)?\n\nТекущий статус тура будет сброшен на "setup".\nСтатистика матча НЕ удалится, но вам нужно будет пройти этапы сохранения снова.')) return;
+
+    await db.collection('gameweeks').doc(currentGameweekId).update({
+        status: 'setup',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await loadGameweek(currentGameweekId);
+}
+
 function renderVotingOpenStatus() {
     const container = document.getElementById('adminStageContent');
 
@@ -686,6 +836,9 @@ function renderVotingOpenStatus() {
             <div class="admin-stage-actions">
                 <button class="btn btn-secondary" onclick="backToStage2()">
                     ← Изменить Статистику
+                </button>
+                <button class="btn btn-secondary" onclick="forceEditStage1()">
+                    👥 Изменить Состав (Этап 1)
                 </button>
                 <button class="btn btn-danger" onclick="closeVoting()">
                     🔒 Закрыть Голосование
@@ -709,10 +862,12 @@ function renderCompletedStatus() {
             <p class="stage-description">Голосование закрыто. Результаты зафиксированы.</p>
 
             <div class="admin-stage-actions">
+                <button class="btn btn-secondary" onclick="forceEditStage1()">
+                    👥 Редактировать (Открыть заново)
+                </button>
                 <button class="btn btn-secondary" onclick="renderGameweekSelector()">
                     ← Выбрать Другой Тур
                 </button>
             </div>
-        </div>
     `;
 }

@@ -43,7 +43,7 @@ const PLAYERS_DATA = [
     {
         id: "shyngys_t",
         name: "Шынгыс Т.",
-        position: "DEF",
+        position: "FWD",
         price: 6.0,
         team: "1 группа"
     },
@@ -59,7 +59,7 @@ const PLAYERS_DATA = [
     {
         id: "dimash_a",
         name: "Димаш А.",
-        position: "MID",
+        position: "GK",
         price: 7.0,
         team: "2 группа"
     },

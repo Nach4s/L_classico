@@ -236,7 +236,7 @@ function renderSquadModal(managerName, gameweekId, players, totalPoints) {
                             </div>
                             <div class="stat-item">
                                 <span class="stat-icon">⭐</span>
-                                <span class="stat-value">${player.avgRating.toFixed(1)}</span>
+                                <span class="stat-value" style="${player.avgRating >= 9.0 ? 'color: #2196F3; font-weight: bold;' : ''}">${player.avgRating.toFixed(1)}</span>
                             </div>
                         </div>
 
@@ -527,7 +527,7 @@ async function renderFantasyResults(gameweekId) {
                     <td class="text-center position-badge ${p.position.toLowerCase()}">${p.position}</td>
                     <td class="text-center stats-highlight">${p.goals}</td>
                     <td class="text-center stats-highlight">${p.assists}</td>
-                    <td class="text-center stats-secondary">${p.avgRating.toFixed(1)}</td>
+                    <td class="text-center stats-secondary" style="${p.avgRating >= 9.0 ? 'color: #2196F3; font-weight: bold;' : ''}">${p.avgRating.toFixed(1)}</td>
                     <td class="text-center points-final">${p.totalPoints}</td>
                 </tr>
             `;

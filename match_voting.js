@@ -82,7 +82,7 @@ async function renderMatchVotingBlock(matchId, containerSelector) {
                                 </div>
                                 <div class="player-rating-input">
                                     <input type="range" 
-                                           min="1" max="10" step="0.5" 
+                                           min="1" max="10" step="0.1" 
                                            value="${userRating || 6}" 
                                            class="rating-slider"
                                            data-player="${playerName}"
@@ -226,7 +226,8 @@ async function submitMatchVoteRatings(matchId) {
             votedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert('✅ Ваши оценки сохранены!');
+        // alert('✅ Ваши оценки сохранены!');
+        showMatchSuccessModal();
 
         renderMatchVotingBlock(matchId, `#matchVotingContainer_${matchId}`);
 
@@ -301,3 +302,37 @@ window.submitMatchVoteRatings = submitMatchVoteRatings;
 window.updateVotingRatingDisplay = updateVotingRatingDisplay;
 
 console.log('✅ Match voting module loaded');
+
+/**
+ * Show success modal for MATCH votes
+ */
+function showMatchSuccessModal() {
+    let modal = document.getElementById('voteMatchSuccessModal');
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'voteMatchSuccessModal';
+        modal.className = 'modal';
+        // Reuse same styling or similar
+        modal.innerHTML = `
+            <div class="modal-content" style="text-align: center; max-width: 400px;">
+                <span class="close" onclick="document.getElementById('voteMatchSuccessModal').style.display='none'">&times;</span>
+                <div style="font-size: 4rem; margin-bottom: 15px;">✅</div>
+                <h2 style="color: #4CAF50; margin-bottom: 10px;">Оценки Отправлены!</h2>
+                <p style="color: #ccc; margin-bottom: 20px;">Спасибо за ваш голос.</p>
+                <button class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1.1em;" onclick="document.getElementById('voteMatchSuccessModal').style.display='none'">
+                    Отлично
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        window.addEventListener('click', (event) => {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+
+    modal.style.display = 'block';
+}
