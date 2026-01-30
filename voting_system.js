@@ -235,13 +235,15 @@ function renderVotingUI(players) {
                     <div class="voting-player-card" data-player-id="${player.id}">
                         <div class="voting-player-header">
                             <div class="voting-player-info">
-                                <span class="voting-player-name">${player.name}</span>
-                                <span class="voting-player-badge ${player.position.toLowerCase()}">${player.position}</span>
-                                ${player.isMVP ? '<span class="mvp-badge">⭐ MVP</span>' : ''}
-                            </div>
-                            <div class="voting-player-stats">
-                                ${player.goals > 0 ? `<span class="stat-badge">⚽ ${player.goals}</span>` : ''}
-                                ${player.assists > 0 ? `<span class="stat-badge">🅰️ ${player.assists}</span>` : ''}
+                                <div class="voting-name-row">
+                                    <span class="voting-player-name">${player.name}</span>
+                                    <span class="voting-player-badge ${player.position.toLowerCase()}">${player.position}</span>
+                                    ${player.isMVP ? '<span class="mvp-badge">⭐ MVP</span>' : ''}
+                                </div>
+                                <div class="voting-player-stats">
+                                    ${player.goals > 0 ? `<span class="stat-badge">⚽ ${player.goals}</span>` : ''}
+                                    ${player.assists > 0 ? `<span class="stat-badge">🅰️ ${player.assists}</span>` : ''}
+                                </div>
                             </div>
                         </div>
 

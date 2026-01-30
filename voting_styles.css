@@ -89,16 +89,27 @@
 
 .voting-player-info {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    /* Stack vertically */
+    align-items: flex-start;
+    gap: 4px;
+    /* Space between name and stats */
     flex: 1;
     min-width: 0;
+}
+
+.voting-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
 }
 
 .voting-player-name {
     color: var(--voting-text-primary);
     font-size: 15px;
-    font-weight: 600; /* Bolder for better readability */
+    font-weight: 600;
+    /* Bolder for better readability */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -142,12 +153,16 @@
     display: flex;
     gap: 6px;
     flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .stat-badge {
-    font-size: 11px; /* Smaller */
-    color: #fff; /* White text */
-    background: rgba(255, 255, 255, 0.1); /* Subtle dark background for the badge itself */
+    font-size: 11px;
+    /* Smaller */
+    color: #fff;
+    /* White text */
+    background: rgba(255, 255, 255, 0.1);
+    /* Subtle dark background for the badge itself */
     padding: 2px 6px;
     border-radius: 4px;
     display: flex;
@@ -420,12 +435,14 @@
 /* Mobile Responsive */
 @media (max-width: 480px) {
     .voting-slider {
-        width: 70px; /* Even smaller to give space to names */
+        width: 70px;
+        /* Even smaller to give space to names */
     }
 
     .voting-player-name {
         font-size: 14px;
-        max-width: none; /* Remove small max-width */
+        max-width: none;
+        /* Remove small max-width */
         flex: 1;
     }
 
