@@ -86,6 +86,12 @@ function initializeAuth() {
 
         if (user) {
             console.log('User logged in:', user.email);
+            // Reload fantasy team now that we have user context
+            loadFantasyTeam().then(() => {
+                console.log('🔄 Re-rendering after auth...');
+                renderSelectedTeam();
+                updateFantasyBudget();
+            });
         } else {
             console.log('User logged out');
         }
@@ -1699,12 +1705,12 @@ let fantasyCurrentFilter = 'ALL';
 // FANTASY INITIALIZATION (Simplified & Robust)
 // ===================================
 
-function initFantasy() {
+async function initFantasy() {
     console.log('🎮 Initializing Fantasy Football...');
 
     try {
-        // 1. Load saved data
-        loadFantasyTeam();
+        // 1. Load saved data (wait for async load to complete)
+        await loadFantasyTeam();
         loadManagerName();
 
         // 2. Setup all event listeners
@@ -1713,13 +1719,17 @@ function initFantasy() {
         setupSquadListToggle();
         setupManagerNameInput();
         setupSaveButton();
+        setupGameweekNavigation();
 
         // 3. Initial render
         console.log('📊 Rendering initial state...');
         renderFantasyPlayersList();
         renderSelectedTeam();
         updateFantasyBudget();
+        renderSelectedTeam();
+        updateFantasyBudget();
         updateDeadlineDisplay();
+        updateGameweekLabel();
 
         // 4. Update deadline every minute
         setInterval(updateDeadlineDisplay, 60000);
@@ -1814,6 +1824,8 @@ function setupFantasyTabs() {
             const contentEl = document.getElementById(`fantasy-${targetTab}`);
             if (contentEl) {
                 contentEl.classList.add('active');
+                // Reset any inline display style
+                contentEl.style.display = '';
                 console.log('✅ Switched to tab:', targetTab);
 
                 // Render content for specific tabs
@@ -1917,20 +1929,8 @@ function renderListView() {
 // ===================================
 
 function checkTransferDeadline() {
-    const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-
-    // Check if it's Friday 09:50 or later until end of day
-    if (day === FANTASY_CONFIG.deadlineDay) {
-        if (hour > FANTASY_CONFIG.deadlineHour ||
-            (hour === FANTASY_CONFIG.deadlineHour && minute >= FANTASY_CONFIG.deadlineMinute)) {
-            return true; // Transfers locked
-        }
-    }
-
-    return false; // Transfers open
+    // Use global lock status computed from gameweek data
+    return window.isTransferWindowLocked === true;
 }
 
 function updateDeadlineDisplay() {
@@ -1943,15 +1943,42 @@ function updateDeadlineDisplay() {
 
     if (isLocked) {
         deadlineEl.classList.add('locked');
-        deadlineTextEl.textContent = '🔒 Трансферы закрыты до следующей недели';
+        deadlineTextEl.textContent = '🔒 Трансферное окно закрыто до завершения тура';
     } else {
         deadlineEl.classList.remove('locked');
-        const timeUntil = getTimeUntilDeadline();
-        deadlineTextEl.textContent = `Дедлайн: Пятница 09:50 (осталось ${timeUntil})`;
+
+        // Use actual gameweek deadline if available
+        if (window.currentGameweekData?.deadline) {
+            const deadline = window.currentGameweekData.deadline.toDate ?
+                window.currentGameweekData.deadline.toDate() : new Date(window.currentGameweekData.deadline);
+            const timeUntil = getTimeUntilDeadlineFromDate(deadline);
+            deadlineTextEl.textContent = `Дедлайн: ${deadline.toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} (${timeUntil})`;
+        } else {
+            // Fallback to generic message
+            const timeUntil = getTimeUntilDeadline();
+            deadlineTextEl.textContent = `Дедлайн: Пятница 09:50 (осталось ${timeUntil})`;
+        }
     }
 
     // Update save button state
     updateSaveButtonState();
+}
+
+// Helper function to calculate time until a specific deadline date
+function getTimeUntilDeadlineFromDate(deadline) {
+    const now = new Date();
+    const diff = deadline - now;
+
+    if (diff <= 0) return 'Прошел';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) {
+        return `${days}д ${hours}ч`;
+    }
+    return `${hours}ч ${minutes}мин`;
 }
 
 function getTimeUntilDeadline() {
@@ -2055,6 +2082,11 @@ function removeFantasyPlayer(playerId) {
 function setCaptain(playerId) {
     if (!fantasyTeam.players.includes(playerId)) return;
 
+    if (checkTransferDeadline()) {
+        showAlert('Трансферное окно закрыто! Капитана менять нельзя.', 'warning');
+        return;
+    }
+
     fantasyTeam.captainId = playerId;
     renderSelectedTeam();
 }
@@ -2092,6 +2124,18 @@ function renderFantasyPlayersList() {
     // Check if we have players to show
     if (filteredPlayers.length === 0) {
         container.innerHTML = '<p class="text-muted text-center">Нет игроков в этой позиции</p>';
+        return;
+    }
+
+    // If transfer window is locked, show message instead of player cards
+    if (checkTransferDeadline()) {
+        container.innerHTML = `
+            <div class="transfer-locked-message" style="text-align: center; padding: 30px; color: #ff9800;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">🔒</div>
+                <h3>Трансферное окно закрыто</h3>
+                <p>Изменения состава будут доступны после завершения текущего тура.</p>
+            </div>
+        `;
         return;
     }
 
@@ -2133,7 +2177,7 @@ function getPositionEmoji(position) {
     return emojis[position] || '👤';
 }
 
-function renderSelectedTeam() {
+function renderSelectedTeam(pointsMap = null) {
     const container = document.getElementById('fantasySelectedPlayers');
     if (!container) return;
 
@@ -2151,22 +2195,55 @@ function renderSelectedTeam() {
                 const isCaptain = fantasyTeam.captainId === playerId;
                 const jerseyImage = player.team === 'A' ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
 
-                slotHtml = `
-                    <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}">
-                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
-                        <div class="player-slot-name">${player.name}</div>
-                        <div class="player-slot-points">${player.position}</div>
-                        <div class="player-slot-actions">
+                // Check deadline for UI lock
+                const isLocked = checkTransferDeadline();
+                let captainBtnHtml = '';
+
+                // Live Points Display
+                let pointsHtml = '';
+                let pointsClass = '';
+
+                if (pointsMap && pointsMap[playerId] !== undefined) {
+                    let pts = pointsMap[playerId];
+                    if (isCaptain) pts *= 2; // Apply captain multiplier visually if not already applied
+
+                    if (pts > 0) {
+                        pointsHtml = `<div class="live-points-badge">+${pts}</div>`;
+                        pointsClass = 'has-points';
+                    } else if (pts < 0) {
+                        pointsHtml = `<div class="live-points-badge negative">${pts}</div>`;
+                    }
+                }
+
+                if (isLocked) {
+                    if (isCaptain) {
+                        captainBtnHtml = `<span class="captain-badge-static" style="font-size:1.2em; cursor:help;" title="Капитан (Зафиксировано)">👑</span>`;
+                    }
+                } else {
+                    captainBtnHtml = `
                             <button class="slot-action-btn ${isCaptain ? 'captain-active' : ''}" 
                                     onclick="event.stopPropagation(); setCaptain(${player.id})" 
                                     title="Назначить капитаном">
                                     ${isCaptain ? '👑' : 'C'}
                             </button>
+                    `;
+                }
+
+                slotHtml = `
+                    <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''} ${pointsClass}">
+                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
+                        ${pointsHtml}
+                        <div class="player-slot-name">${player.name}</div>
+                        <div class="player-slot-points">${player.position}</div>
+                        <div class="player-slot-actions">
+                            ${captainBtnHtml}
+                            ${!isLocked ? `
                             <button class="slot-action-btn remove" 
                                     onclick="event.stopPropagation(); removeFantasyPlayer(${player.id})" 
                                     title="Удалить">
                                     ✕
                             </button>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -2221,9 +2298,15 @@ function updateSaveButtonState() {
 
     const isValidTeam = fantasyTeam.players.length === FANTASY_CONFIG.maxPlayers;
     const isWithinBudget = calculateSpentBudget() <= FANTASY_CONFIG.budget;
-    const isNotLocked = !checkTransferDeadline();
+    const isLocked = checkTransferDeadline();
 
-    saveBtn.disabled = !(isValidTeam && isWithinBudget && isNotLocked);
+    if (isLocked) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '🔒 Тур идет (Изменения закрыты)';
+    } else {
+        saveBtn.disabled = !(isValidTeam && isWithinBudget);
+        saveBtn.textContent = '💾 Сохранить команду';
+    }
 }
 
 // ===================================
@@ -2494,13 +2577,22 @@ async function saveFantasyTeam() {
     }
 
     try {
+        const currentGw = window.currentGameweekId || 'gw1';
+
         await db.collection('fantasyTeams').doc(currentUser.uid).set({
             players: fantasyTeam.players,
             captainId: fantasyTeam.captainId,
             managerName: fantasyTeam.managerName || currentUser.email.split('@')[0],
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            userEmail: currentUser.email
-        });
+            userEmail: currentUser.email,
+            // Save history for points calculation
+            squads: {
+                [currentGw]: {
+                    players: fantasyTeam.players,
+                    captainId: fantasyTeam.captainId
+                }
+            }
+        }, { merge: true });
 
         // Show success confirmation modal
         showSaveConfirmation(true, 'Ваша команда успешно сохранена в базе данных!');
@@ -2540,6 +2632,8 @@ function showSaveConfirmation(isSuccess, message) {
 }
 
 async function loadFantasyTeam() {
+    console.log('📥 loadFantasyTeam called, currentUser:', currentUser?.email || 'null');
+
     // Try localStorage first
     const savedTeam = localStorage.getItem('fantasyTeam');
     if (savedTeam) {
@@ -2547,6 +2641,7 @@ async function loadFantasyTeam() {
             const parsed = JSON.parse(savedTeam);
             fantasyTeam.players = parsed.players || [];
             fantasyTeam.captainId = parsed.captainId || null;
+            console.log('📥 Loaded from localStorage:', fantasyTeam.players);
         } catch (e) {
             console.error('Error parsing saved team:', e);
         }
@@ -2555,19 +2650,27 @@ async function loadFantasyTeam() {
     // If user is logged in, try Firebase
     if (currentUser && typeof db !== 'undefined') {
         try {
+            console.log('📥 Loading from Firebase for uid:', currentUser.uid);
             const doc = await db.collection('fantasyTeams').doc(currentUser.uid).get();
             if (doc.exists) {
                 const data = doc.data();
+                console.log('📥 Firebase data:', data);
                 fantasyTeam.players = data.players || [];
                 fantasyTeam.captainId = data.captainId || null;
+                console.log('📥 Loaded from Firebase:', fantasyTeam.players);
+            } else {
+                console.log('📥 No saved team found in Firebase');
             }
         } catch (error) {
             console.error('Error loading fantasy team from Firebase:', error);
         }
+    } else {
+        console.log('📥 Skipping Firebase load - no user or db');
     }
 
     // Save to localStorage for offline access
     localStorage.setItem('fantasyTeam', JSON.stringify(fantasyTeam));
+    console.log('📥 Final fantasyTeam.players:', fantasyTeam.players);
 }
 
 // Make fantasy functions globally accessible
@@ -2583,6 +2686,15 @@ window.openRatingModal = openRatingModal; // Expose for testing/admin
 function openRatingModal() {
     renderRatingPlayers();
     openModal('ratingModal');
+}
+
+function updateGameweekLabel() {
+    const el = document.querySelector('.fpl-gameweek');
+    if (el) {
+        // Use global currentGameweekData if available, else default
+        const gwNum = window.currentGameweekData?.gameweekNumber || '1';
+        el.textContent = `Тур ${gwNum}`;
+    }
 }
 
 function renderRatingPlayers() {
@@ -2651,3 +2763,266 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ===================================
+// GAMEWEEK NAVIGATION & STATS
+// ===================================
+
+let currentViewGwNum = 1;
+
+function setupGameweekNavigation() {
+    const prevBtn = document.getElementById('prevGameweek');
+    const nextBtn = document.getElementById('nextGameweek');
+
+    // Initialize with current active gameweek
+    const activeGwId = window.currentGameweekId || 'gw1';
+    currentViewGwNum = parseInt(activeGwId.replace('gw', '')) || 1;
+
+    // Load initial data (for the active week)
+    loadGameweekStats(`gw${currentViewGwNum}`);
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentViewGwNum > 1) {
+                currentViewGwNum--;
+                loadGameweekStats(`gw${currentViewGwNum}`);
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            // Allow navigating 1 step ahead or bound to active?
+            // User requirement: "Changes in My Team for next week...".
+            // Let's assume unlimited forward for now, or bound +1.
+            currentViewGwNum++;
+            loadGameweekStats(`gw${currentViewGwNum}`);
+        });
+    }
+}
+
+async function loadGameweekStats(gwId) {
+    const gwLabel = document.querySelector('.fpl-gameweek');
+    if (gwLabel) {
+        // Extract number for display
+        const num = gwId.replace('gw', '');
+        gwLabel.textContent = `Тур ${num}`;
+    }
+
+    // UI Elements
+    const avgEl = document.getElementById('fplAveragePoints');
+    const ptsEl = document.getElementById('fplTotalPoints');
+    const highEl = document.getElementById('fplHighestPoints');
+
+    // Reset to loading state
+    if (avgEl) avgEl.textContent = '...';
+    if (ptsEl) ptsEl.textContent = '...';
+    if (highEl) highEl.textContent = '...';
+
+    try {
+        // 1. Fetch Global Stats from Gameweek Doc
+        const gwDoc = await db.collection('gameweeks').doc(gwId).get();
+        let stats = { averagePoints: 0, highestPoints: 0 };
+        let isActive = false;
+
+        if (gwDoc.exists) {
+            const data = gwDoc.data();
+            if (data.stats) {
+                stats = data.stats;
+            }
+            // Check if active (voting open/stats entry)
+            // Or strictly: active if status != 'completed'?
+            // Prompt says: "ЕСЛИ ТУР АКТИВНЫЙ (OPEN): Вместо цифр показывать '—'".
+            isActive = (data.status === 'voting_open' || data.status === 'stats_entry' || data.status === 'setup');
+        } else {
+            // Doc doesn't exist (future tour?)
+            isActive = true; // Future tours have no points
+        }
+
+        // 2. Fetch User Personal Points from Snapshot
+        let myPoints = 0;
+        let snapshotSquad = null;
+        let playerPointsMap = {};
+
+        if (currentUser) {
+            const squadDoc = await db.collection('gameweeks').doc(gwId)
+                .collection('squads').doc(currentUser.uid).get();
+            if (squadDoc.exists) {
+                const data = squadDoc.data();
+                myPoints = data.totalPoints || 0;
+                snapshotSquad = data;
+            }
+        }
+
+        // 2.1 Fetch individual player points if calculating or if snapshot exists
+        // We need points for EACH player in the viewing squad to show next to jersey
+        // For efficiency, fetch all match_stats for this GW?
+        // Or just fetch for the players in snapshot?
+        // 2. LIVE STATS FETCH (Frontend Mesh)
+        // Fetch ALL stats for this gameweek to overlay on any player shown (Draft or Snapshot)
+        // Matches by ID first, then fuzzy Name match (to solve ID mismatch bug)
+
+        const liveStatsMap = {};
+        const liveStatsByName = {};
+
+        try {
+            // Fetch match_stats/{gwId}/players collection
+            const statsSnapshot = await db.collection('match_stats')
+                .doc(gwId)
+                .collection('players')
+                .get();
+
+            statsSnapshot.forEach(doc => {
+                const data = doc.data();
+                // Sum components for robust scoring
+                const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
+
+                liveStatsMap[data.playerId] = total;
+
+                // Map normalized name for fallback
+                if (data.name) {
+                    const clean = data.name.trim().toLowerCase();
+                    liveStatsByName[clean] = total;
+                }
+            });
+            console.log('📊 Live stats loaded:', Object.keys(liveStatsMap).length);
+        } catch (e) {
+            console.error('Error fetching live stats for UI:', e);
+        }
+
+        // Helper to get points (ID -> Name Fallback)
+        const getPointsForPlayer = (pid, pName) => {
+            // 1. Try exact ID match
+            if (liveStatsMap[pid] !== undefined) return liveStatsMap[pid];
+
+            // 2. Try Name match
+            if (pName) {
+                const cleanName = pName.trim().toLowerCase();
+                if (liveStatsByName[cleanName] !== undefined) return liveStatsByName[cleanName];
+            }
+            return 0;
+        };
+
+        // 2.1 Pass live stats to playerPointsMap for Snapshot rendering
+        if (snapshotSquad && snapshotSquad.players) {
+            snapshotSquad.players.forEach(pid => {
+                // Find player name for fallback lookup
+                let pName = null;
+                const pObj = FANTASY_PLAYERS.find(p => p.id === pid);
+                if (pObj) pName = pObj.name;
+
+                let total = getPointsForPlayer(pid, pName);
+                if (snapshotSquad.captainId === pid) total *= 2;
+                playerPointsMap[pid] = total;
+            });
+        }
+
+        // 2.2 Create a map for RenderSelectedTeam (Draft View)
+        const draftPointsMap = {};
+        FANTASY_PLAYERS.forEach(p => {
+            const pts = getPointsForPlayer(p.id, p.name);
+            if (pts !== 0) draftPointsMap[p.id] = pts;
+        });
+
+        // 3. Update UI
+        // LOGIC CHANGE: Even if active, if we have a snapshot (user played this week), show the Locked Team with Live Points.
+        // Only show Editable Team if NO SNAPSHOT (i.e., user hasn't played or it's future/setup active).
+
+        // Header Stats: Show real numbers if we have them (even if active live scoring), otherwise dashes.
+        const hasLiveStats = (stats.averagePoints > 0 || stats.highestPoints > 0 || myPoints > 0);
+
+        if (isActive && !hasLiveStats) {
+            if (avgEl) avgEl.textContent = '—';
+            if (ptsEl) ptsEl.textContent = '—';
+            if (highEl) highEl.textContent = '—';
+        } else {
+            if (avgEl) avgEl.textContent = stats.averagePoints || '0';
+            if (ptsEl) ptsEl.textContent = myPoints || '0';
+            if (highEl) highEl.textContent = stats.highestPoints || '0';
+        }
+
+        // Pitch Rendering
+        if (snapshotSquad) {
+            // If we have a snapshot (past or current active locked), show it with points
+            renderHistoricalTeam(snapshotSquad, playerPointsMap);
+        } else {
+            // No snapshot -> Show editable team (for Setup phase or future)
+            // or empty state if completed.
+            if (isActive) {
+                renderSelectedTeam(draftPointsMap);
+            } else {
+                document.getElementById('fantasySelectedPlayers').innerHTML = '<div style="text-align:center; padding:50px; color:#777;">Нет команды в этом туре</div>';
+            }
+        }
+
+    } catch (error) {
+        console.error('Error loading gameweek stats:', error);
+        if (avgEl) avgEl.textContent = '-';
+        if (ptsEl) ptsEl.textContent = '-';
+        if (highEl) highEl.textContent = '-';
+    }
+}
+
+/**
+ * Render historical squad with points
+ */
+function renderHistoricalTeam(squad, pointsMap) {
+    const container = document.getElementById('fantasySelectedPlayers');
+    if (!container) return;
+
+    let row1 = '';
+    let row2 = '';
+
+    // We assume maxPlayers = 3
+    for (let i = 0; i < 3; i++) {
+        const playerId = squad.players[i];
+        let slotHtml = '';
+
+        if (playerId) {
+            // Find player details (from global cache)
+            const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+            // Fallback if player deleted?
+            const name = player ? player.name : 'Unknown';
+            const team = player ? player.team : 'A';
+            const position = player ? player.position : '';
+            const jerseyImage = team === 'A' ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
+
+            const isCaptain = squad.captainId === playerId;
+            const points = pointsMap[playerId] || 0;
+
+            slotHtml = `
+                <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}">
+                    <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
+                    <div class="player-slot-name">${name}</div>
+                    
+                    <!-- POINTS DISPLAY -->
+                    <div class="player-slot-points" style="background: ${points > 0 ? '#4CAF50' : '#333'}; color: white; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-top:2px;">
+                        ${points} pts
+                    </div>
+                    
+                    <div class="player-slot-actions">
+                         ${isCaptain ? '<span title="Captain">👑</span>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!slotHtml) {
+            slotHtml = `
+                <div class="pitch-player-slot empty">
+                    <div class="player-jersey-placeholder">-</div>
+                    <div class="player-slot-name">---</div>
+                    <div class="player-slot-points">0</div>
+                </div>
+            `;
+        }
+
+        if (i === 0) row1 = slotHtml;
+        else row2 += slotHtml;
+    }
+
+    container.innerHTML = `
+        <div class="pitch-row">${row1}</div>
+        <div class="pitch-row">${row2}</div>
+    `;
+}

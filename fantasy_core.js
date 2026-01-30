@@ -6,7 +6,12 @@
 
 const FANTASY_CONFIG = {
     adminEmail: 'tokkozha.s@gmail.com',
-    tabs: ['myteam', 'voting', 'admin', 'results', 'leaderboard']
+    tabs: ['myteam', 'voting', 'admin', 'results', 'leaderboard'],
+    maxPlayers: 3,          // Number of players per squad
+    budget: 18.0,           // Budget in millions
+    deadlineDay: 5,         // Friday (0=Sun, 5=Fri)
+    deadlineHour: 9,        // 09:00
+    deadlineMinute: 50      // 09:50
 };
 
 // Current active gameweek
@@ -101,14 +106,12 @@ function loadFantasyTabContent(tabName) {
             break;
 
         case 'admin':
-            if (window.isAdminLoggedIn && typeof renderAdminPanel === 'function') {
-                checkPlayersInitialized().then(isInit => {
-                    if (!isInit) {
-                        showInitHelper();
-                    } else {
-                        renderAdminPanel();
-                    }
-                });
+            console.log('🔧 Admin tab: checking renderAdminPanel...', typeof window.renderAdminPanel);
+            if (window.isAdminLoggedIn && typeof window.renderAdminPanel === 'function') {
+                console.log('🔧 Admin tab: calling renderAdminPanel()');
+                window.renderAdminPanel();
+            } else {
+                console.log('🔧 Admin tab: NOT calling - isAdmin:', window.isAdminLoggedIn, 'renderAdminPanel:', typeof window.renderAdminPanel);
             }
             break;
 
@@ -202,7 +205,25 @@ async function loadCurrentGameweek() {
             window.currentGameweekId = currentGameweekId;
             const data = snapshot.docs[0].data();
 
+            // Store full gameweek data for deadline checks
+            window.currentGameweekData = data;
+
+            // Compute lock status based on deadline and status
+            const now = new Date();
+            let deadline = null;
+            if (data.deadline) {
+                deadline = data.deadline.toDate ? data.deadline.toDate() : new Date(data.deadline);
+            }
+            const status = data.status || '';
+
+            // Lock if: past deadline OR status is active (voting_open, stats_entry)
+            // Unlock if: status is 'setup' (pre-match) or 'completed' (post-match)
+            window.isTransferWindowLocked = (deadline && now > deadline) ||
+                (status === 'voting_open') ||
+                (status === 'stats_entry');
+
             console.log(`✅ Выбран тур: ${currentGameweekId}`, data);
+            console.log(`🔒 Transfer window locked: ${window.isTransferWindowLocked}`);
 
             // Reload current tab content now that we have ID
             const activeTab = document.querySelector('.fantasy-tab.active');

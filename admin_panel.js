@@ -39,6 +39,8 @@ async function createGameweek(gameweekNumber, deadlineDate) {
             deadline: firebase.firestore.Timestamp.fromDate(deadlineDate),
             status: 'setup', // setup | stats_entry | voting_open | completed
             playersWhoPlayed: [],
+            linkedMatches: [],    // NEW: Linked match IDs
+            active_players: [],   // NEW: Players for voting
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -102,20 +104,34 @@ async function getAllGameweeks() {
 // ===================================
 
 /**
- * Render Stage 1: Player Selection UI
- */
-/**
- * Render Stage 1: Player Selection UI
+ * Render Stage 1: Unified Gameweek Setup
+ * Combines: Deadline settings, Match selection, Player selection
  */
 async function renderStage1_PlayerSelection() {
     const container = document.getElementById('adminStageContent');
 
     if (!container) return;
 
+    // Show loading
+    container.innerHTML = '<div style="text-align:center; padding:30px;">⏳ Загрузка настроек тура...</div>';
+
     const players = await getAllPlayers();
 
+    // Fetch recent matches for linking
+    let recentMatches = [];
+    try {
+        const matchesSnapshot = await db.collection('matches')
+            .orderBy('date', 'desc')
+            .limit(20)
+            .get();
+        matchesSnapshot.forEach(doc => {
+            recentMatches.push({ id: doc.id, ...doc.data() });
+        });
+    } catch (e) {
+        console.warn('Could not fetch matches:', e);
+    }
+
     // Get existing match stats to show who's already marked
-    // NEW STRUCTURE: match_stats/{gameweekId}/players/{playerId}
     const existingStats = new Map();
     const statsSnapshot = await db.collection('match_stats')
         .doc(currentGameweekId)
@@ -127,36 +143,194 @@ async function renderStage1_PlayerSelection() {
         existingStats.set(data.playerId, data.played);
     });
 
+    // Get current gameweek data for pre-populating fields
+    const gwData = currentGameweekData || {};
+    const currentDeadline = gwData.deadline?.toDate ? gwData.deadline.toDate() : (gwData.deadline ? new Date(gwData.deadline) : null);
+    const linkedMatches = gwData.linkedMatches || [];
+
+    // Format deadline for input
+    let deadlineValue = '';
+    if (currentDeadline) {
+        deadlineValue = currentDeadline.toISOString().slice(0, 16);
+    } else {
+        // Default to next Friday 09:50
+        const nextFriday = getNextFriday();
+        nextFriday.setHours(9, 50, 0, 0);
+        deadlineValue = nextFriday.toISOString().slice(0, 16);
+    }
+
     container.innerHTML = `
         <div class="admin-stage">
-            <h3>📋 Этап 1: Фиксация Состава</h3>
-            <p class="stage-description">Отметьте галочками игроков, которые вышли на поле в этом туре.</p>
+            <h3>📋 Настройка Тура ${gwData.gameweekNumber || ''}</h3>
             
-            <div class="players-selection-grid">
-                ${players.map(player => `
-                    <div class="player-selection-item">
-                        <label class="player-checkbox-label">
-                            <input 
-                                type="checkbox" 
-                                class="player-played-checkbox" 
-                                data-player-id="${player.id}"
-                                ${existingStats.get(player.id) ? 'checked' : ''}
-                            >
-                            <span class="player-selection-name">${player.name}</span>
-                            <span class="player-selection-position">${player.position}</span>
-                            <span class="player-selection-team">${player.team}</span>
-                        </label>
+            <!-- SECTION 1: Gameweek Settings -->
+            <div class="gameweek-settings-section" style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0;">⚙️ Настройки Тура</h4>
+                
+                <div class="form-row" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #ccc;">📅 Fantasy Дедлайн (блокировка трансферов):</label>
+                    <input 
+                        type="datetime-local" 
+                        id="gameweekDeadlineInput" 
+                        class="form-input"
+                        value="${deadlineValue}"
+                        style="width: 100%; max-width: 300px;"
+                    >
+                </div>
+
+                ${recentMatches.length > 0 ? `
+                <div class="form-row" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #ccc;">⚽ Матчи Тура (выберите):</label>
+                    <div class="matches-selection-grid" style="max-height: 150px; overflow-y: auto; background: #0f0f1a; padding: 10px; border-radius: 6px;">
+                        ${recentMatches.map(match => {
+        const matchDate = match.date?.toDate ? match.date.toDate() : new Date(match.date);
+        const dateStr = matchDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        const isLinked = linkedMatches.includes(match.id);
+        return `
+                                <label style="display: flex; align-items: center; gap: 8px; padding: 5px; cursor: pointer;">
+                                    <input type="checkbox" class="match-link-checkbox" data-match-id="${match.id}" ${isLinked ? 'checked' : ''}>
+                                    <span>${match.homeTeam || 'Команда'} vs ${match.awayTeam || 'Команда'}</span>
+                                    <span style="color: #888; font-size: 0.85em;">(${dateStr})</span>
+                                </label>
+                            `;
+    }).join('')}
                     </div>
-                `).join('')}
+                </div>
+                ` : ''}
+
+                <button class="btn btn-secondary" onclick="saveGameweekSettings()" style="margin-top: 10px;">
+                    💾 Сохранить Настройки Тура
+                </button>
             </div>
 
-            <div class="admin-stage-actions">
-                <button class="btn btn-primary" onclick="saveStage1_PlayedPlayers()">
-                    ✅ Сохранить и Перейти к Этапу 2
-                </button>
+            <!-- SECTION 2: Player Selection -->
+            <div class="player-selection-section" style="background: #1a1a2e; padding: 15px; border-radius: 8px;">
+                <h4 style="margin-top: 0;">👥 Игроки Тура (для голосования)</h4>
+                <p class="stage-description" style="color: #888; margin-bottom: 15px;">Отметьте игроков, которые вышли на поле.</p>
+                
+                <div class="players-selection-grid">
+                    ${players.map(player => `
+                        <div class="player-selection-item">
+                            <label class="player-checkbox-label">
+                                <input 
+                                    type="checkbox" 
+                                    class="player-played-checkbox" 
+                                    data-player-id="${player.id}"
+                                    ${existingStats.get(player.id) ? 'checked' : ''}
+                                >
+                                <span class="player-selection-name">${player.name}</span>
+                                <span class="player-selection-position">${player.position}</span>
+                                <span class="player-selection-team">${player.team}</span>
+                            </label>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="admin-stage-actions" style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="freezeSquadsForVoting()">
+                        ✅ Зафиксировать Состав
+                    </button>
+                    <button class="btn btn-primary" onclick="saveStage1_PlayedPlayers()">
+                        ➡️ Сохранить и Перейти к Этапу 2
+                    </button>
+                </div>
             </div>
         </div>
     `;
+}
+
+/**
+ * Save gameweek settings (deadline + linked matches)
+ */
+async function saveGameweekSettings() {
+    if (!isAdminLoggedIn || !currentGameweekId) {
+        showAlert('Ошибка: нет доступа или тур не выбран', 'error');
+        return;
+    }
+
+    try {
+        // Get deadline value
+        const deadlineInput = document.getElementById('gameweekDeadlineInput');
+        const deadlineValue = deadlineInput ? new Date(deadlineInput.value) : null;
+
+        // Get selected matches
+        const matchCheckboxes = document.querySelectorAll('.match-link-checkbox:checked');
+        const linkedMatches = [];
+        matchCheckboxes.forEach(cb => {
+            linkedMatches.push(cb.dataset.matchId);
+        });
+
+        // Update gameweek document
+        await db.collection('gameweeks').doc(currentGameweekId).update({
+            deadline: deadlineValue ? firebase.firestore.Timestamp.fromDate(deadlineValue) : null,
+            linkedMatches: linkedMatches,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Refresh local data
+        currentGameweekData.deadline = deadlineValue ? firebase.firestore.Timestamp.fromDate(deadlineValue) : null;
+        currentGameweekData.linkedMatches = linkedMatches;
+
+        showAlert('✅ Настройки тура сохранены!', 'success');
+
+    } catch (error) {
+        console.error('Error saving gameweek settings:', error);
+        showAlert('Ошибка сохранения настроек: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Freeze squads for voting - saves active_players array
+ * Does NOT advance to Stage 2
+ */
+async function freezeSquadsForVoting() {
+    if (!isAdminLoggedIn || !currentGameweekId) {
+        showAlert('Ошибка: нет доступа или тур не выбран', 'error');
+        return;
+    }
+
+    try {
+        const checkboxes = document.querySelectorAll('.player-played-checkbox:checked');
+
+        if (checkboxes.length === 0) {
+            showAlert('Выберите хотя бы одного игрока!', 'error');
+            return;
+        }
+
+        const activePlayersObjects = [];
+
+        // Fetch all players to get details
+        const playersSnapshot = await db.collection('players').get();
+        const playersMap = new Map();
+        playersSnapshot.forEach(doc => playersMap.set(doc.id, doc.data()));
+
+        for (const checkbox of checkboxes) {
+            const playerId = checkbox.dataset.playerId;
+            const playerDetails = playersMap.get(playerId) || {};
+
+            activePlayersObjects.push({
+                id: playerId,
+                name: playerDetails.name || 'Unknown',
+                position: playerDetails.position || 'MID',
+                team: playerDetails.team || 'Unknown'
+            });
+        }
+
+        // Update gameweek with active_players
+        await db.collection('gameweeks').doc(currentGameweekId).update({
+            active_players: activePlayersObjects,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Update local data
+        currentGameweekData.active_players = activePlayersObjects;
+
+        showAlert(`✅ Состав зафиксирован! ${activePlayersObjects.length} игроков готовы для голосования.`, 'success');
+
+    } catch (error) {
+        console.error('Error freezing squads:', error);
+        showAlert('Ошибка фиксации состава: ' + error.message, 'error');
+    }
 }
 
 /**
@@ -353,8 +527,11 @@ async function saveStage2_Stats() {
             const assists = parseInt(assistsInputs[i].value) || 0;
             const isMVP = (playerId === mvpPlayerId);
 
-            const docId = `${currentGameweekId}_${playerId}`;
-            const docRef = db.collection('match_stats').doc(docId);
+            // CORRECT PATH: match_stats/{gameweekId}/players/{playerId}
+            const docRef = db.collection('match_stats')
+                .doc(currentGameweekId)
+                .collection('players')
+                .doc(playerId);
 
             // Get player position for MVP bonus calculation
             const playerDoc = await db.collection('players').doc(playerId).get();
@@ -376,7 +553,12 @@ async function saveStage2_Stats() {
 
         await batch.commit();
 
-        showAlert('✅ Статистика сохранена!', 'success');
+        showAlert('✅ Статистика сохранена! Обновление очков пользователей...', 'success');
+
+        // LIVE UPDATE: Recalculate user scores immediately
+        if (typeof updateLiveUserSquads === 'function') {
+            await updateLiveUserSquads(currentGameweekId);
+        }
 
         // Move to stage 3
         renderStage3_OpenVoting();
@@ -506,6 +688,11 @@ async function closeVoting() {
 
         // Recalculate all player points with final votes
         await recalculateAllPlayersInGameweek(currentGameweekId);
+
+        // LIVE UPDATE: Recalculate user scores with MVP/Votes
+        if (typeof updateLiveUserSquads === 'function') {
+            await updateLiveUserSquads(currentGameweekId);
+        }
 
         showAlert('✅ Голосование закрыто! Результаты зафиксированы.', 'success');
         await loadGameweek(currentGameweekId);
@@ -844,6 +1031,17 @@ function renderVotingOpenStatus() {
                     🔒 Закрыть Голосование
                 </button>
             </div>
+
+            <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+                <h4 style="color: #aaa; font-size: 0.9em; margin-bottom: 10px;">🔧 Инструменты Тура</h4>
+                <button class="btn btn-warning" onclick="snapshotSquadsForGameweek()" style="width: 100%; margin-bottom: 5px;">
+                    📸 Создать Снэпшот Составов
+                </button>
+                <p style="font-size: 0.8em; color: #777;">
+                    Копирует текущие составы всех пользователей в архив этого тура.
+                    Необходимо выполнить перед подсчетом очков.
+                </p>
+            </div>
         </div>
     `;
 }
@@ -871,3 +1069,75 @@ function renderCompletedStatus() {
             </div>
     `;
 }
+
+// ===================================
+// GLOBAL EXPORTS
+// ===================================
+window.renderAdminPanel = renderAdminPanel;
+window.renderGameweekSelector = renderGameweekSelector;
+window.loadGameweek = loadGameweek;
+window.createNewGameweek = createNewGameweek;
+window.selectGameweek = selectGameweek;
+window.saveGameweekSettings = saveGameweekSettings;
+window.freezeSquadsForVoting = freezeSquadsForVoting;
+window.saveStage1_PlayedPlayers = saveStage1_PlayedPlayers;
+window.forceEditStage1 = forceEditStage1;
+
+console.log('✅ Admin Panel loaded');
+
+async function snapshotSquadsForGameweek() {
+    if (!currentGameweekId) { alert('Тур не выбран!'); return; }
+
+    // Prevent accidental clicks with strong confirmation
+    const confirmMsg = `📸 СДЕЛАТЬ СНЭПШОТ?\n\nВы собираетесь скопировать текущий активный состав КАЖДОГО пользователя в архив тура "${currentGameweekId}".\n\n📌 ЗАЧЕМ ЭТО НУЖНО:\n- Это фиксирует команды для подсчета очков.\n- После этого изменения в "Моя Команда" не повлияют на этот тур.\n\nПродолжить?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const loaderBtn = event.target;
+        const originalText = loaderBtn.innerText;
+        loaderBtn.innerText = '⏳ Копирование...';
+        loaderBtn.disabled = true;
+
+        const snapshot = await db.collection('fantasyTeams').get();
+        const batch = db.batch();
+        let count = 0;
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.players && data.players.length > 0) {
+                // Target: gameweeks/{gwId}/squads/{userId}
+                const squadRef = db.collection('gameweeks').doc(currentGameweekId)
+                    .collection('squads').doc(doc.id);
+
+                batch.set(squadRef, {
+                    userId: doc.id,
+                    teamName: data.teamName || 'Team ' + doc.id,
+                    managerName: data.managerName || 'Unknown',
+                    players: data.players,
+                    captainId: data.captainId || null,
+                    viceCaptainId: data.viceCaptainId || null,
+                    chips: data.activeChips || {},
+                    totalPoints: 0, // Will be calculated by points engine
+                    snapshotAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                count++;
+            }
+        });
+
+        await batch.commit();
+        alert(`✅ Успешно! Заархивировано ${count} команд в ${currentGameweekId}.`);
+    } catch (e) {
+        console.error(e);
+        alert('Ошибка при создании снэпшота: ' + e.message);
+    } finally {
+        // Reload UI to reset button state (or just reset manually)
+        const loaderBtn = document.querySelector('button[onclick="snapshotSquadsForGameweek()"]');
+        if (loaderBtn) {
+            loaderBtn.innerText = '📸 Создать Снэпшот Составов';
+            loaderBtn.disabled = false;
+        }
+    }
+}
+
+window.snapshotSquadsForGameweek = snapshotSquadsForGameweek;

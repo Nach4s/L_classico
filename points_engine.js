@@ -47,6 +47,11 @@ function getRatingBonus(avgRating, playerPosition) {
     return -4; // Below 4.5
 }
 
+// Export for Admin Panel
+window.calculateStatsPoints = calculateStatsPoints;
+window.getMVPBonus = getMVPBonus;
+window.getRatingBonus = getRatingBonus;
+
 // ===================================
 // DATABASE OPERATIONS
 // ===================================
@@ -216,6 +221,100 @@ async function recalculateAllPlayersInGameweek(gameweekId) {
 }
 
 /**
+ * LIVE SCORING: Update ALL user squads with latest stats
+ * This is triggered immediately after Admin saves stats or closes voting.
+ */
+async function updateLiveUserSquads(gameweekId) {
+    console.log(`🔄 LIVE SCORING: Updating all squads for ${gameweekId}...`);
+    try {
+        // 1. Fetch ALL Player Stats for this Gameweek (Optimization: Single Read)
+        const statsMap = new Map();
+        const statsSnapshot = await db.collection('match_stats')
+            .doc(gameweekId)
+            .collection('players')
+            .get();
+
+        statsSnapshot.forEach(doc => {
+            const data = doc.data();
+            statsMap.set(data.playerId, {
+                // Use components for Live Scoring (Stats + MVP + Rating)
+                // This ensures we see points immediately after entered, even if totalPoints field isn't set yet
+                points: (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0),
+                isMVP: data.isMVP || false
+            });
+        });
+
+        // 2. Fetch ALL User Squads (Snapshots)
+        const squadsSnapshot = await db.collection('gameweeks')
+            .doc(gameweekId)
+            .collection('squads')
+            .get();
+
+        if (squadsSnapshot.empty) {
+            console.log('⚠️ No squads found for live update.');
+            return;
+        }
+
+        const batch = db.batch();
+        let grandTotal = 0;
+        let maxScore = 0;
+        let processedCount = 0;
+
+        // 3. Recalculate each squad using cached stats
+        squadsSnapshot.forEach(doc => {
+            const squad = doc.data();
+            const squadRef = doc.ref;
+            let squadPoints = 0;
+
+            if (squad.players && Array.isArray(squad.players)) {
+                squad.players.forEach(pid => {
+                    const stat = statsMap.get(pid);
+                    if (stat) {
+                        let pts = stat.points;
+                        // Captain Multiplier
+                        if (squad.captainId === pid) {
+                            pts *= 2;
+                        }
+                        squadPoints += pts;
+                    }
+                });
+            }
+
+            // Update Max/Avg tracking
+            grandTotal += squadPoints;
+            if (squadPoints > maxScore) maxScore = squadPoints;
+            processedCount++;
+
+            // Queue update
+            batch.update(squadRef, {
+                totalPoints: squadPoints,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+
+        // 4. Commit Squad Updates
+        await batch.commit();
+
+        // 5. Update Gameweek Global Stats immediately
+        if (processedCount > 0) {
+            const averagePoints = Math.round(grandTotal / processedCount);
+            await db.collection('gameweeks').doc(gameweekId).update({
+                stats: {
+                    averagePoints: averagePoints,
+                    highestPoints: maxScore,
+                    lastLiveUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                }
+            });
+            console.log(`✅ Live Stats Updated: Avg ${averagePoints}, Max ${maxScore}`);
+        }
+
+    } catch (e) {
+        console.error('❌ Error in updateLiveUserSquads:', e);
+        throw e;
+    }
+}
+
+/**
  * Get top scorers for a gameweek
  */
 async function getTopScorers(gameweekId, limit = 10) {
@@ -248,120 +347,123 @@ async function getTopScorers(gameweekId, limit = 10) {
         console.error('Error getting top scorers:', error);
         return [];
     }
+}
 
-    // ===================================
-    // USER POINTS AGGREGATION
-    // ===================================
+// ===================================
+// USER POINTS AGGREGATION
+// ===================================
 
-    /**
-     * Calculate total points for a single user's squad in a gameweek
-     * Returns total squad points
-     */
-    async function calculateUserSquadPoints(userId, gameweekId) {
-        try {
-            const teamDoc = await db.collection('fantasyTeams').doc(userId).get();
-            if (!teamDoc.exists) return 0;
+/**
+ * Calculate total points for a single user's squad in a gameweek
+ * Returns total squad points
+ */
+async function calculateUserSquadPoints(userId, gameweekId) {
+    try {
+        // Read from SNAPSHOT archive (immutable history)
+        const squadDoc = await db.collection('gameweeks').doc(gameweekId)
+            .collection('squads').doc(userId).get();
 
-            const data = teamDoc.data();
-            const squad = data.squads ? data.squads[gameweekId] : null;
+        if (!squadDoc.exists) return 0;
 
-            if (!squad || !squad.players) return 0;
+        const squad = squadDoc.data();
+        if (!squad || !squad.players) return 0;
 
-            let totalSquadPoints = 0;
+        let totalSquadPoints = 0;
 
-            // Fetch stats for each player in squad
-            for (const playerId of squad.players) {
-                const stats = await getMatchStats(gameweekId, playerId);
-                if (stats) {
-                    totalSquadPoints += (stats.totalPoints || 0);
+        // Fetch stats for each player in squad
+        for (const playerId of squad.players) {
+            const stats = await getMatchStats(gameweekId, playerId);
+            if (stats) {
+                // TODO: Add Captain logic (x2)
+                let points = stats.totalPoints || 0;
+                if (squad.captainId === playerId) {
+                    points *= 2;
                 }
+                totalSquadPoints += points;
             }
-
-            return totalSquadPoints;
-        } catch (error) {
-            console.error(`Error calculating squad points for ${userId}:`, error);
-            return 0;
         }
+
+        // Update the snapshot doc with the calculated total for easy reference
+        await squadDoc.ref.update({ totalPoints: totalSquadPoints });
+
+        return totalSquadPoints;
+    } catch (error) {
+        console.error(`Error calculating squad points for ${userId}:`, error);
+        return 0;
     }
+}
 
-    /**
-     * Aggregate points for ALL users for a specific gameweek
-     * Updates 'fantasyTeams' collection: 
-     * - sets gw_points (latests score)
-     * - updates totalPointsAllTime (recalculated from history)
-     */
-    async function aggregateAllUsersPoints(gameweekId) {
-        try {
-            console.log(`📊 Aggregating user points for ${gameweekId}...`);
+/**
+ * Aggregate points for ALL users for a specific gameweek
+ * Updates 'fantasyTeams' collection: 
+ * - sets gw_points (latests score)
+ * - updates totalPointsAllTime (recalculated from history)
+ */
+/**
+ * FINAL AGGREGATION: Just syncs final scores to user profiles
+ * (Scores are already calculated by updateLiveUserSquads)
+ */
+async function aggregateAllUsersPoints(gameweekId) {
+    try {
+        console.log(`📊 Finalizing user points for ${gameweekId}...`);
 
-            const teamsSnapshot = await db.collection('fantasyTeams').get();
+        // Iterate over SNAPSHOTS only
+        const snapshotsSnapshot = await db.collection('gameweeks').doc(gameweekId)
+            .collection('squads').get();
 
-            // Chunking for batch limits
-            const chunkArray = (arr, size) => {
-                return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
-                    arr.slice(i * size, i * size + size)
-                );
-            };
+        const batch = db.batch();
+        let processed = 0;
 
-            const chunks = chunkArray(teamsSnapshot.docs, 400);
+        for (const squadDoc of snapshotsSnapshot.docs) {
+            const userId = squadDoc.id;
+            const data = squadDoc.data();
+            const points = data.totalPoints || 0; // Already calculated
 
-            for (const chunk of chunks) {
-                const batch = db.batch();
-                const operations = [];
+            // Update main user profile with new total
+            const userRef = db.collection('fantasyTeams').doc(userId);
 
-                for (const teamDoc of chunk) {
-                    const userId = teamDoc.id;
+            batch.update(userRef, {
+                [`history.${gameweekId}`]: {
+                    points: points,
+                    rank: 0
+                },
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
 
-                    // We perform async calcs in parallel for speed within the chunk
-                    operations.push((async () => {
-                        const gwPoints = await calculateUserSquadPoints(userId, gameweekId);
-                        const totalPointsAllTime = await recalculateUserTotalHistory(userId);
-
-                        const userRef = db.collection('fantasyTeams').doc(userId);
-                        batch.update(userRef, {
-                            gw_points: gwPoints,
-                            totalPointsAllTime: totalPointsAllTime,
-                            lastUpdatedGameweek: gameweekId,
-                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    })());
-                }
-
-                // Wait for all calculations in this chunk
-                await Promise.all(operations);
-
-                // Commit batch
-                await batch.commit();
-                console.log(`✅ Processed batch of ${chunk.length} users`);
-            }
-
-            console.log('✅ User points aggregation complete.');
-
-        } catch (error) {
-            console.error('Error aggregating user points:', error);
-            throw error;
+            processed++;
         }
+
+        await batch.commit();
+        console.log(`✅ Finalized points for ${processed} users.`);
+        return processed;
+
+    } catch (error) {
+        console.error('Error aggregating user points:', error);
+        throw error;
     }
+}
 
-    /**
-     * Helper to recalculate total points from all gameweeks
-     * Ensures 100% accuracy vs increment drift
-     */
-    async function recalculateUserTotalHistory(userId) {
-        try {
-            const teamDoc = await db.collection('fantasyTeams').doc(userId).get();
-            if (!teamDoc.exists) return 0;
+/**
+ * Helper to recalculate total points from all gameweeks
+ * Ensures 100% accuracy vs increment drift
+ */
+async function recalculateUserTotalHistory(userId) {
+    try {
+        const teamDoc = await db.collection('fantasyTeams').doc(userId).get();
+        if (!teamDoc.exists) return 0;
 
-            const data = teamDoc.data();
-            const squads = data.squads || {};
+        const data = teamDoc.data();
+        const squads = data.squads || {};
 
-            let total = 0;
-            for (const gwId of Object.keys(squads)) {
-                total += await calculateUserSquadPoints(userId, gwId);
-            }
-            return total;
-        } catch (error) {
-            console.error(`Error recalculating history for ${userId}:`, error);
-            return 0;
+        let total = 0;
+        for (const gwId of Object.keys(squads)) {
+            total += await calculateUserSquadPoints(userId, gwId);
         }
+        return total;
+    } catch (error) {
+        console.error(`Error recalculating history for ${userId}:`, error);
+        return 0;
     }
+}
+
+window.updateLiveUserSquads = updateLiveUserSquads;
