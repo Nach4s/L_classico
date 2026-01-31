@@ -1120,7 +1120,8 @@ function renderMatches() {
                         <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')" title="Удалить">🗑️</button>
                         <button class="btn btn-info btn-small" onclick="showMatchDetails('${match.id}')" title="Статистика">📊</button>
                         <button class="btn btn-warning btn-small" onclick="resetVoting('${match.id}')" title="Возобновить голосование">🔄</button>
-                        <button class="btn btn-danger btn-small" onclick="forceEndVoting('${match.id}')" title="Принудительно завершить и пересчитать">🛑</button>
+                        <!-- NEW: Extent & Rate -->
+                        <button class="btn btn-primary btn-small" onclick="extendMatchVoting('${match.id}')" title="Продлить на 1ч">⏰</button>
                     </div>
                 ` : ''}
             </div>
@@ -1627,23 +1628,29 @@ function switchAuthTab(tab) {
     }
 }
 
-// Force End Voting (Recalculate MVP)
-async function forceEndVoting(matchId) {
-    if (!isAdminLoggedIn) {
-        showAlert('Только админ может завершить голосование', 'error');
-        return;
-    }
-
-    if (!confirm('Принудительно завершить голосование и пересчитать MVP?')) {
-        return;
-    }
+// NEW: Extend Match Voting (1 Hour)
+async function extendMatchVoting(matchId) {
+    if (!confirm('Продлить голосование за этот матч на 1 час?')) return;
 
     try {
-        await closeVotingAndCalculateMVP(matchId);
-        showAlert('Голосование завершено и MVP пересчитан!', 'success');
-    } catch (error) {
-        console.error('Error forcing end voting:', error);
-        showAlert('Ошибка при завершении голосования', 'error');
+        const matchDoc = await db.collection('matches').doc(matchId).get();
+        if (!matchDoc.exists) return;
+
+        const currentEnd = matchDoc.data().votingEndsAt ? matchDoc.data().votingEndsAt.toDate() : new Date();
+        const baseTime = (currentEnd < new Date()) ? new Date() : currentEnd;
+        const newEnd = new Date(baseTime.getTime() + (1 * 60 * 60 * 1000)); // +1 hour
+
+        await db.collection('matches').doc(matchId).update({
+            votingEndsAt: firebase.firestore.Timestamp.fromDate(newEnd),
+            votingClosed: false
+        });
+
+        showAlert('✅ Голосование продлено на 1 час!', 'success');
+        loadMatches(); // Reload UI
+
+    } catch (e) {
+        console.error(e);
+        showAlert('Ошибка: ' + e.message, 'error');
     }
 }
 
@@ -1654,7 +1661,8 @@ window.toggleMatchDetails = toggleMatchDetails;
 window.openVotingModal = openVotingModal;
 window.showMatchDetails = showMatchDetails;
 window.resetVoting = resetVoting;
-window.forceEndVoting = forceEndVoting;
+// window.forceEndVoting removed
+window.extendMatchVoting = extendMatchVoting;
 
 // ===================================
 // FANTASY FOOTBALL MODULE
@@ -1832,7 +1840,9 @@ function setupFantasyTabs() {
                 if (targetTab === 'results') {
                     renderFantasyResults();
                 } else if (targetTab === 'leaderboard') {
-                    renderFantasyLeaderboard();
+                    // CONFLICT FIX: Let fantasy_core.js/leaderboard.js handle this!
+                    // renderFantasyLeaderboard();
+                    console.log("👉 Leaderboard rendering delegated to fantasy_core.js");
                 }
             } else {
                 console.error('❌ Tab content not found:', `fantasy-${targetTab}`);
@@ -2678,6 +2688,9 @@ window.selectFantasyPlayer = selectFantasyPlayer;
 window.removeFantasyPlayer = removeFantasyPlayer;
 window.setCaptain = setCaptain;
 window.openRatingModal = openRatingModal; // Expose for testing/admin
+window.loadGameweekStats = loadGameweekStats; // Explicitly expose for Tab Switching
+window.renderSelectedTeam = renderSelectedTeam;
+
 
 // ===================================
 // RATING SYSTEM UI

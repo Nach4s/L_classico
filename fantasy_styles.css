@@ -732,3 +732,38 @@
     border-radius: 8px;
     margin: 20px 0;
 }
+
+/* Real-Time Leaderboard Styles */
+.live-indicator {
+    display: inline-block;
+    font-size: 0.8rem;
+    margin-right: 4px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.live-points {
+    color: var(--color-danger, #ef4444);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.leaderboard-row .points-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}

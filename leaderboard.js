@@ -89,72 +89,93 @@ async function renderFantasyLeaderboard(gameweekId) {
 }
 
 /**
- * Render overall leaderboard (all-time points)
+ * Render overall leaderboard (Real-Time Hybrid)
+ * Listens to BOTH fantasyTeams (users) and match_stats (live scores)
  */
-async function renderOverallLeaderboard() {
+/**
+ * Render overall leaderboard (Real-Time DB-Side)
+ * Listens ONLY to fantasyTeams and trusts 'live_total_points' for sorting.
+ */
+function renderOverallLeaderboard() {
     const tbody = document.getElementById('fantasyLeaderboard');
-
     if (!tbody) return;
 
-    try {
-        // 1. Get current gameweek to include live points
-        const gwId = window.currentGameweekId || 'gw1';
+    console.log('📡 Start Real-Time Leaderboard (DB Mode)...');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Initializing Live Data...</td></tr>';
 
-        // 2. Fetch all match stats for this GW to calculate live overlay
-        const liveStatsMap = {};
-        const statsSnapshot = await db.collection('match_stats').doc(gwId).collection('players').get();
-        statsSnapshot.forEach(doc => {
-            const data = doc.data();
-            liveStatsMap[data.playerId] = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
-        });
-
-        // 3. Fetch all teams
-        const teamsSnapshot = await db.collection('fantasyTeams').get();
-        const leaderboardData = [];
-
-        teamsSnapshot.forEach(doc => {
-            const data = doc.data();
-            let total = data.totalPointsAllTime || 0;
-
-            // Add live points from current GW squad
-            const currentSquad = data.squads ? data.squads[gwId] : null;
-            let livePoints = 0;
-            if (currentSquad && currentSquad.players) {
-                currentSquad.players.forEach(pid => {
-                    let pts = liveStatsMap[pid] || 0;
-                    if (currentSquad.captainId === pid) pts *= 2;
-                    livePoints += pts;
-                });
-            }
-
-            leaderboardData.push({
-                managerName: data.managerName || 'Анонимный менеджер',
-                livePoints: livePoints,
-                totalPoints: total + livePoints // Live Total
-            });
-        });
-
-        // 4. Sort by total
-        leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
-
-        let html = '';
-        leaderboardData.forEach((entry, idx) => {
-            const icon = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1;
-            html += `
-                <tr class="leaderboard-row">
-                    <td class="rank-cell">${icon}</td>
-                    <td class="manager-cell">${entry.managerName}</td>
-                    <td class="text-center points-cell">${entry.livePoints > 0 ? `+${entry.livePoints}` : entry.livePoints}</td>
-                    <td class="text-center total-points-cell">${entry.totalPoints}</td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = html;
-
-    } catch (error) {
-        console.error('Error rendering overall leaderboard:', error);
+    // Unsubscribe from previous listener if exists
+    if (window.leaderboardUnsubscribe) {
+        window.leaderboardUnsubscribe();
     }
+
+    // Listen to changes in fantasyTeams
+    // ORDER BY live_total_points DESC
+    // Note: This requires an index in Firestore: fantasyTeams [live_total_points: DESC]
+    // If index is missing, it might throw error in console, but basic sorting in JS handles it too if dataset is small.
+    // For safety with small datasets (<100), we can just get all and sort in JS to avoid index errors blocking the view.
+
+    window.leaderboardUnsubscribe = db.collection('fantasyTeams')
+        .onSnapshot(snapshot => {
+            const leaderboardData = [];
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // DEBUG: Check what we are receiving
+                console.log(`Leaderboard Data for ${data.managerName}:`, data);
+
+                // Use stored calculated values or fallback to 0
+                const teamName = data.managerName || 'Аноним';
+                const liveGw = data.live_gw_points || 0;
+                const liveTotal = (data.live_total_points !== undefined) ? data.live_total_points : (data.totalPointsAllTime || 0);
+
+                leaderboardData.push({
+                    userId: doc.id,
+                    managerName: teamName,
+                    livePoints: liveGw,      // Show in "GW" column
+                    realTimeTotal: liveTotal // Show in "Total" column
+                });
+            });
+
+            // Client-side Sort (Robust)
+            leaderboardData.sort((a, b) => b.realTimeTotal - a.realTimeTotal);
+
+            // Render
+            renderLeaderboardTable(tbody, leaderboardData);
+        }, error => {
+            console.error('Error in leaderboard listener:', error);
+            tbody.innerHTML = `<tr><td colspan="4" class="error-text">Ошибка обновления: ${error.message}</td></tr>`;
+        });
+}
+
+/**
+ * Helper to render the table rows
+ */
+function renderLeaderboardTable(tbody, data) {
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">Нет данных</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map((entry, idx) => {
+        const icon = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1;
+        const isLive = entry.livePoints > 0;
+
+        return `
+            <tr class="leaderboard-row" onclick="viewUserSquad('${entry.userId}', '${window.currentGameweekId || 'gw1'}')">
+                <td class="rank-cell">${icon}</td>
+                <td class="manager-cell">
+                    <span class="manager-name">${entry.managerName}</span>
+                </td>
+                <td class="text-center points-cell">
+                    ${isLive ? `<span class="live-indicator">🔴</span>` : ''} 
+                    <span class="live-points">${entry.livePoints > 0 ? '+' + entry.livePoints : '0'}</span>
+                </td>
+                <td class="text-center total-points-cell">
+                    <strong>${entry.realTimeTotal}</strong>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // ===================================
@@ -580,3 +601,12 @@ async function renderFantasyResults(gameweekId) {
         container.innerHTML = '<div class="error-message">❌ Ошибка загрузки результатов</div>';
     }
 }
+// ===================================
+// EXPORTS
+// ===================================
+window.renderFantasyLeaderboard = renderFantasyLeaderboard;
+window.renderOverallLeaderboard = renderOverallLeaderboard;
+window.viewUserSquad = viewUserSquad;
+window.renderSquadModal = renderSquadModal;
+window.saveFantasySquad = saveFantasySquad;
+// window.lockSquadsAfterDeadline = lockSquadsAfterDeadline; // Admin only, usually called via console or admin panel

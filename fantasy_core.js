@@ -96,7 +96,12 @@ function loadFantasyTabContent(tabName) {
     switch (tabName) {
         case 'myteam':
             if (typeof renderFantasyPlayersList === 'function') renderFantasyPlayersList();
-            if (typeof renderSelectedTeam === 'function') renderSelectedTeam();
+            // Call loadGameweekStats to fetch Live Points, instead of just renderSelectedTeam
+            if (typeof window.loadGameweekStats === 'function' && window.currentGameweekId) {
+                window.loadGameweekStats(window.currentGameweekId);
+            } else if (typeof renderSelectedTeam === 'function') {
+                renderSelectedTeam();
+            }
             break;
 
         case 'voting':
@@ -116,7 +121,11 @@ function loadFantasyTabContent(tabName) {
             break;
 
         case 'leaderboard':
-            if (typeof renderFantasyLeaderboard === 'function') {
+            // Use the new Real-Time DB-Side Leaderboard
+            if (typeof window.renderOverallLeaderboard === 'function') {
+                window.renderOverallLeaderboard();
+            } else if (typeof renderFantasyLeaderboard === 'function') {
+                // Fallback (though this is the old one)
                 renderFantasyLeaderboard(gwId);
             }
             break;

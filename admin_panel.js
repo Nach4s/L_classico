@@ -997,15 +997,42 @@ function getNextFriday() {
 /**
  * Render voting open status
  */
-async function forceEditStage1() {
+// NEW: Extend Voting
+async function extendVoting() {
     if (!currentGameweekId) return;
-    if (!confirm('Вернуться к Этапу 1 (Выбор Игроков)?\n\nТекущий статус тура будет сброшен на "setup".\nСтатистика матча НЕ удалится, но вам нужно будет пройти этапы сохранения снова.')) return;
 
-    await db.collection('gameweeks').doc(currentGameweekId).update({
-        status: 'setup',
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await loadGameweek(currentGameweekId);
+    try {
+        const gwDoc = await db.collection('gameweeks').doc(currentGameweekId).get();
+        if (!gwDoc.exists) return;
+
+        const currentEnd = gwDoc.data().votingEndsAt.toDate();
+        const newEnd = new Date(currentEnd.getTime() + (1 * 60 * 60 * 1000)); // +1h
+
+        await db.collection('gameweeks').doc(currentGameweekId).update({
+            votingEndsAt: firebase.firestore.Timestamp.fromDate(newEnd),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showAlert('✅ Голосование продлено на 1 час!', 'success');
+        await loadGameweek(currentGameweekId);
+
+    } catch (e) {
+        console.error(e);
+        showAlert('Ошибка продления: ' + e.message, 'error');
+    }
+}
+
+// NEW: Go to Voting Page
+function goToVotingPage() {
+    // Switch tab to 'voting' (assuming it exists in app structure)
+    // Or just alert user where to go if outside admin panel scope
+    const votingTab = document.querySelector('[data-tab="voting"]'); // Main nav tab
+    if (votingTab) {
+        votingTab.click();
+        // Hide admin panel if needed? No, just switch view.
+    } else {
+        showAlert('Перейдите на вкладку "Голосование" в главном меню', 'info');
+    }
 }
 
 function renderVotingOpenStatus() {
@@ -1013,35 +1040,48 @@ function renderVotingOpenStatus() {
 
     if (!container) return;
 
+    // Calculate remaining time for display
+    let timeRemaining = "Загрузка...";
+    if (currentGameweekData && currentGameweekData.votingEndsAt) {
+        const end = currentGameweekData.votingEndsAt.toDate();
+        const now = new Date();
+        const diff = end - now;
+        if (diff > 0) {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            timeRemaining = `${hours}ч ${mins}м`;
+        } else {
+            timeRemaining = "Завершено";
+        }
+    }
+
     container.innerHTML = `
         <div class="admin-stage">
             <h3>✅ Голосование Открыто</h3>
             <p class="stage-description success-message">
-                Пользователи могут голосовать за игроков. Результаты обновляются автоматически.
+                Пользователи могут голосовать. <br>
+                ⏳ Осталось: <strong>${timeRemaining}</strong>
             </p>
 
             <div class="admin-stage-actions">
-                <button class="btn btn-secondary" onclick="backToStage2()">
-                    ← Изменить Статистику
+                <button class="btn btn-primary" onclick="extendVoting()">
+                    ⏰ Продлить (+1ч)
                 </button>
-                <button class="btn btn-secondary" onclick="forceEditStage1()">
-                    👥 Изменить Состав (Этап 1)
+                
+                <button class="btn btn-secondary" onclick="goToVotingPage()">
+                    🗳️ Оценить Игроков (Перейти)
                 </button>
+
+                <!-- 
                 <button class="btn btn-danger" onclick="closeVoting()">
                     🔒 Закрыть Голосование
                 </button>
+                -->
             </div>
-
-            <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
-                <h4 style="color: #aaa; font-size: 0.9em; margin-bottom: 10px;">🔧 Инструменты Тура</h4>
-                <button class="btn btn-warning" onclick="snapshotSquadsForGameweek()" style="width: 100%; margin-bottom: 5px;">
-                    📸 Создать Снэпшот Составов
-                </button>
-                <p style="font-size: 0.8em; color: #777;">
-                    Копирует текущие составы всех пользователей в архив этого тура.
-                    Необходимо выполнить перед подсчетом очков.
-                </p>
-            </div>
+            
+            <button class="btn btn-secondary btn-sm" onclick="renderGameweekSelector()" style="margin-top:20px">
+                ← Назад к списку туров
+            </button>
         </div>
     `;
 }
@@ -1082,6 +1122,8 @@ window.saveGameweekSettings = saveGameweekSettings;
 window.freezeSquadsForVoting = freezeSquadsForVoting;
 window.saveStage1_PlayedPlayers = saveStage1_PlayedPlayers;
 window.forceEditStage1 = forceEditStage1;
+window.extendVoting = extendVoting;
+window.goToVotingPage = goToVotingPage;
 
 console.log('✅ Admin Panel loaded');
 

@@ -255,6 +255,13 @@ async function updateLiveUserSquads(gameweekId) {
             return;
         }
 
+        // 2.1 Fetch All Fantasy Teams to get Base Total Points (Optimization: Single Read)
+        const teamsMap = new Map();
+        const teamsSnapshot = await db.collection('fantasyTeams').get();
+        teamsSnapshot.forEach(doc => {
+            teamsMap.set(doc.id, doc.data().totalPointsAllTime || 0);
+        });
+
         const batch = db.batch();
         let grandTotal = 0;
         let maxScore = 0;
@@ -268,7 +275,29 @@ async function updateLiveUserSquads(gameweekId) {
 
             if (squad.players && Array.isArray(squad.players)) {
                 squad.players.forEach(pid => {
-                    const stat = statsMap.get(pid);
+                    // ID Mismatch Fix: Handle Number IDs (Legacy) and String IDs (New)
+                    let stringId = pid;
+
+                    // If pid is a number (e.g. 9) or a numeric string (e.g. "9")
+                    // we need to look it up in PLAYERS_DATA to get "akylbek_a"
+                    const isNumeric = typeof pid === 'number' || (!isNaN(pid) && !isNaN(parseFloat(pid)));
+
+                    if (isNumeric && typeof PLAYERS_DATA !== 'undefined') {
+                        const numericIndex = parseInt(pid, 10); // Convert "9" to 9
+                        const pData = PLAYERS_DATA[numericIndex - 1]; // Index is 1-based
+                        if (pData) {
+                            stringId = pData.id;
+                        }
+                    }
+
+                    // DEBUG
+                    // console.log(`PID: ${pid} (${typeof pid}) -> Lookup ID: ${stringId}`);
+
+                    const stat = statsMap.get(stringId);
+
+                    // DEBUG: Trace individual player calc
+                    // console.log(`Calc for user ${doc.id}: PID ${pid} -> ${stringId}. Found stat?`, !!stat);
+
                     if (stat) {
                         let pts = stat.points;
                         // Captain Multiplier
@@ -278,6 +307,7 @@ async function updateLiveUserSquads(gameweekId) {
                         squadPoints += pts;
                     }
                 });
+                console.log(`Squad Total for ${doc.id}: ${squadPoints}`);
             }
 
             // Update Max/Avg tracking
@@ -289,6 +319,18 @@ async function updateLiveUserSquads(gameweekId) {
             batch.update(squadRef, {
                 totalPoints: squadPoints,
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // NEW: Update user's main profile for Real-Time Leaderboard
+            // Calculates LIVE Total = Historical Total + Current Live GW Points
+            const userRef = db.collection('fantasyTeams').doc(doc.id);
+            const baseTotal = teamsMap.get(doc.id) || 0;
+            const liveTotal = baseTotal + squadPoints;
+
+            batch.update(userRef, {
+                live_gw_points: squadPoints,        // Points for THIS active gameweek
+                live_total_points: liveTotal,       // Total for sorting (Base + Live)
+                livePointsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         });
 
