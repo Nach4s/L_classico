@@ -12,7 +12,7 @@ const VOTING_PLAYERS = [
     'Данияр А.', 'Хамид Т.'
 ];
 
-/**
+/** 
  * Render voting block inside match details
  */
 async function renderMatchVotingBlock(matchId, containerSelector) {

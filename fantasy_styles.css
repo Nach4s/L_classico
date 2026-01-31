@@ -766,4 +766,203 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
+    /* Space between live dot and points */
+}
+
+/* =========================================
+   SCOUTING MODAL STYLES (EPL THEME)
+   ========================================= */
+
+/* Dark overlay - Fixed to Viewport */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+    z-index: 99999;
+    /* Highest priority */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Modal Card - EPL Style */
+.modal-content {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    padding: 0;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 450px;
+    /* Limit width for mobile likeness */
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+}
+
+.close-modal {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 100;
+}
+
+.close-modal:hover {
+    color: white;
+}
+
+#modalTeamName {
+    text-align: center;
+    color: white;
+    margin-top: 20px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+#modalManagerName {
+    text-align: center;
+    color: #bbb;
+    margin-bottom: 20px;
+    font-weight: 400;
+    font-size: 0.9rem;
+}
+
+.pitch-container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* CSS Cleaned up */
+
+/* Header Area */
+.modal-content h2,
+.modal-content h4 {
+    margin: 5px 0;
+    padding: 0 20px;
+}
+
+.modal-content h2 {
+    margin-top: 20px;
+    font-family: 'Outfit', sans-serif;
+    color: #fff;
+    font-weight: 700;
+}
+
+.modal-content h4 {
+    color: #ccc;
+    font-weight: 400;
+    border-bottom: 1px solid #444;
+    padding-bottom: 15px;
+    margin-bottom: 10px;
+}
+
+/* Close Button */
+.close-modal {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    color: #888;
+    background: rgba(255, 255, 255, 0.1);
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+    border-radius: 50%;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 20;
+}
+
+.close-modal:hover {
+    color: white;
+    background: #ef4444;
+}
+
+/* Pitch Container - No margin issues */
+#modalPitchContainer {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 10px 0 20px 0;
+    background: #1a1a1a;
+}
+
+/* The Pitch itself */
+#modalPitchContainer .pitch {
+    transform: none;
+    /* Reset scaling */
+    width: 100%;
+    max-width: 380px;
+    /* Force mobile width for consistency */
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+    margin: 0 auto;
+}
+
+/* Player Card in Modal */
+#modalPitchContainer .player-card {
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: default;
+}
+
+/* Name Tag (EPL Style: White box with black text) */
+#modalPitchContainer .player-name-tag {
+    background: #fff;
+    color: #1a1a1a;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 6px;
+    border-radius: 2px;
+    margin-top: -4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Points Badge (EPL Style: Small separate box) */
+#modalPitchContainer .player-points-badge {
+    background: #37003c;
+    /* EPL Purple */
+    color: #00ff87;
+    /* EPL Green */
+    font-weight: 800;
+    font-size: 11px;
+    padding: 2px 5px;
+    border-radius: 2px;
+    margin-top: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Captain Armband */
+#modalPitchContainer .captain-badge {
+    position: absolute;
+    top: -5px;
+    right: 0px;
+    background: #000;
+    color: #fff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-weight: 800;
+    font-size: 10px;
+    line-height: 18px;
+    border: 1px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    z-index: 5;
 }

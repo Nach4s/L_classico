@@ -151,3 +151,70 @@ async function getPlayersByPosition(position) {
     });
     return players;
 }
+
+// ===================================
+// GLOBAL PLAYER MAPPING (HYDRATION)
+// ===================================
+
+/**
+ * Creates a Map of Players for fast lookup by ID (String) or Index (Number)
+ * Solves the issue of mismatched ID types in the database.
+ * Returns: Map<string|number, PlayerObject>
+ */
+async function getGlobalPlayerMap() {
+    const playerMap = new Map();
+
+    // 1. Load from DB (Primary Source)
+    if (typeof db !== 'undefined') {
+        try {
+            const snapshot = await db.collection('players').get();
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // Map by String ID (e.g. "mansur_sh")
+                playerMap.set(doc.id, { id: doc.id, ...data });
+                // Map by internal 'id' field if different
+                if (data.id && data.id !== doc.id) {
+                    playerMap.set(data.id, { id: doc.id, ...data });
+                }
+            });
+        } catch (e) {
+            console.error("Error loading players from DB for map:", e);
+        }
+    }
+
+    // 2. Fallback/Augment with Static Data (for numerical indices)
+    // Legacy support: Database has numbers [11, 7, 13] which correspond to PLAYERS_DATA indices
+    if (typeof PLAYERS_DATA !== 'undefined' && Array.isArray(PLAYERS_DATA)) {
+        PLAYERS_DATA.forEach((p, index) => {
+            // Map by String ID
+            if (!playerMap.has(p.id)) {
+                playerMap.set(p.id, p);
+            }
+
+            // Map by Numeric Index (1-based or 0-based depending on where it came from)
+            // Assuming legacy system used 1-based index (1..12) or 2-based (2..13)
+            // We will map BOTH to be safe, if no conflict.
+
+            // Map 0-based index (prevent overlap with string ids if possible, but IDs are usually strings)
+            // Warning: If p.id is "7" string, and index is 7, they overlap fine.
+
+            // Standardizing on: Input ID -> Player Object
+
+            // Case A: Index + 1 (1..N)
+            const idx1 = index + 1;
+            if (!playerMap.has(idx1)) playerMap.set(idx1, p);
+
+            // Case B: Index + 2 (Legacy offset seen in some files)
+            const idx2 = index + 2;
+            if (!playerMap.has(idx2)) playerMap.set(idx2, p);
+        });
+    }
+
+    console.log(`🗺️ Global Player Map created with ${playerMap.size} entries.`);
+    return playerMap;
+}
+
+// Export globally
+window.getGlobalPlayerMap = getGlobalPlayerMap;
+window.PLAYERS_DATA = PLAYERS_DATA; // Ensure global access
+

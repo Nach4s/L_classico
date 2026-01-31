@@ -40,9 +40,10 @@ async function forceUpdateNach4s() {
     console.log(`📊 Calculated Total: ${totalGwPoints}`);
 
     // 2. Update User
-    const snapshot = await db.collection('fantasyTeams').where('managerName', '==', 'Nach4s').get();
+    const NEW_NAME = 'шынгыса кэп асана и данияра';
+    const snapshot = await db.collection('fantasyTeams').where('managerName', '==', NEW_NAME).get();
     if (snapshot.empty) {
-        console.error("❌ User Nach4s not found!");
+        console.error(`❌ User '${NEW_NAME}' not found!`);
         return;
     }
 
@@ -58,9 +59,9 @@ async function forceUpdateNach4s() {
         livePointsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`✅ UPDATED NACH4S SUCCESSFULLY!`);
+    console.log(`✅ UPDATED '${NEW_NAME}' SUCCESSFULLY!`);
     console.log(`Squad: [${newPlayersLegacy}] (Captain: ${newCaptainLegacy})`);
     console.log(`Points: GW=${totalGwPoints}, Total=${finalTotal}`);
-    alert(`Nach4s updated! Total Points: ${finalTotal}`);
+    alert(`Updated! Total Points: ${finalTotal}`);
 }
 forceUpdateNach4s();

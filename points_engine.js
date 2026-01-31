@@ -227,6 +227,9 @@ async function recalculateAllPlayersInGameweek(gameweekId) {
 async function updateLiveUserSquads(gameweekId) {
     console.log(`🔄 LIVE SCORING: Updating all squads for ${gameweekId}...`);
     try {
+        // 0. Load Global Player Map (Crucial Fix for ID Mismatch)
+        const playerMap = await window.getGlobalPlayerMap();
+
         // 1. Fetch ALL Player Stats for this Gameweek (Optimization: Single Read)
         const statsMap = new Map();
         const statsSnapshot = await db.collection('match_stats')
@@ -236,9 +239,7 @@ async function updateLiveUserSquads(gameweekId) {
 
         statsSnapshot.forEach(doc => {
             const data = doc.data();
-            statsMap.set(data.playerId, {
-                // Use components for Live Scoring (Stats + MVP + Rating)
-                // This ensures we see points immediately after entered, even if totalPoints field isn't set yet
+            statsMap.set(doc.id, {
                 points: (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0),
                 isMVP: data.isMVP || false
             });
@@ -267,7 +268,7 @@ async function updateLiveUserSquads(gameweekId) {
         let maxScore = 0;
         let processedCount = 0;
 
-        // 3. Recalculate each squad using cached stats
+        // 3. Recalculate each squad using cached stats and global map
         squadsSnapshot.forEach(doc => {
             const squad = doc.data();
             const squadRef = doc.ref;
@@ -275,33 +276,20 @@ async function updateLiveUserSquads(gameweekId) {
 
             if (squad.players && Array.isArray(squad.players)) {
                 squad.players.forEach(pid => {
-                    // ID Mismatch Fix: Handle Number IDs (Legacy) and String IDs (New)
+                    // ID Mismatch Fix: Use Global Map to find the canonical String ID
                     let stringId = pid;
 
-                    // If pid is a number (e.g. 9) or a numeric string (e.g. "9")
-                    // we need to look it up in PLAYERS_DATA to get "akylbek_a"
-                    const isNumeric = typeof pid === 'number' || (!isNaN(pid) && !isNaN(parseFloat(pid)));
-
-                    if (isNumeric && typeof PLAYERS_DATA !== 'undefined') {
-                        const numericIndex = parseInt(pid, 10); // Convert "9" to 9
-                        const pData = PLAYERS_DATA[numericIndex - 1]; // Index is 1-based
-                        if (pData) {
-                            stringId = pData.id;
-                        }
+                    const pData = playerMap.get(pid);
+                    if (pData) {
+                        stringId = pData.id;
                     }
 
-                    // DEBUG
-                    // console.log(`PID: ${pid} (${typeof pid}) -> Lookup ID: ${stringId}`);
-
                     const stat = statsMap.get(stringId);
-
-                    // DEBUG: Trace individual player calc
-                    // console.log(`Calc for user ${doc.id}: PID ${pid} -> ${stringId}. Found stat?`, !!stat);
 
                     if (stat) {
                         let pts = stat.points;
                         // Captain Multiplier
-                        if (squad.captainId === pid) {
+                        if (squad.captainId === pid || squad.captainId === stringId) {
                             pts *= 2;
                         }
                         squadPoints += pts;
@@ -328,8 +316,14 @@ async function updateLiveUserSquads(gameweekId) {
             const liveTotal = baseTotal + squadPoints;
 
             batch.update(userRef, {
-                live_gw_points: squadPoints,        // Points for THIS active gameweek
-                live_total_points: liveTotal,       // Total for sorting (Base + Live)
+                // Fields used by Leaderboard UI (leaderboard.js uses weekPoints & totalPoints)
+                weekPoints: squadPoints,
+                totalPoints: liveTotal,
+
+                // Detailed fields for debugging/live tracking
+                live_gw_points: squadPoints,
+                live_total_points: liveTotal,
+
                 livePointsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         });

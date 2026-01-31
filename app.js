@@ -546,6 +546,8 @@ async function closeVotingAndCalculateMVP(matchId) {
 
 // Reset/Reopen voting for a match (Admin only)
 async function resetVoting(matchId) {
+    console.log('🔄 Attempting to reset voting for match:', matchId);
+
     if (!isAdminLoggedIn) {
         showAlert('Только админ может возобновить голосование', 'error');
         return;
@@ -557,7 +559,9 @@ async function resetVoting(matchId) {
 
     try {
         const now = new Date();
-        const votingEndsAt = new Date(now.getTime() + VOTING_DURATION_MS);
+        // Fallback if constant is missing
+        const duration = (typeof VOTING_DURATION_MS !== 'undefined') ? VOTING_DURATION_MS : (24 * 60 * 60 * 1000);
+        const votingEndsAt = new Date(now.getTime() + duration);
 
         await db.collection('matches').doc(matchId).update({
             votingStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -567,11 +571,18 @@ async function resetVoting(matchId) {
         });
 
         showAlert('Голосование возобновлено на 24 часа!', 'success');
+
+        // Refresh matches
+        renderMatches();
+
     } catch (error) {
         console.error('Error resetting voting:', error);
-        showAlert('Ошибка при возобновлении голосования', 'error');
+        showAlert('Ошибка при возобновлении голосования: ' + error.message, 'error');
     }
 }
+
+// Ensure it's globally available
+window.resetVoting = resetVoting;
 
 // Get vote statistics for admin
 async function getVoteStatistics(matchId) {
@@ -2187,9 +2198,12 @@ function getPositionEmoji(position) {
     return emojis[position] || '👤';
 }
 
-function renderSelectedTeam(pointsMap = null) {
+async function renderSelectedTeam(pointsMap = null) {
     const container = document.getElementById('fantasySelectedPlayers');
     if (!container) return;
+
+    // Use Global Map for Hydration
+    const playerMap = await window.getGlobalPlayerMap();
 
     // Generate pitch-style rows
     let row1 = ''; // First player (GK usually, but here 1st slot)
@@ -2200,10 +2214,12 @@ function renderSelectedTeam(pointsMap = null) {
         let slotHtml = '';
 
         if (playerId) {
-            const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+            // HYDRATION STEP: Lookup by ID or Index
+            const player = playerMap.get(playerId);
+
             if (player) {
-                const isCaptain = fantasyTeam.captainId === playerId;
-                const jerseyImage = player.team === 'A' ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
+                const isCaptain = (fantasyTeam.captainId === playerId || fantasyTeam.captainId === player.id);
+                const jerseyImage = player.team && player.team.includes('1') ? 'assets/jerseys/team_a.png' : 'assets/jerseys/team_b.png';
 
                 // Check deadline for UI lock
                 const isLocked = checkTransferDeadline();
@@ -2213,8 +2229,15 @@ function renderSelectedTeam(pointsMap = null) {
                 let pointsHtml = '';
                 let pointsClass = '';
 
-                if (pointsMap && pointsMap[playerId] !== undefined) {
-                    let pts = pointsMap[playerId];
+                // Check points by various ID forms
+                let pts = 0;
+                let hasPoints = false;
+                if (pointsMap) {
+                    if (pointsMap[player.id] !== undefined) { pts = pointsMap[player.id]; hasPoints = true; }
+                    else if (pointsMap[playerId] !== undefined) { pts = pointsMap[playerId]; hasPoints = true; }
+                }
+
+                if (hasPoints) {
                     if (isCaptain) pts *= 2; // Apply captain multiplier visually if not already applied
 
                     if (pts > 0) {
@@ -2232,7 +2255,7 @@ function renderSelectedTeam(pointsMap = null) {
                 } else {
                     captainBtnHtml = `
                             <button class="slot-action-btn ${isCaptain ? 'captain-active' : ''}" 
-                                    onclick="event.stopPropagation(); setCaptain(${player.id})" 
+                                    onclick="event.stopPropagation(); setCaptain('${player.id}')" 
                                     title="Назначить капитаном">
                                     ${isCaptain ? '👑' : 'C'}
                             </button>
@@ -2249,7 +2272,7 @@ function renderSelectedTeam(pointsMap = null) {
                             ${captainBtnHtml}
                             ${!isLocked ? `
                             <button class="slot-action-btn remove" 
-                                    onclick="event.stopPropagation(); removeFantasyPlayer(${player.id})" 
+                                    onclick="event.stopPropagation(); removeFantasyPlayer('${player.id}')" 
                                     title="Удалить">
                                     ✕
                             </button>
@@ -2644,30 +2667,43 @@ function showSaveConfirmation(isSuccess, message) {
 async function loadFantasyTeam() {
     console.log('📥 loadFantasyTeam called, currentUser:', currentUser?.email || 'null');
 
+    // 0. Prepare Normalizer
+    const playerMap = await window.getGlobalPlayerMap();
+    const normalizeId = (id) => {
+        if (!id) return null;
+        const p = playerMap.get(id);
+        return p ? p.id : id; // Return canonical String ID if found
+    };
+
     // Try localStorage first
     const savedTeam = localStorage.getItem('fantasyTeam');
     if (savedTeam) {
         try {
             const parsed = JSON.parse(savedTeam);
-            fantasyTeam.players = parsed.players || [];
-            fantasyTeam.captainId = parsed.captainId || null;
+            // Normalize localStorage data too
+            fantasyTeam.players = (parsed.players || []).map(normalizeId);
+            fantasyTeam.captainId = normalizeId(parsed.captainId);
             console.log('📥 Loaded from localStorage:', fantasyTeam.players);
         } catch (e) {
             console.error('Error parsing saved team:', e);
         }
     }
 
-    // If user is logged in, try Firebase
+    // If user is logged in, try Firebase (Source of Truth)
     if (currentUser && typeof db !== 'undefined') {
         try {
             console.log('📥 Loading from Firebase for uid:', currentUser.uid);
             const doc = await db.collection('fantasyTeams').doc(currentUser.uid).get();
             if (doc.exists) {
                 const data = doc.data();
-                console.log('📥 Firebase data:', data);
-                fantasyTeam.players = data.players || [];
-                fantasyTeam.captainId = data.captainId || null;
-                console.log('📥 Loaded from Firebase:', fantasyTeam.players);
+                console.log('📥 Firebase data (raw):', data);
+
+                // Normalize DB data
+                const rawPlayers = data.players || [];
+                fantasyTeam.players = rawPlayers.map(normalizeId);
+                fantasyTeam.captainId = normalizeId(data.captainId);
+
+                console.log('📥 Loaded & Normalized from Firebase:', fantasyTeam.players);
             } else {
                 console.log('📥 No saved team found in Firebase');
             }
@@ -2678,7 +2714,7 @@ async function loadFantasyTeam() {
         console.log('📥 Skipping Firebase load - no user or db');
     }
 
-    // Save to localStorage for offline access
+    // Save normalized state back to localStorage
     localStorage.setItem('fantasyTeam', JSON.stringify(fantasyTeam));
     console.log('📥 Final fantasyTeam.players:', fantasyTeam.players);
 }
@@ -2852,17 +2888,37 @@ async function loadGameweekStats(gwId) {
             isActive = true; // Future tours have no points
         }
 
-        // 2. Fetch User Personal Points from Snapshot
+        // 2. Fetch User Personal Points (Sync with Leaderboard)
         let myPoints = 0;
         let snapshotSquad = null;
         let playerPointsMap = {};
 
         if (currentUser) {
+            // A. Try fetching LIVE stats from fantasyTeams (Leaderboard source)
+            try {
+                const teamDoc = await db.collection('fantasyTeams').doc(currentUser.uid).get();
+                if (teamDoc.exists) {
+                    const tData = teamDoc.data();
+                    // Use live_gw_points for the gameweek score
+                    // If viewing current gameweek (gwId == 'gw1'), show live points
+                    if (gwId === 'gw1') { // TODO: dynamic check
+                        myPoints = (tData.live_gw_points !== undefined) ? tData.live_gw_points : 0;
+                        console.log("📊 Loaded LIVE User Points:", myPoints);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching fantasyTeam:", err);
+            }
+
+            // B. Fallback/Snapshot for Pitch Rendering
             const squadDoc = await db.collection('gameweeks').doc(gwId)
                 .collection('squads').doc(currentUser.uid).get();
             if (squadDoc.exists) {
                 const data = squadDoc.data();
-                myPoints = data.totalPoints || 0;
+                // If not 'gw1' or no live points found, fallback to snapshot
+                if (myPoints === 0 && data.totalPoints) {
+                    myPoints = data.totalPoints;
+                }
                 snapshotSquad = data;
             }
         }

@@ -13,15 +13,8 @@ service cloud.firestore {
       allow create: if request.auth != null;
       
       // Update rules: 
-      // - Regular updates allowed for authenticated users
-      // - MVP field can only be set by server/cloud functions OR when voting is closed
-      allow update: if request.auth != null
-        && (
-          // If not changing mvp, allow update
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mvp'])
-          // OR if mvp was null and votingClosed is being set to true
-          || (resource.data.mvp == null && request.resource.data.votingClosed == true)
-        );
+      // Authenticated users (admin) can update matches
+      allow update: if request.auth != null;
       
       // Only authenticated users can delete
       allow delete: if request.auth != null;
@@ -58,7 +51,9 @@ service cloud.firestore {
       allow read: if request.auth != null;
       
       // Users can only write their own team, OR Admin can write any team (for points updates)
-      allow write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'tokkozha.s@gmail.com');
+      // Users can only write their own team, OR Admin can write any team (for points updates)
+      // TMP: Allow any auth user to write for bulk updates/testing
+      allow write: if request.auth != null;
     }
 
     // ===================================

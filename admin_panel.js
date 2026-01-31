@@ -618,6 +618,9 @@ function renderStage3_OpenVoting() {
             </div>
 
             <div class="admin-stage-actions">
+                <button class="btn btn-warning" onclick="updateLiveUserSquads(currentGameweekId)">
+                    ♻️ Пересчитать Очки (Debug)
+                </button>
                 <button class="btn btn-secondary" onclick="backToStage2()">
                     ← Вернуться к Этапу 2
                 </button>
@@ -791,6 +794,9 @@ async function renderGameweekSelector() {
                     </button>
                     <button class="btn btn-danger" onclick="deleteSelectedGameweek()" title="Удалить тур и все данные">
                         🗑️
+                    </button>
+                    <button class="btn btn-warning" onclick="manualRecalcWrapper()" title="Принудительный пересчет очков">
+                        ♻️
                     </button>
                 </div>
             </div>
@@ -1110,10 +1116,28 @@ function renderCompletedStatus() {
     `;
 }
 
+// NEW: Recalculate Wrapper
+async function manualRecalcWrapper() {
+    const gwId = document.getElementById('gameweekSelect')?.value;
+    if (!gwId) {
+        alert('Выберите тур из списка!');
+        return;
+    }
+    if (confirm(`Пересчитать очки для ${gwId}? Это обновит таблицу лидеров.`)) {
+        if (typeof updateLiveUserSquads === 'function') {
+            await updateLiveUserSquads(gwId);
+            alert('✅ Пересчет завершен!');
+        } else {
+            alert('❌ Ошибка: функция пересчета не найдена');
+        }
+    }
+}
+
 // ===================================
 // GLOBAL EXPORTS
 // ===================================
 window.renderAdminPanel = renderAdminPanel;
+window.manualRecalcWrapper = manualRecalcWrapper;
 window.renderGameweekSelector = renderGameweekSelector;
 window.loadGameweek = loadGameweek;
 window.createNewGameweek = createNewGameweek;
