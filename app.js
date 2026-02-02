@@ -584,6 +584,231 @@ async function resetVoting(matchId) {
 // Ensure it's globally available
 window.resetVoting = resetVoting;
 
+// Force recalculate MVP and finalize Fantasy points (Admin only)
+// SIMPLIFIED VERSION - skips rating calculation, focuses on MVP bonus
+async function recalculateMVP(matchId) {
+    console.log('🔄 [STEP 0] Starting MVP recalculation for match:', matchId);
+
+    if (!isAdminLoggedIn) {
+        showAlert('Только админ может пересчитать MVP', 'error');
+        return;
+    }
+
+    if (!confirm('Пересчитать MVP и начислить очки?')) {
+        return;
+    }
+
+    try {
+        // === STEP 1: Calculate MVP from match votes ===
+        console.log('📌 [STEP 1] Fetching MVP votes from matches collection...');
+        const votesSnapshot = await db.collection('matches').doc(matchId)
+            .collection('votes').get();
+
+        let mvp = null;
+        let mvpName = null;
+
+        if (!votesSnapshot.empty) {
+            const voteCount = new Map();
+            const playerTeams = new Map();
+
+            votesSnapshot.forEach(doc => {
+                const vote = doc.data();
+                const key = vote.player;
+                voteCount.set(key, (voteCount.get(key) || 0) + 1);
+                if (!playerTeams.has(key) || vote.team === "General") {
+                    playerTeams.set(key, vote.team || "General");
+                }
+            });
+
+            let maxVotes = 0;
+            voteCount.forEach((votes, player) => {
+                if (votes > maxVotes) {
+                    maxVotes = votes;
+                    mvp = { player, team: playerTeams.get(player), votes };
+                    mvpName = player;
+                }
+            });
+            console.log('✅ [STEP 1] MVP determined:', mvpName, 'with', maxVotes, 'votes');
+        } else {
+            console.log('⚠️ [STEP 1] No MVP votes found');
+        }
+
+        // === STEP 1.5: Update match document with MVP ===
+        console.log('📌 [STEP 1.5] Updating match document...');
+        await db.collection('matches').doc(matchId).update({
+            votingClosed: true,
+            mvp: mvp
+        });
+        console.log('✅ [STEP 1.5] Match updated with MVP');
+
+        // === STEP 2: Find linked Gameweek ===
+        console.log('📌 [STEP 2] Finding linked gameweek...');
+        const gameweeksSnapshot = await db.collection('gameweeks')
+            .where('matchId', '==', matchId)
+            .get();
+
+        if (gameweeksSnapshot.empty) {
+            showAlert(`MVP: ${mvpName || 'Не определен'}\nНет привязанного тура.`, 'warning');
+            renderMatches();
+            return;
+        }
+
+        const gameweekId = gameweeksSnapshot.docs[0].id;
+        console.log('✅ [STEP 2] Found gameweek:', gameweekId);
+
+        // === STEP 3: Get player stats ===
+        console.log('📌 [STEP 3] Fetching player stats...');
+        const statsSnapshot = await db.collection('match_stats')
+            .doc(gameweekId)
+            .collection('players')
+            .where('played', '==', true)
+            .get();
+
+        if (statsSnapshot.empty) {
+            console.warn('⚠️ [STEP 3] No player stats found');
+            showAlert('Нет статистики игроков для этого тура', 'warning');
+            return;
+        }
+        console.log('✅ [STEP 3] Found', statsSnapshot.size, 'player stats');
+
+        // === STEP 3.5: Fetch rating votes from player_votes collection ===
+        console.log('📌 [STEP 3.5] Fetching player rating votes...');
+        let ratingVotesSnapshot = null;
+        try {
+            ratingVotesSnapshot = await db.collection('player_votes')
+                .where('gameweekId', '==', gameweekId)
+                .get();
+            console.log('✅ [STEP 3.5] Found', ratingVotesSnapshot.size, 'rating votes');
+        } catch (votesError) {
+            console.warn('⚠️ [STEP 3.5] Could not fetch rating votes:', votesError.message);
+            // Continue without ratings
+        }
+
+        // === STEP 4: Update each player's points ===
+        console.log('📌 [STEP 4] Calculating and updating player points...');
+        let updatedCount = 0;
+
+        for (const statDoc of statsSnapshot.docs) {
+            try {
+                const statsData = statDoc.data();
+                const playerId = statsData.playerId;
+
+                // Get player info
+                const playerDoc = await db.collection('players').doc(playerId).get();
+                if (!playerDoc.exists) {
+                    console.warn('  ⚠️ Player not found:', playerId);
+                    continue;
+                }
+
+                const playerData = playerDoc.data();
+                const playerName = playerData.name;
+                const playerPosition = playerData.position;
+                const isMVP = (playerName === mvpName);
+
+                // Calculate stats points
+                const goals = statsData.goals || 0;
+                const assists = statsData.assists || 0;
+                const statsPoints = (goals * 3) + (assists * 2);
+                const mvpBonus = isMVP ? getLocalMVPBonusFallback(playerPosition) : 0;
+
+                // Calculate average rating from player_votes
+                let avgRating = 6.0;
+                if (ratingVotesSnapshot && !ratingVotesSnapshot.empty) {
+                    let totalRating = 0;
+                    let ratingCount = 0;
+                    ratingVotesSnapshot.forEach(voteDoc => {
+                        const voteData = voteDoc.data();
+                        if (voteData.playerId === playerId) {
+                            totalRating += voteData.rating || 6.0;
+                            ratingCount++;
+                        }
+                    });
+                    if (ratingCount > 0) {
+                        avgRating = totalRating / ratingCount;
+                    }
+                }
+
+                // Calculate rating bonus (can be negative!)
+                const ratingBonus = getLocalRatingBonusFallback(avgRating, playerPosition);
+                const totalPoints = statsPoints + mvpBonus + ratingBonus;
+
+                // Update player stats document
+                await statDoc.ref.update({
+                    isMVP: isMVP,
+                    statsPoints: statsPoints,
+                    mvpBonus: mvpBonus,
+                    ratingBonus: ratingBonus,
+                    averageRating: Math.round(avgRating * 10) / 10,
+                    totalPoints: totalPoints
+                });
+
+                console.log(`  📈 ${playerName}: ${totalPoints} pts (MVP: ${isMVP}, Rating: ${avgRating.toFixed(1)}, Bonus: ${ratingBonus})`);
+                updatedCount++;
+            } catch (playerError) {
+                console.error('  ❌ Error updating player:', playerError);
+            }
+        }
+        console.log('✅ [STEP 4] Updated', updatedCount, 'players');
+
+        // === STEP 5: Update gameweek status ===
+        console.log('📌 [STEP 5] Updating gameweek status to completed...');
+        await db.collection('gameweeks').doc(gameweekId).update({
+            status: 'completed',
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('✅ [STEP 5] Gameweek status updated');
+
+        // === STEP 6: Recalculate user squad points ===
+        console.log('📌 [STEP 6] Recalculating user squad points...');
+        if (typeof updateLiveUserSquads === 'function') {
+            await updateLiveUserSquads(gameweekId);
+            console.log('✅ [STEP 6] User squads updated');
+        } else {
+            console.warn('⚠️ [STEP 6] updateLiveUserSquads not found');
+        }
+
+        // === STEP 7: Aggregate points for leaderboard ===
+        console.log('📌 [STEP 7] Aggregating user points...');
+        if (typeof aggregateAllUsersPoints === 'function') {
+            await aggregateAllUsersPoints(gameweekId);
+            console.log('✅ [STEP 7] User points aggregated');
+        } else {
+            console.warn('⚠️ [STEP 7] aggregateAllUsersPoints not found');
+        }
+
+        // === SUCCESS ===
+        showAlert(`✅ Готово!\n\nMVP: ${mvpName || 'Не определен'}\nОчки начислены: ${updatedCount} игроков`, 'success');
+        renderMatches();
+
+        if (typeof renderGlobalLeaderboard === 'function') {
+            renderGlobalLeaderboard();
+        }
+
+    } catch (error) {
+        console.error('❌ [ERROR] recalculateMVP failed:', error);
+        showAlert('Ошибка: ' + error.message, 'error');
+    }
+}
+
+// Local fallback for MVP bonus
+function getLocalMVPBonusFallback(position) {
+    const bonuses = { 'GK': 8, 'DEF': 6, 'MID': 4, 'FWD': 2 };
+    return bonuses[position] || 0;
+}
+
+// Local fallback for rating bonus (can be negative!)
+function getLocalRatingBonusFallback(avgRating, position) {
+    const isDefensive = (position === 'GK' || position === 'DEF');
+    if (avgRating >= 9.0) return isDefensive ? 8 : 5;
+    if (avgRating >= 8.0) return isDefensive ? 5 : 3;
+    if (avgRating >= 7.0) return isDefensive ? 2 : 1;
+    if (avgRating >= 6.0) return 0;
+    if (avgRating >= 4.5) return -2;
+    return -4;
+}
+
+window.recalculateMVP = recalculateMVP;
+
 // Get vote statistics for admin
 async function getVoteStatistics(matchId) {
     try {
@@ -1131,8 +1356,7 @@ function renderMatches() {
                         <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')" title="Удалить">🗑️</button>
                         <button class="btn btn-info btn-small" onclick="showMatchDetails('${match.id}')" title="Статистика">📊</button>
                         <button class="btn btn-warning btn-small" onclick="resetVoting('${match.id}')" title="Возобновить голосование">🔄</button>
-                        <!-- NEW: Extent & Rate -->
-                        <button class="btn btn-primary btn-small" onclick="extendMatchVoting('${match.id}')" title="Продлить на 1ч">⏰</button>
+                        <button class="btn btn-success btn-small" onclick="recalculateMVP('${match.id}')" title="Закрыть голосование и пересчитать MVP">🏆</button>
                     </div>
                 ` : ''}
             </div>
@@ -1149,6 +1373,14 @@ function getVotingStatusHTML(match) {
             <div class="voting-status closed">
                 <span class="status-icon">🏆</span>
                 <span>MVP: ${match.mvp.player} (${match.mvp.votes} ${getDeclension(match.mvp.votes, ['голос', 'голоса', 'голосов'])})</span>
+            </div>
+        `;
+    } else if (match.votingClosed && !match.mvp) {
+        // Voting closed but no MVP was determined (no votes or calculation failed)
+        return `
+            <div class="voting-status closed" style="color: #f59e0b;">
+                <span class="status-icon">⚠️</span>
+                <span>MVP: Не определен (нет голосов)</span>
             </div>
         `;
     } else if (isVotingOpen(match)) {
@@ -2420,28 +2652,221 @@ function getRatingColorClass(rating) {
 // FANTASY RESULTS RENDERING
 // ===================================
 
-function renderFantasyResults() {
+async function renderFantasyResults() {
     const container = document.getElementById('fantasyResults');
     if (!container) return;
 
-    // TODO: In production, fetch real match results from Firebase
-    // For now, show empty state - no random demo data
-    const hasMatchResults = false; // This will be true when real match data exists
+    // Show loading
+    container.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-state-icon">⏳</div>
+            <h3>Загрузка...</h3>
+        </div>
+    `;
 
-    if (!hasMatchResults) {
+    try {
+        // Fetch all completed gameweeks (remove orderBy to avoid filtering docs without 'number')
+        const gwSnapshot = await db.collection('gameweeks').get();
+
+        if (gwSnapshot.empty) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>Результатов пока нет</h3>
+                    <p>Туры еще не созданы</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort manually by number or ID
+        const docs = gwSnapshot.docs.sort((a, b) => {
+            const numA = a.data().number || 0;
+            const numB = b.data().number || 0;
+            return numA - numB;
+        });
+
+        // Build gameweek selector
+        let selectorHtml = '<div class="gw-selector">';
+        docs.forEach((doc, index) => {
+            const data = doc.data();
+            // Fallback for number: try to parse from ID (gw1 -> 1)
+            let gwNum = data.number;
+            if (!gwNum && doc.id.startsWith('gw')) {
+                gwNum = parseInt(doc.id.replace('gw', ''));
+            }
+            gwNum = gwNum || (index + 1);
+
+            const isFirst = index === 0;
+            selectorHtml += `
+                <button class="gw-btn ${isFirst ? 'active' : ''}" 
+                        data-gwid="${doc.id}" 
+                        onclick="loadGameweekResults('${doc.id}', this)">
+                    Тур ${gwNum}
+                </button>
+            `;
+        });
+        selectorHtml += '</div>';
+
+        // Add results container
+        container.innerHTML = selectorHtml + '<div id="gwResultsTable"></div>';
+
+        // Load first gameweek by default
+        if (docs.length > 0) {
+            loadGameweekResults(docs[0].id);
+        }
+
+    } catch (error) {
+        console.error('Error loading results:', error);
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">📊</div>
-                <h3>Результатов пока нет</h3>
-                <p>Результаты появятся после завершения матча Тура 3</p>
+                <div class="empty-state-icon">❌</div>
+                <h3>Ошибка загрузки</h3>
+                <p>${error.message}</p>
             </div>
         `;
+    }
+}
+
+// Load results for a specific gameweek
+async function loadGameweekResults(gwId, clickedBtn = null) {
+    const tableContainer = document.getElementById('gwResultsTable');
+    if (!tableContainer) return;
+
+    // Update active button
+    if (clickedBtn) {
+        document.querySelectorAll('.gw-btn').forEach(btn => btn.classList.remove('active'));
+        clickedBtn.classList.add('active');
+    }
+
+    tableContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Загрузка статистики...</div>';
+
+    try {
+        // Fetch player stats for this gameweek
+        const statsSnapshot = await db.collection('match_stats')
+            .doc(gwId)
+            .collection('players')
+            .get();
+
+        if (statsSnapshot.empty) {
+            tableContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Нет данных для этого тура</div>';
+            return;
+        }
+
+        // Collect all stats
+        const playerStats = [];
+        for (const doc of statsSnapshot.docs) {
+            const data = doc.data();
+
+            // Get player info from players collection
+            let playerName = data.playerName || 'Unknown';
+            let position = data.position || '?';
+
+            if (data.playerId) {
+                try {
+                    const playerDoc = await db.collection('players').doc(data.playerId).get();
+                    if (playerDoc.exists) {
+                        const pData = playerDoc.data();
+                        playerName = pData.name || playerName;
+                        position = pData.position || position;
+                    }
+                } catch (e) { /* use fallback */ }
+            }
+
+            playerStats.push({
+                name: playerName,
+                position: position,
+                goals: data.goals || 0,
+                assists: data.assists || 0,
+                isMVP: data.isMVP || false,
+                statsPoints: data.statsPoints || 0,
+                mvpBonus: data.mvpBonus || 0,
+                ratingBonus: data.ratingBonus || 0,
+                averageRating: data.averageRating || 6.0,
+                totalPoints: data.totalPoints || 0,
+                played: data.played || false
+            });
+        }
+
+        // Sort by total points descending
+        playerStats.sort((a, b) => b.totalPoints - a.totalPoints);
+
+        // Render table
+        renderResultsTable(tableContainer, playerStats);
+
+    } catch (error) {
+        console.error('Error loading gameweek results:', error);
+        tableContainer.innerHTML = `<div style="text-align:center; padding: 20px; color: #ef4444;">Ошибка: ${error.message}</div>`;
+    }
+}
+
+// Render the results table
+function renderResultsTable(container, stats) {
+    if (stats.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Нет статистики</div>';
         return;
     }
 
-    // Real results rendering will go here when match data is available
-    // container.innerHTML = realResults.map(result => ...).join('');
+    let html = `
+        <div class="results-table-wrapper">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Игрок</th>
+                        <th>⚽</th>
+                        <th>🅰️</th>
+                        <th>⭐</th>
+                        <th>📊</th>
+                        <th class="formula-cell">Формула</th>
+                        <th>Итого</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    stats.forEach(player => {
+        if (!player.played) return; // Skip players who didn't play
+
+        const mvpIcon = player.isMVP ? '⭐' : '';
+        const totalClass = player.totalPoints > 0 ? 'positive' : (player.totalPoints < 0 ? 'negative' : 'zero');
+        const rowClass = player.isMVP ? 'mvp-row' : '';
+
+        // Build formula string
+        let formulaParts = [];
+        if (player.goals > 0) formulaParts.push(`${player.goals}G×3`);
+        if (player.assists > 0) formulaParts.push(`${player.assists}A×2`);
+        if (player.mvpBonus > 0) formulaParts.push(`MVP+${player.mvpBonus}`);
+        if (player.ratingBonus !== 0) {
+            const sign = player.ratingBonus > 0 ? '+' : '';
+            formulaParts.push(`R${sign}${player.ratingBonus}`);
+        }
+        const formula = formulaParts.length > 0 ? formulaParts.join(' ') : '0';
+
+        html += `
+            <tr class="${rowClass}">
+                <td>
+                    <div class="player-info-cell">
+                        <span class="player-pos-badge ${player.position}">${player.position}</span>
+                        <span class="player-name-cell">${player.name}</span>
+                    </div>
+                </td>
+                <td class="stat-cell goals">${player.goals || '-'}</td>
+                <td class="stat-cell assists">${player.assists || '-'}</td>
+                <td class="stat-cell mvp">${mvpIcon}</td>
+                <td class="stat-cell">${player.averageRating.toFixed(1)}</td>
+                <td class="formula-cell">${formula}</td>
+                <td class="total-cell ${totalClass}">${player.totalPoints}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
 }
+
+// Make functions globally available
+window.loadGameweekResults = loadGameweekResults;
+window.renderResultsTable = renderResultsTable;
 
 // ===================================
 // FANTASY LEADERBOARD
@@ -2879,17 +3304,13 @@ async function loadGameweekStats(gwId) {
             if (data.stats) {
                 stats = data.stats;
             }
-            // Check if active (voting open/stats entry)
-            // Or strictly: active if status != 'completed'?
-            // Prompt says: "ЕСЛИ ТУР АКТИВНЫЙ (OPEN): Вместо цифр показывать '—'".
             isActive = (data.status === 'voting_open' || data.status === 'stats_entry' || data.status === 'setup');
         } else {
-            // Doc doesn't exist (future tour?)
-            isActive = true; // Future tours have no points
+            isActive = true;
         }
 
         // 2. Fetch User Personal Points (Sync with Leaderboard)
-        let myPoints = 0;
+        let myPoints = null; // Default to null (not participating)
         let snapshotSquad = null;
         let playerPointsMap = {};
 
@@ -2899,43 +3320,37 @@ async function loadGameweekStats(gwId) {
                 const teamDoc = await db.collection('fantasyTeams').doc(currentUser.uid).get();
                 if (teamDoc.exists) {
                     const tData = teamDoc.data();
-                    // Use live_gw_points for the gameweek score
-                    // If viewing current gameweek (gwId == 'gw1'), show live points
-                    if (gwId === 'gw1') { // TODO: dynamic check
-                        myPoints = (tData.live_gw_points !== undefined) ? tData.live_gw_points : 0;
-                        console.log("📊 Loaded LIVE User Points:", myPoints);
+                    if (gwId === 'gw1') { // TODO: dynamic check based on current active GW
+                        if (tData.live_gw_points !== undefined) {
+                            myPoints = tData.live_gw_points;
+                        }
                     }
                 }
             } catch (err) {
                 console.error("Error fetching fantasyTeam:", err);
             }
 
-            // B. Fallback/Snapshot for Pitch Rendering
+            // B. Fallback/Snapshot for Pitch Rendering & Points if live failed
             const squadDoc = await db.collection('gameweeks').doc(gwId)
                 .collection('squads').doc(currentUser.uid).get();
             if (squadDoc.exists) {
                 const data = squadDoc.data();
-                // If not 'gw1' or no live points found, fallback to snapshot
-                if (myPoints === 0 && data.totalPoints) {
+                // If myPoints is still null (didn't get live stats), use snapshot
+                if (myPoints === null && data.totalPoints !== undefined) {
                     myPoints = data.totalPoints;
+                } else if (myPoints === null) {
+                    // Squad exists but totalPoints not set? Assume 0 start.
+                    myPoints = 0;
                 }
                 snapshotSquad = data;
             }
         }
 
-        // 2.1 Fetch individual player points if calculating or if snapshot exists
-        // We need points for EACH player in the viewing squad to show next to jersey
-        // For efficiency, fetch all match_stats for this GW?
-        // Or just fetch for the players in snapshot?
         // 2. LIVE STATS FETCH (Frontend Mesh)
-        // Fetch ALL stats for this gameweek to overlay on any player shown (Draft or Snapshot)
-        // Matches by ID first, then fuzzy Name match (to solve ID mismatch bug)
-
         const liveStatsMap = {};
         const liveStatsByName = {};
 
         try {
-            // Fetch match_stats/{gwId}/players collection
             const statsSnapshot = await db.collection('match_stats')
                 .doc(gwId)
                 .collection('players')
@@ -2943,28 +3358,21 @@ async function loadGameweekStats(gwId) {
 
             statsSnapshot.forEach(doc => {
                 const data = doc.data();
-                // Sum components for robust scoring
                 const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
-
                 liveStatsMap[data.playerId] = total;
 
-                // Map normalized name for fallback
                 if (data.name) {
                     const clean = data.name.trim().toLowerCase();
                     liveStatsByName[clean] = total;
                 }
             });
-            console.log('📊 Live stats loaded:', Object.keys(liveStatsMap).length);
         } catch (e) {
             console.error('Error fetching live stats for UI:', e);
         }
 
         // Helper to get points (ID -> Name Fallback)
         const getPointsForPlayer = (pid, pName) => {
-            // 1. Try exact ID match
             if (liveStatsMap[pid] !== undefined) return liveStatsMap[pid];
-
-            // 2. Try Name match
             if (pName) {
                 const cleanName = pName.trim().toLowerCase();
                 if (liveStatsByName[cleanName] !== undefined) return liveStatsByName[cleanName];
@@ -2972,10 +3380,9 @@ async function loadGameweekStats(gwId) {
             return 0;
         };
 
-        // 2.1 Pass live stats to playerPointsMap for Snapshot rendering
+        // 2.1 Pass live stats to playerPointsMap
         if (snapshotSquad && snapshotSquad.players) {
             snapshotSquad.players.forEach(pid => {
-                // Find player name for fallback lookup
                 let pName = null;
                 const pObj = FANTASY_PLAYERS.find(p => p.id === pid);
                 if (pObj) pName = pObj.name;
@@ -2994,20 +3401,37 @@ async function loadGameweekStats(gwId) {
         });
 
         // 3. Update UI
-        // LOGIC CHANGE: Even if active, if we have a snapshot (user played this week), show the Locked Team with Live Points.
-        // Only show Editable Team if NO SNAPSHOT (i.e., user hasn't played or it's future/setup active).
+        // If myPoints is null (no squad), show dash for personal points.
+        // For Average/Highest - show values if they exist, otherwise dash.
 
-        // Header Stats: Show real numbers if we have them (even if active live scoring), otherwise dashes.
-        const hasLiveStats = (stats.averagePoints > 0 || stats.highestPoints > 0 || myPoints > 0);
+        console.log('📊 Stats from GW doc:', stats);
+        console.log('📊 My Points:', myPoints, '| Is Active:', isActive);
 
-        if (isActive && !hasLiveStats) {
-            if (avgEl) avgEl.textContent = '—';
-            if (ptsEl) ptsEl.textContent = '—';
-            if (highEl) highEl.textContent = '—';
-        } else {
-            if (avgEl) avgEl.textContent = stats.averagePoints || '0';
-            if (ptsEl) ptsEl.textContent = myPoints || '0';
-            if (highEl) highEl.textContent = stats.highestPoints || '0';
+        // Average Points - only show if we have valid data
+        if (avgEl) {
+            if (stats.averagePoints !== undefined && stats.averagePoints !== null && stats.averagePoints > 0) {
+                avgEl.textContent = stats.averagePoints;
+            } else {
+                avgEl.textContent = '—';
+            }
+        }
+
+        // My Points - show dash if null (not participating)
+        if (ptsEl) {
+            if (myPoints !== null) {
+                ptsEl.textContent = myPoints;
+            } else {
+                ptsEl.textContent = '—';
+            }
+        }
+
+        // Highest Points - only show if we have valid data
+        if (highEl) {
+            if (stats.highestPoints !== undefined && stats.highestPoints !== null && stats.highestPoints > 0) {
+                highEl.textContent = stats.highestPoints;
+            } else {
+                highEl.textContent = '—';
+            }
         }
 
         // Pitch Rendering

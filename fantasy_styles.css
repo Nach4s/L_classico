@@ -966,3 +966,458 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
     z-index: 5;
 }
+
+/* =========================================
+   FPL-STYLE SQUAD LIST VIEW (DARK THEME)
+   ========================================= */
+
+.fpl-squad-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 320px;
+    width: 100%;
+    background: #1e1e1e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    border: 1px solid #333;
+}
+
+.fpl-squad-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px;
+    background: #37003c;
+    color: #fff;
+    border-bottom: 2px solid #00ff87;
+}
+
+.fpl-squad-header .team-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.fpl-squad-header .total-points {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #00ff87;
+    text-shadow: 0 0 10px rgba(0, 255, 135, 0.3);
+}
+
+.fpl-player-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #3a3a3a;
+    transition: background 0.15s ease;
+}
+
+.fpl-player-row:last-child {
+    border-bottom: none;
+}
+
+.fpl-player-row:hover {
+    background: #333;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+}
+
+.position-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.7rem;
+    color: #fff;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.position-icon.gk {
+    background: #eb1e79;
+}
+
+.position-icon.def {
+    background: #00ff87;
+    color: #1e1e1e;
+}
+
+.position-icon.mid {
+    background: #05f0ff;
+    color: #1e1e1e;
+}
+
+.position-icon.fwd {
+    background: #e90052;
+}
+
+.name-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.p-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #fff;
+}
+
+.p-team {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+/* Container for name + badge alignment */
+.name-badge-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Glowing Captain Badge */
+.captain-glow-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #000;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 900;
+    flex-shrink: 0;
+    box-shadow:
+        0 0 8px rgba(251, 191, 36, 0.6),
+        0 0 16px rgba(251, 191, 36, 0.4),
+        0 0 24px rgba(251, 191, 36, 0.2);
+    animation: captain-pulse 2s ease-in-out infinite;
+}
+
+@keyframes captain-pulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 8px rgba(251, 191, 36, 0.6),
+            0 0 16px rgba(251, 191, 36, 0.4),
+            0 0 24px rgba(251, 191, 36, 0.2);
+    }
+
+    50% {
+        box-shadow:
+            0 0 12px rgba(251, 191, 36, 0.8),
+            0 0 24px rgba(251, 191, 36, 0.6),
+            0 0 36px rgba(251, 191, 36, 0.3);
+    }
+}
+
+/* Vice Captain Badge (subtle glow) */
+.vice-glow-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: #6b7280;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(107, 114, 128, 0.5);
+}
+
+.player-points {
+    font-size: 1.3rem;
+    font-weight: 800;
+    min-width: 45px;
+    text-align: right;
+    letter-spacing: -0.03em;
+}
+
+.player-points.positive {
+    color: #00ff87;
+}
+
+.player-points.zero {
+    color: #6b7280;
+}
+
+.player-points.negative {
+    color: #ef4444;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 480px) {
+    .fpl-squad-list {
+        min-width: 100%;
+        border-radius: 8px;
+    }
+
+    .fpl-player-row {
+        padding: 12px 14px;
+    }
+
+    .position-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.7rem;
+    }
+
+    .p-name {
+        font-size: 0.95rem;
+    }
+
+    .player-points {
+        font-size: 1.2rem;
+    }
+
+    /* Ensure modal uses full width on mobile */
+    .modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+
+    #modalPitchContainer {
+        padding: 10px !important;
+    }
+}
+
+/* ===================================
+   GAMEWEEK RESULTS TABLE
+   =================================== */
+
+/* Gameweek Selector - horizontal scroll */
+.gw-selector {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 12px 0;
+    margin-bottom: 16px;
+    scrollbar-width: thin;
+}
+
+.gw-selector::-webkit-scrollbar {
+    height: 4px;
+}
+
+.gw-selector::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+.gw-btn {
+    flex-shrink: 0;
+    padding: 10px 20px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    color: #aaa;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gw-btn:hover {
+    background: #333;
+    border-color: #00ff87;
+    color: #fff;
+}
+
+.gw-btn.active {
+    background: linear-gradient(135deg, #00ff87, #00d4ff);
+    border-color: #00ff87;
+    color: #1a1a2e;
+}
+
+/* Results Table Container */
+.results-table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    background: #1a1a2e;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.results-table thead {
+    background: #252545;
+    position: sticky;
+    top: 0;
+}
+
+.results-table th {
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: 600;
+    color: #00ff87;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #00ff87;
+}
+
+.results-table th:first-child {
+    text-align: left;
+    padding-left: 16px;
+}
+
+.results-table td {
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 1px solid #333;
+    color: #e0e0e0;
+}
+
+.results-table td:first-child {
+    text-align: left;
+    padding-left: 16px;
+}
+
+.results-table tbody tr:hover {
+    background: rgba(0, 255, 135, 0.05);
+}
+
+/* Player Info Cell */
+.player-info-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.player-pos-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: #333;
+    color: #aaa;
+}
+
+.player-pos-badge.GK {
+    background: #f59e0b;
+    color: #000;
+}
+
+.player-pos-badge.DEF {
+    background: #10b981;
+    color: #000;
+}
+
+.player-pos-badge.MID {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.player-pos-badge.FWD {
+    background: #ef4444;
+    color: #fff;
+}
+
+.player-name-cell {
+    font-weight: 600;
+    color: #fff;
+}
+
+/* Stat Cells */
+.stat-cell {
+    font-weight: 600;
+    min-width: 35px;
+}
+
+.stat-cell.goals {
+    color: #00ff87;
+}
+
+.stat-cell.assists {
+    color: #00d4ff;
+}
+
+.stat-cell.mvp {
+    color: #fbbf24;
+    font-size: 1.1rem;
+}
+
+/* Formula Cell - monospace */
+.formula-cell {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+    color: #888;
+    white-space: nowrap;
+}
+
+/* Total Points Cell */
+.total-cell {
+    font-weight: 800;
+    font-size: 1.1rem;
+    min-width: 50px;
+}
+
+.total-cell.positive {
+    color: #00ff87;
+}
+
+.total-cell.zero {
+    color: #6b7280;
+}
+
+.total-cell.negative {
+    color: #ef4444;
+}
+
+/* MVP Row Highlight */
+.results-table tr.mvp-row {
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.results-table tr.mvp-row td {
+    border-bottom-color: #fbbf24;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .results-table {
+        font-size: 0.8rem;
+    }
+
+    .results-table th,
+    .results-table td {
+        padding: 8px 4px;
+    }
+
+    .formula-cell {
+        display: none;
+    }
+
+    .player-pos-badge {
+        padding: 2px 4px;
+        font-size: 0.6rem;
+    }
+}

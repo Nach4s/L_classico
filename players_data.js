@@ -22,7 +22,7 @@ const PLAYERS_DATA = [
     {
         id: "sanzhar_a",
         name: "Санжар А.",
-        position: "FWD",
+        position: "MID",
         price: 6.5,
         team: "1 группа"
     },
@@ -36,7 +36,7 @@ const PLAYERS_DATA = [
     {
         id: "alisher_a",
         name: "Алишер А.",
-        position: "GK",
+        position: "DEF",
         price: 2.5,
         team: "1 группа"
     },
@@ -52,7 +52,7 @@ const PLAYERS_DATA = [
     {
         id: "asan_t",
         name: "Асан Т.",
-        position: "MID",
+        position: "DEF",
         price: 5.5,
         team: "2 группа"
     },
@@ -73,14 +73,14 @@ const PLAYERS_DATA = [
     {
         id: "yerasyl_k",
         name: "Ерасыл К.",
-        position: "MID",
+        position: "FWD",
         price: 7.0,
         team: "2 группа"
     },
     {
         id: "daniiar_a",
         name: "Данияр А.",
-        position: "DEF",
+        position: "MID",
         price: 4.0,
         team: "2 группа"
     },

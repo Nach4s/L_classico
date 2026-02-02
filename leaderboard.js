@@ -440,9 +440,129 @@ async function renderFantasyResults(gameweekId) {
 
 
 // ==========================================
-// 🕵️‍♂️ SCOUTING MODAL LOGIC (PITCH VIEW)
+// 🕵️‍♂️ SCOUTING MODAL LOGIC (LIST VIEW - FPL Style)
 // ==========================================
 
+/**
+ * Prepare squad data for rendering
+ * - Maps numeric IDs to player objects
+ * - Calculates final points (x2 for Captain)
+ * - Sorts by position order: GK -> DEF -> MID -> FWD
+ */
+function prepareSquadData(playerIds, playerMap, statsMap, captainId, viceCaptainId) {
+    const positionOrder = { 'GK': 1, 'DEF': 2, 'MID': 3, 'FWD': 4 };
+    const squadData = [];
+    let totalPoints = 0;
+
+    if (!Array.isArray(playerIds)) return { players: [], totalPoints: 0 };
+
+    for (const pid of playerIds) {
+        // 1. Map ID to Player Object
+        const pData = playerMap.get(pid) || playerMap.get(String(pid)) || playerMap.get(Number(pid));
+
+        const player = pData ? { ...pData, odId: pid } : {
+            id: pid,
+            odId: pid,
+            name: "Неизвестный",
+            position: "MID",
+            team: "?"
+        };
+
+        // 2. Get raw points from statsMap
+        const rawPoints = statsMap[pid] || statsMap[String(pid)] || statsMap[player.id] || 0;
+
+        // 3. Captain check (type-safe comparison)
+        const pIdNum = parseInt(pid);
+        const capIdNum = parseInt(captainId);
+        const vcIdNum = parseInt(viceCaptainId);
+
+        const isCaptain = !isNaN(pIdNum) && !isNaN(capIdNum) && pIdNum === capIdNum;
+        const isViceCaptain = !isNaN(pIdNum) && !isNaN(vcIdNum) && pIdNum === vcIdNum && !isCaptain;
+
+        // 4. Calculate final points (Captain x2)
+        const finalPoints = isCaptain ? rawPoints * 2 : rawPoints;
+        totalPoints += finalPoints;
+
+        squadData.push({
+            id: player.id,
+            name: player.name,
+            position: player.position || 'MID',
+            team: player.team || '?',
+            rawPoints: rawPoints,
+            finalPoints: finalPoints,
+            isCaptain: isCaptain,
+            isViceCaptain: isViceCaptain
+        });
+    }
+
+    // 5. Sort by position order
+    squadData.sort((a, b) => {
+        const posA = positionOrder[a.position] || 99;
+        const posB = positionOrder[b.position] || 99;
+        return posA - posB;
+    });
+
+    return { players: squadData, totalPoints: totalPoints };
+}
+
+/**
+ * Render FPL-style squad list
+ */
+function renderOpponentSquadList(container, squadData, teamName) {
+    const { players, totalPoints } = squadData;
+
+    let html = `
+        <div class="fpl-squad-list">
+            <div class="fpl-squad-header">
+                <span class="team-name">${teamName}</span>
+                <span class="total-points">${totalPoints} pts</span>
+            </div>
+    `;
+
+    if (players.length === 0) {
+        html += `<div class="fpl-player-row"><span style="color:#9ca3af;">Нет игроков в составе</span></div>`;
+    } else {
+        for (const player of players) {
+            // Points class
+            let pointsClass = 'zero';
+            if (player.finalPoints > 0) pointsClass = 'positive';
+            else if (player.finalPoints < 0) pointsClass = 'negative';
+
+            // Captain/Vice badge - rendered separately
+            let captainBadge = '';
+            if (player.isCaptain) {
+                captainBadge = '<div class="captain-glow-badge">C</div>';
+            } else if (player.isViceCaptain) {
+                captainBadge = '<div class="vice-glow-badge">V</div>';
+            }
+
+            html += `
+                <div class="fpl-player-row">
+                    <div class="player-info">
+                        <div class="position-icon ${player.position.toLowerCase()}">${player.position}</div>
+                        <div class="name-badge-container">
+                            <div class="name-block">
+                                <span class="p-name">${player.name}</span>
+                                <span class="p-team">${player.team}</span>
+                            </div>
+                            ${captainBadge}
+                        </div>
+                    </div>
+                    <div class="player-points ${pointsClass}">
+                        ${player.finalPoints}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+/**
+ * Open opponent team modal with FPL-style list view
+ */
 async function openManagerTeam(targetUserId, teamName) {
     const modal = document.getElementById('managerModal');
     const container = document.getElementById('modalPitchContainer');
@@ -460,7 +580,7 @@ async function openManagerTeam(targetUserId, teamName) {
     if (teamTitle) teamTitle.innerText = teamName || "Команда";
     if (mgrTitle) mgrTitle.innerText = "Загрузка состава...";
 
-    container.innerHTML = '<div style="color:white; padding:50px; text-align:center;">⏳ Скачиваем тактику соперника...</div>';
+    container.innerHTML = '<div style="color:white; padding:50px; text-align:center;">⏳ Загрузка...</div>';
 
     const gwId = "gw" + (window.currentGameweekId ? window.currentGameweekId.replace('gw', '') : '1');
 
@@ -475,7 +595,7 @@ async function openManagerTeam(targetUserId, teamName) {
         ]);
 
         if (!teamDoc.exists) {
-            container.innerHTML = "<div style='padding:20px'>Ошибка: Команда не найдена.</div>";
+            container.innerHTML = "<div style='padding:20px; color:#ef4444;'>Ошибка: Команда не найдена.</div>";
             return;
         }
 
@@ -488,20 +608,17 @@ async function openManagerTeam(targetUserId, teamName) {
         // Extract squad data
         if (teamData.squads && teamData.squads[gwId]) {
             players = teamData.squads[gwId].players || [];
-
-            // Try squad-specific captain, then fall back to top-level if undefined
             captainId = teamData.squads[gwId].captainId;
-            if (captainId === undefined) captainId = teamData.captainId; // Fallback
-
+            if (captainId === undefined) captainId = teamData.captainId;
             viceCaptainId = teamData.squads[gwId].viceCaptainId;
         } else if (teamData.players) {
-            // Legacy / Fallback
             players = teamData.players || [];
             captainId = teamData.captainId;
             viceCaptainId = teamData.viceCaptainId;
         }
 
-        if (mgrTitle) mgrTitle.innerText = `Менеджер: ${teamData.managerName || 'Unknown'}`;
+        const managerName = teamData.managerName || 'Unknown';
+        if (mgrTitle) mgrTitle.innerText = `Менеджер: ${managerName}`;
 
         // 3. Create Live Stats Map
         const statsMap = {};
@@ -510,14 +627,16 @@ async function openManagerTeam(targetUserId, teamName) {
             statsMap[doc.id] = (d.statsPoints || 0) + (d.mvpBonus || 0) + (d.ratingBonus || 0);
         });
 
-        // 4. Render Pitch
-        renderOpponentPitch(container, players, playerMap, statsMap, captainId, viceCaptainId);
+        // 4. Prepare & Render List View
+        const squadData = prepareSquadData(players, playerMap, statsMap, captainId, viceCaptainId);
+        renderOpponentSquadList(container, squadData, managerName);
 
     } catch (e) {
         console.error(e);
-        container.innerHTML = `<div style="color:red; padding:20px;">Ошибка загрузки: ${e.message}</div>`;
+        container.innerHTML = `<div style="color:#ef4444; padding:20px;">Ошибка загрузки: ${e.message}</div>`;
     }
 }
+
 
 /**
  * Renders the football pitch with player cards
