@@ -512,45 +512,38 @@ function renderOpponentSquadList(container, squadData, teamName) {
     const { players, totalPoints } = squadData;
 
     let html = `
-        <div class="fpl-squad-list">
-            <div class="fpl-squad-header">
+        <div class="opponent-squad-list">
+            <div class="squad-header">
                 <span class="team-name">${teamName}</span>
-                <span class="total-points">${totalPoints} pts</span>
+                <span class="total-pts">${totalPoints} pts</span>
             </div>
     `;
 
     if (players.length === 0) {
-        html += `<div class="fpl-player-row"><span style="color:#9ca3af;">Нет игроков в составе</span></div>`;
+        html += `<div class="player-row"><span style="color:#9ca3af;">Нет игроков в составе</span></div>`;
     } else {
         for (const player of players) {
-            // Points class
-            let pointsClass = 'zero';
-            if (player.finalPoints > 0) pointsClass = 'positive';
-            else if (player.finalPoints < 0) pointsClass = 'negative';
+            // Points styling
+            let ptsClass = 'zero';
+            if (player.finalPoints > 0) ptsClass = 'positive';
+            else if (player.finalPoints < 0) ptsClass = 'negative';
 
-            // Captain/Vice badge - rendered separately
-            let captainBadge = '';
+            // Captain badge inline with name
+            let badge = '';
             if (player.isCaptain) {
-                captainBadge = '<div class="captain-glow-badge">C</div>';
+                badge = '<span class="c-badge">C</span>';
             } else if (player.isViceCaptain) {
-                captainBadge = '<div class="vice-glow-badge">V</div>';
+                badge = '<span class="v-badge">V</span>';
             }
 
             html += `
-                <div class="fpl-player-row">
-                    <div class="player-info">
-                        <div class="position-icon ${player.position.toLowerCase()}">${player.position}</div>
-                        <div class="name-badge-container">
-                            <div class="name-block">
-                                <span class="p-name">${player.name}</span>
-                                <span class="p-team">${player.team}</span>
-                            </div>
-                            ${captainBadge}
-                        </div>
+                <div class="player-row">
+                    <div class="pos-badge ${player.position.toLowerCase()}">${player.position}</div>
+                    <div class="player-details">
+                        <div class="p-name">${player.name} ${badge}</div>
+                        <div class="p-team">${player.team}</div>
                     </div>
-                    <div class="player-points ${pointsClass}">
-                        ${player.finalPoints}
-                    </div>
+                    <div class="p-points ${ptsClass}">${player.finalPoints}</div>
                 </div>
             `;
         }
