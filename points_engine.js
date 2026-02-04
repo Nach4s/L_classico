@@ -47,10 +47,26 @@ function getRatingBonus(avgRating, playerPosition) {
     return -4; // Below 4.5
 }
 
+/**
+ * Calculate Coach Points based on group victory
+ * @param {string} coachId - 'nurzhan' (Group 1) or 'uali' (Group 2) or null
+ * @param {number} winningGroup - 1, 2, or null (draw/no result)
+ * @returns {number} - Points awarded (0 or 2)
+ */
+function calculateCoachPoints(coachId, winningGroup) {
+    if (!coachId || !winningGroup) return 0;
+
+    if (coachId === 'nurzhan' && winningGroup === 1) return 2;
+    if (coachId === 'uali' && winningGroup === 2) return 2;
+
+    return 0; // Loss or Draw
+}
+
 // Export for Admin Panel
 window.calculateStatsPoints = calculateStatsPoints;
 window.getMVPBonus = getMVPBonus;
 window.getRatingBonus = getRatingBonus;
+window.calculateCoachPoints = calculateCoachPoints;
 
 // ===================================
 // DATABASE OPERATIONS

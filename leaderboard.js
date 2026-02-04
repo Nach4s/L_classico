@@ -4,6 +4,15 @@
 // ===================================
 
 // ===================================
+// COACH POINTS CONFIGURATION
+// ===================================
+const CURRENT_WINNING_GROUP = 1; // Temporary: 1, 2, or null (Draw/Not played)
+const COACH_NAMES = {
+    'nurzhan': 'Нуржан К.',
+    'uali': 'Уали Б.'
+};
+
+// ===================================
 // LOCKED SQUAD HELPERS (Snapshot Model)
 // ===================================
 
@@ -576,7 +585,7 @@ function prepareSquadData(playerIds, playerMap, statsMap, captainId, viceCaptain
 /**
  * Render FPL-style squad list
  */
-function renderOpponentSquadList(container, squadData, teamName) {
+function renderOpponentSquadList(container, squadData, teamName, coachInfo = null) {
     const { players, totalPoints } = squadData;
 
     let html = `
@@ -615,6 +624,27 @@ function renderOpponentSquadList(container, squadData, teamName) {
                 </div>
             `;
         }
+    }
+
+
+    // Add Coach Section
+    if (coachInfo && coachInfo.coachId) {
+        const coachName = COACH_NAMES[coachInfo.coachId] || 'Неизвестный Тренер';
+        const coachPoints = coachInfo.coachPoints || 0;
+        const coachPtsClass = coachPoints > 0 ? 'positive' : 'zero';
+
+        html += `
+            <div class="player-row coach-row" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 10px;">
+                <div class="pos-badge" style="background: #6200EE; color: white; border: none;">👔</div>
+                <div class="player-details">
+                    <div class="p-name">${coachName}</div>
+                    <div class="p-team" style="font-size: 0.7em; opacity: 0.7; letter-spacing: 0.5px;">Главный Тренер</div>
+                </div>
+                <div class="p-points ${coachPtsClass}" style="font-weight: bold;">
+                    ${coachPoints > 0 ? '+' + coachPoints : coachPoints}
+                </div>
+            </div>
+        `;
     }
 
     html += `</div>`;
@@ -676,7 +706,18 @@ async function openManagerTeam(targetUserId, teamName) {
 
         // 4. Prepare & Render List View
         const squadData = prepareSquadData(players, playerMap, statsMap, captainId, viceCaptainId);
-        renderOpponentSquadList(container, squadData, managerName);
+
+        // 5. Fetch coachId and calculate coach points
+        const teamDoc = await db.collection('fantasyTeams').doc(targetUserId).get();
+        const coachId = teamDoc.exists ? (teamDoc.data().coachId || null) : null;
+        const coachPoints = window.calculateCoachPoints ? window.calculateCoachPoints(coachId, CURRENT_WINNING_GROUP) : 0;
+
+        const coachInfo = {
+            coachId: coachId,
+            coachPoints: coachPoints
+        };
+
+        renderOpponentSquadList(container, squadData, managerName, coachInfo);
 
     } catch (e) {
         console.error(e);

@@ -3285,7 +3285,7 @@ async function saveFantasyTeam() {
     }
 
     if (fantasyTeam.players.length !== FANTASY_CONFIG.maxPlayers) {
-        showAlert(`Выберите ${FANTASY_CONFIG.maxPlayers} игроков`, 'error');
+        showAlert(`Выберите ${FANTASY_CONFIG.maxPlayers} игроков (Выбрано: ${fantasyTeam.players.length})`, 'error');
         return;
     }
 
@@ -3311,6 +3311,9 @@ async function saveFantasyTeam() {
             players: fantasyTeam.players,
             captainId: fantasyTeam.captainId,
             viceCaptainId: fantasyTeam.viceCaptainId || null,
+
+            // Coach selection
+            coachId: document.getElementById('fantasyCoachSelect')?.value || null,
 
             // NEW: Save dynamic budget data
             remainingBudget: fantasyTeam.remainingBudget,
@@ -3415,21 +3418,36 @@ async function loadFantasyTeam() {
                 const data = doc.data();
                 console.log('📥 Firebase data (raw):', data);
 
-                // Normalize DB data
                 const rawPlayers = data.players || [];
-                fantasyTeam.players = rawPlayers.map(normalizeId);
-                fantasyTeam.captainId = normalizeId(data.captainId);
-                fantasyTeam.viceCaptainId = normalizeId(data.viceCaptainId);
 
-                // Load remainingBudget from Firestore
-                if (data.remainingBudget !== undefined && data.remainingBudget !== null) {
-                    loadedRemainingBudget = data.remainingBudget;
-                    console.log('📥 Loaded remainingBudget from Firebase:', loadedRemainingBudget);
+                // SMART MERGE: Only overwrite if Firebase has valid data
+                if (rawPlayers.length > 0) {
+                    // Firebase has save data - use it (it's the source of truth)
+                    fantasyTeam.players = rawPlayers.map(normalizeId);
+                    fantasyTeam.captainId = normalizeId(data.captainId);
+                    fantasyTeam.viceCaptainId = normalizeId(data.viceCaptainId);
+
+                    // Load remainingBudget from Firestore
+                    if (data.remainingBudget !== undefined && data.remainingBudget !== null) {
+                        loadedRemainingBudget = data.remainingBudget;
+                        console.log('📥 Loaded remainingBudget from Firebase:', loadedRemainingBudget);
+                    }
+
+                    // Load coachId and restore UI
+                    if (data.coachId) {
+                        fantasyTeam.coachId = data.coachId;
+                        const coachSelect = document.getElementById('fantasyCoachSelect');
+                        if (coachSelect) coachSelect.value = data.coachId;
+                        console.log('📥 Loaded coachId from Firebase:', data.coachId);
+                    }
+
+                    console.log('📥 Loaded & Normalized from Firebase:', fantasyTeam.players);
+                } else {
+                    // Firebase is empty - keep local draft if it exists
+                    console.log('📥 Firebase has empty squad. Keeping local draft:', fantasyTeam.players);
                 }
-
-                console.log('📥 Loaded & Normalized from Firebase:', fantasyTeam.players);
             } else {
-                console.log('📥 No saved team found in Firebase');
+                console.log('📥 No saved team found in Firebase. Keeping local draft:', fantasyTeam.players);
             }
         } catch (error) {
             console.error('Error loading fantasy team from Firebase:', error);
