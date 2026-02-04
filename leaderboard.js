@@ -7,6 +7,7 @@
 // COACH POINTS CONFIGURATION
 // ===================================
 const CURRENT_WINNING_GROUP = 1; // Temporary: 1, 2, or null (Draw/Not played)
+const CURRENT_MATCH_STATUS = 'pending'; // 'pending', 'live', 'finished'
 const COACH_NAMES = {
     'nurzhan': 'Нуржан К.',
     'uali': 'Уали Б.'
@@ -631,7 +632,22 @@ function renderOpponentSquadList(container, squadData, teamName, coachInfo = nul
     if (coachInfo && coachInfo.coachId) {
         const coachName = COACH_NAMES[coachInfo.coachId] || 'Неизвестный Тренер';
         const coachPoints = coachInfo.coachPoints || 0;
-        const coachPtsClass = coachPoints > 0 ? 'positive' : 'zero';
+        const matchStatus = coachInfo.matchStatus || 'finished';
+
+        let pointsDisplay = '';
+        let pointsClass = '';
+
+        if (matchStatus === 'pending') {
+            pointsDisplay = '🕒'; // Pending icon
+            pointsClass = 'neutral'; // Gray/Neutral styling
+        } else if (matchStatus === 'live') {
+            pointsDisplay = 'Live';
+            pointsClass = 'live-text';
+        } else {
+            // Finished
+            pointsDisplay = coachPoints > 0 ? '+' + coachPoints : coachPoints;
+            pointsClass = coachPoints > 0 ? 'positive' : 'zero';
+        }
 
         html += `
             <div class="player-row coach-row" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 10px;">
@@ -640,14 +656,15 @@ function renderOpponentSquadList(container, squadData, teamName, coachInfo = nul
                     <div class="p-name">${coachName}</div>
                     <div class="p-team" style="font-size: 0.7em; opacity: 0.7; letter-spacing: 0.5px;">Главный Тренер</div>
                 </div>
-                <div class="p-points ${coachPtsClass}" style="font-weight: bold;">
-                    ${coachPoints > 0 ? '+' + coachPoints : coachPoints}
+                <div class="p-points ${pointsClass}" style="font-weight: bold;">
+                    ${pointsDisplay}
                 </div>
             </div>
         `;
     }
 
-    html += `</div>`;
+
+    html += `</div > `;
     container.innerHTML = html;
 }
 
@@ -695,7 +712,7 @@ async function openManagerTeam(targetUserId, teamName) {
 
         // Show lock indicator in manager title
         const lockIcon = isLocked ? '🔒 ' : '';
-        if (mgrTitle) mgrTitle.innerText = `${lockIcon}Менеджер: ${managerName}`;
+        if (mgrTitle) mgrTitle.innerText = `${lockIcon} Менеджер: ${managerName} `;
 
         // 3. Create Live Stats Map
         const statsMap = {};
@@ -710,18 +727,19 @@ async function openManagerTeam(targetUserId, teamName) {
         // 5. Fetch coachId and calculate coach points
         const teamDoc = await db.collection('fantasyTeams').doc(targetUserId).get();
         const coachId = teamDoc.exists ? (teamDoc.data().coachId || null) : null;
-        const coachPoints = window.calculateCoachPoints ? window.calculateCoachPoints(coachId, CURRENT_WINNING_GROUP) : 0;
+        const coachPoints = window.calculateCoachPoints ? window.calculateCoachPoints(coachId, CURRENT_WINNING_GROUP, CURRENT_MATCH_STATUS) : 0;
 
         const coachInfo = {
             coachId: coachId,
-            coachPoints: coachPoints
+            coachPoints: coachPoints,
+            matchStatus: CURRENT_MATCH_STATUS
         };
 
         renderOpponentSquadList(container, squadData, managerName, coachInfo);
 
     } catch (e) {
         console.error(e);
-        container.innerHTML = `<div style="color:#ef4444; padding:20px;">Ошибка загрузки: ${e.message}</div>`;
+        container.innerHTML = `< div style = "color:#ef4444; padding:20px;" > Ошибка загрузки: ${e.message}</div > `;
     }
 }
 
@@ -732,19 +750,19 @@ async function openManagerTeam(targetUserId, teamName) {
  */
 function renderOpponentPitch(container, playerIds, playerMap, statsMap, captainId, viceCaptainId) {
     let pitchHTML = `
-        <div class="pitch" style="
-            background-image: url('assets/pitch_dark.png'); 
-            background-size: cover; 
-            background-position: center;
-            height: 600px; 
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto;
-            position: relative; 
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 2px solid #444;
-        ">
+        < div class="pitch" style = "
+    background - image: url('assets/pitch_dark.png');
+    background - size: cover;
+    background - position: center;
+    height: 600px;
+    width: 100 %;
+    max - width: 400px;
+    margin: 0 auto;
+    position: relative;
+    border - radius: 8px;
+    box - shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 2px solid #444;
+    ">
     `;
 
     // 1. Prepare Squad Data
@@ -815,7 +833,7 @@ function renderOpponentPitch(container, playerIds, playerMap, statsMap, captainI
             const kitImg = pDetails.team && pDetails.team.includes('1') ? 'assets/jerseys/team_a.png' : 'assets/jerseys/team_b.png';
 
             return `
-            <div class="player-card" style="position: absolute; ${style} transform: translate(-50%, -50%); text-align: center; width: 80px; z-index: 10;">
+        < div class="player-card" style = "position: absolute; ${style} transform: translate(-50%, -50%); text-align: center; width: 80px; z-index: 10;" >
                 <div style="position: relative;" class="kit-container">
                     <img src="${kitImg}" style="width: 55px; filter: drop-shadow(0 4px 5px rgba(0,0,0,0.4));">
                     
@@ -887,7 +905,7 @@ function renderOpponentPitch(container, playerIds, playerMap, statsMap, captainI
                 ">
                     ${badgeText}
                 </div>
-            </div>`;
+            </div > `;
         }).join('');
     } else {
         pitchHTML += '<div style="position:absolute; top:50%; width:100%; text-align:center; color:white;">Нет игроков в составе</div>';
@@ -902,15 +920,15 @@ function renderOpponentPitch(container, playerIds, playerMap, statsMap, captainI
     // Inject Total Points into the Header (Cleanest way without changing DOM structure heavily)
     // We use a small script to update the ManagerName title to show Points instead
     pitchHTML += `
-        <script>
-            (function() {
-                const mgrTitle = document.getElementById('modalManagerName');
-                if (mgrTitle) {
-                    mgrTitle.innerHTML = '<span style="color:#10b981; font-weight:bold; font-size:1.2em;">Total: ${totalSquadPoints} pts</span>';
-                }
-            })();
-        </script>
-    `;
+        < script >
+        (function () {
+            const mgrTitle = document.getElementById('modalManagerName');
+            if (mgrTitle) {
+                mgrTitle.innerHTML = '<span style="color:#10b981; font-weight:bold; font-size:1.2em;">Total: ${totalSquadPoints} pts</span>';
+            }
+        })();
+        </script >
+        `;
 
     container.innerHTML = pitchHTML;
 }
@@ -942,10 +960,10 @@ function getSmartPosStyle(pos, index, total) {
     } else {
         // >= 4 players? Distribute evenly
         const step = 80 / (total - 1); // Spread across 80% of width
-        left = `${10 + (index * step)}%`;
+        left = `${10 + (index * step)}% `;
     }
 
-    return `top: ${top}; left: ${left};`;
+    return `top: ${top}; left: ${left}; `;
 }
 
 window.openManagerTeam = openManagerTeam;

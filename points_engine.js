@@ -51,9 +51,12 @@ function getRatingBonus(avgRating, playerPosition) {
  * Calculate Coach Points based on group victory
  * @param {string} coachId - 'nurzhan' (Group 1) or 'uali' (Group 2) or null
  * @param {number} winningGroup - 1, 2, or null (draw/no result)
+ * @param {string} matchStatus - 'pending', 'live', 'finished'
  * @returns {number} - Points awarded (0 or 2)
  */
-function calculateCoachPoints(coachId, winningGroup) {
+function calculateCoachPoints(coachId, winningGroup, matchStatus = 'finished') {
+    if (matchStatus !== 'finished') return 0; // No points until finished
+
     if (!coachId || !winningGroup) return 0;
 
     if (coachId === 'nurzhan' && winningGroup === 1) return 2;
