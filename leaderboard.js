@@ -4,6 +4,74 @@
 // ===================================
 
 // ===================================
+// LOCKED SQUAD HELPERS (Snapshot Model)
+// ===================================
+
+/**
+ * Get locked squad for a user from gameweek snapshot
+ * Falls back to active squad for backwards compatibility
+ * @param {string} userId 
+ * @param {string} gameweekId 
+ * @returns {Promise<{players: Array, captainId: any, viceCaptainId: any, managerName: string}|null>}
+ */
+async function getLockedSquad(userId, gameweekId) {
+    try {
+        // 1. Try locked snapshot first (new model)
+        const lockedDoc = await db
+            .collection('gameweeks').doc(gameweekId)
+            .collection('squads').doc(userId).get();
+
+        if (lockedDoc.exists) {
+            const data = lockedDoc.data();
+            console.log(`🔒 Using LOCKED squad for ${userId} in ${gameweekId}`);
+            return {
+                players: data.players || [],
+                captainId: data.captainId,
+                viceCaptainId: data.viceCaptainId,
+                managerName: data.managerName || 'Аноним',
+                isLocked: true
+            };
+        }
+
+        // 2. Fallback: get from fantasyTeams (old nested or new flat structure)
+        const teamDoc = await db.collection('fantasyTeams').doc(userId).get();
+        if (!teamDoc.exists) return null;
+
+        const teamData = teamDoc.data();
+
+        // Old nested structure
+        if (teamData.squads && teamData.squads[gameweekId]) {
+            const gwSquad = teamData.squads[gameweekId];
+            console.log(`📂 Using OLD nested squad for ${userId} in ${gameweekId}`);
+            return {
+                players: gwSquad.players || [],
+                captainId: gwSquad.captainId || teamData.captainId,
+                viceCaptainId: gwSquad.viceCaptainId,
+                managerName: teamData.managerName || 'Аноним',
+                isLocked: false
+            };
+        }
+
+        // New flat structure (active squad)
+        if (teamData.players && Array.isArray(teamData.players)) {
+            console.log(`📋 Using ACTIVE squad for ${userId} (no lock yet)`);
+            return {
+                players: teamData.players,
+                captainId: teamData.captainId,
+                viceCaptainId: teamData.viceCaptainId,
+                managerName: teamData.managerName || 'Аноним',
+                isLocked: false
+            };
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error getting locked squad:', error);
+        return null;
+    }
+}
+
+// ===================================
 // LEADERBOARD RENDERING
 // ===================================
 
@@ -555,6 +623,7 @@ function renderOpponentSquadList(container, squadData, teamName) {
 
 /**
  * Open opponent team modal with FPL-style list view
+ * UPDATED: Now reads from LOCKED squad snapshot first
  */
 async function openManagerTeam(targetUserId, teamName) {
     const modal = document.getElementById('managerModal');
@@ -580,38 +649,23 @@ async function openManagerTeam(targetUserId, teamName) {
     try {
         console.log(`🔍 Scouting opponent: ${targetUserId} for ${gwId}`);
 
-        // 2. Fetch Opponent Team & Live Stats & Global Player Map
-        const [teamDoc, statsSnapshot, playerMap] = await Promise.all([
-            db.collection('fantasyTeams').doc(targetUserId).get(),
+        // 2. Fetch LOCKED Squad (with fallback), Live Stats, and Player Map
+        const [lockedSquad, statsSnapshot, playerMap] = await Promise.all([
+            getLockedSquad(targetUserId, gwId),
             db.collection('match_stats').doc(gwId).collection('players').get(),
             window.getGlobalPlayerMap()
         ]);
 
-        if (!teamDoc.exists) {
-            container.innerHTML = "<div style='padding:20px; color:#ef4444;'>Ошибка: Команда не найдена.</div>";
+        if (!lockedSquad || lockedSquad.players.length === 0) {
+            container.innerHTML = "<div style='padding:20px; color:#ef4444;'>Ошибка: Состав не найден.</div>";
             return;
         }
 
-        const teamData = teamDoc.data();
+        const { players, captainId, viceCaptainId, managerName, isLocked } = lockedSquad;
 
-        let players = [];
-        let captainId = null;
-        let viceCaptainId = null;
-
-        // Extract squad data
-        if (teamData.squads && teamData.squads[gwId]) {
-            players = teamData.squads[gwId].players || [];
-            captainId = teamData.squads[gwId].captainId;
-            if (captainId === undefined) captainId = teamData.captainId;
-            viceCaptainId = teamData.squads[gwId].viceCaptainId;
-        } else if (teamData.players) {
-            players = teamData.players || [];
-            captainId = teamData.captainId;
-            viceCaptainId = teamData.viceCaptainId;
-        }
-
-        const managerName = teamData.managerName || 'Unknown';
-        if (mgrTitle) mgrTitle.innerText = `Менеджер: ${managerName}`;
+        // Show lock indicator in manager title
+        const lockIcon = isLocked ? '🔒 ' : '';
+        if (mgrTitle) mgrTitle.innerText = `${lockIcon}Менеджер: ${managerName}`;
 
         // 3. Create Live Stats Map
         const statsMap = {};
@@ -629,6 +683,7 @@ async function openManagerTeam(targetUserId, teamName) {
         container.innerHTML = `<div style="color:#ef4444; padding:20px;">Ошибка загрузки: ${e.message}</div>`;
     }
 }
+
 
 
 /**
@@ -859,3 +914,4 @@ window.renderOverallLeaderboard = renderOverallLeaderboard;
 window.viewUserSquad = viewUserSquad;
 window.renderSquadModal = renderSquadModal;
 window.saveFantasySquad = saveFantasySquad;
+window.getLockedSquad = getLockedSquad;

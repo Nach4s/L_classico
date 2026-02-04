@@ -190,20 +190,31 @@ async function loadCurrentGameweek() {
     console.log('🔄 Начинаю поиск туров...');
 
     try {
-        // 1. Try to find ACTIVE gameweek
+        // 1. FIRST: Try to find SETUP gameweek (transfer window open for next gameweek)
         let snapshot = await db.collection('gameweeks')
-            .where('status', 'in', ['voting_open', 'stats_entry'])
+            .where('status', '==', 'setup')
             .orderBy('gameweekNumber', 'desc')
             .limit(1)
             .get();
 
-        console.log(`📡 Ответ от базы (активные): найдено ${snapshot.size} документов`);
+        console.log(`📡 Ответ от базы (setup): найдено ${snapshot.size} документов`);
 
-        // 2. If no active, find ANY gameweek (starting from first available)
+        // 2. If no setup gameweek, find ACTIVE gameweek (voting_open, stats_entry)
         if (snapshot.empty) {
-            console.log('⚠️ Активных туров нет. Ищу первый доступный...');
+            console.log('⚠️ Нет туров в setup. Ищу активные...');
             snapshot = await db.collection('gameweeks')
-                .orderBy('gameweekNumber', 'asc') // Find the earliest one (e.g. gw3)
+                .where('status', 'in', ['voting_open', 'stats_entry'])
+                .orderBy('gameweekNumber', 'desc')
+                .limit(1)
+                .get();
+            console.log(`📡 Ответ от базы (активные): найдено ${snapshot.size} документов`);
+        }
+
+        // 3. If still empty, find ANY gameweek
+        if (snapshot.empty) {
+            console.log('⚠️ Активных туров нет. Ищу любой доступный...');
+            snapshot = await db.collection('gameweeks')
+                .orderBy('gameweekNumber', 'desc')
                 .limit(1)
                 .get();
             console.log(`📡 Ответ от базы (любые): найдено ${snapshot.size} документов`);
@@ -225,11 +236,10 @@ async function loadCurrentGameweek() {
             }
             const status = data.status || '';
 
-            // Lock if: past deadline OR status is active (voting_open, stats_entry)
-            // Unlock if: status is 'setup' (pre-match) or 'completed' (post-match)
+            // Lock ONLY if: past deadline OR status is completed
+            // Unlock if: status is 'setup' (pre-match, transfers open!)
             window.isTransferWindowLocked = (deadline && now > deadline) ||
-                (status === 'voting_open') ||
-                (status === 'stats_entry');
+                (status === 'completed');
 
             console.log(`✅ Выбран тур: ${currentGameweekId}`, data);
             console.log(`🔒 Transfer window locked: ${window.isTransferWindowLocked}`);

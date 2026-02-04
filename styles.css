@@ -2491,13 +2491,34 @@ body {
 /* Budget Bar - Compact */
 .fpl-budget-bar {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  flex-direction: column;
+  gap: var(--spacing-xs);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   margin-bottom: var(--spacing-sm);
 }
+
+.budget-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.budget-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.budget-label span {
+  color: var(--text-primary);
+}
+
+.over-budget {
+  color: #ef4444 !important;
+}
+
 
 /* Manager Name Input */
 .fpl-manager-name {
@@ -2989,6 +3010,8 @@ body {
   font-size: 2rem;
   color: var(--color-primary);
   border-radius: var(--radius-md);
+  pointer-events: none;
+  /* Allow clicks to pass through to the card */
 }
 
 .fpl-player-card {
@@ -3195,6 +3218,42 @@ body {
   background: #ff4444;
 }
 
+/* Captain Active State */
+.slot-action-btn.captain-active {
+  background: #ffd700;
+  color: #333;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+/* Vice-Captain Active State */
+.slot-action-btn.vice-captain-active {
+  background: #c0c0c0;
+  color: #333;
+  box-shadow: 0 0 8px rgba(192, 192, 192, 0.5);
+}
+
+/* Vice-Captain Row Highlight */
+.pitch-player-slot.vice-captain {
+  position: relative;
+}
+
+.pitch-player-slot.vice-captain::after {
+  content: 'V';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 18px;
+  height: 18px;
+  background: #c0c0c0;
+  color: #333;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* List View Styles */
 .list-player-row {
   display: flex;
@@ -3398,4 +3457,111 @@ body {
 #saveConfirmModal .modal-footer .btn {
   min-width: 120px;
   flex: none;
+}
+
+/* ===================================
+   SELL PLAYER MODAL
+   =================================== */
+
+#sellPlayerModal .modal-header {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+#sellPlayerModal .modal-title {
+  color: var(--color-warning);
+  font-size: 1.25rem;
+}
+
+.sell-confirm-content {
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.sell-player-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  width: 100%;
+}
+
+.sell-player-icon {
+  font-size: 2.5rem;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%);
+  border-radius: var(--radius-md);
+}
+
+.sell-player-details {
+  flex: 1;
+  text-align: left;
+}
+
+.sell-player-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.sell-player-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sell-player-price .price-label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.sell-player-price .price-value {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--color-primary);
+}
+
+.sell-player-price .price-unit {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.sell-confirm-text {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  margin: 0;
+}
+
+#sellPlayerModal .modal-footer {
+  border-top: none;
+  padding-top: var(--spacing-sm);
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+#sellPlayerModal .modal-footer .btn {
+  min-width: 100px;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-1px);
 }

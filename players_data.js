@@ -23,28 +23,28 @@ const PLAYERS_DATA = [
         id: "sanzhar_a",
         name: "Санжар А.",
         position: "MID",
-        price: 6.5,
+        price: 7.0,
         team: "1 группа"
     },
     {
         id: "aibek_a",
         name: "Айбек А.",
         position: "FWD",
-        price: 6.0,
+        price: 6.7,
         team: "1 группа"
     },
     {
         id: "alisher_a",
         name: "Алишер А.",
         position: "DEF",
-        price: 2.5,
+        price: 3.0,
         team: "1 группа"
     },
     {
         id: "shyngys_t",
         name: "Шынгыс Т.",
         position: "FWD",
-        price: 6.0,
+        price: 6.3,
         team: "1 группа"
     },
 
@@ -53,42 +53,42 @@ const PLAYERS_DATA = [
         id: "asan_t",
         name: "Асан Т.",
         position: "DEF",
-        price: 5.5,
+        price: 6.2,
         team: "2 группа"
     },
     {
         id: "dimash_a",
         name: "Димаш А.",
         position: "GK",
-        price: 7.0,
+        price: 2.5,
         team: "2 группа"
     },
     {
         id: "akylbek_a",
         name: "Акылбек А.",
         position: "FWD",
-        price: 7.5,
+        price: 9.0,
         team: "2 группа"
     },
     {
         id: "yerasyl_k",
         name: "Ерасыл К.",
         position: "FWD",
-        price: 7.0,
+        price: 7.5,
         team: "2 группа"
     },
     {
         id: "daniiar_a",
         name: "Данияр А.",
         position: "MID",
-        price: 4.0,
+        price: 5.6,
         team: "2 группа"
     },
     {
         id: "hamid_t",
         name: "Хамид Т.",
         position: "DEF",
-        price: 3.0,
+        price: 2.5,
         team: "2 группа"
     }
 ];

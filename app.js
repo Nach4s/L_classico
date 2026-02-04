@@ -1913,23 +1913,25 @@ window.extendMatchVoting = extendMatchVoting;
 // ===================================
 
 // Fantasy Players Data (with team colors)
-const FANTASY_PLAYERS = [
-    // Team A (Red Jerseys) 🔴
-    { id: 2, name: "Мансур Ш.", position: "FWD", price: 6.5, team: "A" },
-    { id: 3, name: "Даулет Е.", position: "MID", price: 7.0, team: "A" },
-    { id: 4, name: "Санжар А.", position: "MID", price: 7.0, team: "A" },
-    { id: 5, name: "Айбек А.", position: "FWD", price: 6.5, team: "A" },
-    { id: 6, name: "Алишер А.", position: "DEF", price: 3.0, team: "A" },
-    { id: 7, name: "Шынгыс Т.", position: "FWD", price: 6.0, team: "A" },
+// NOTE: IDs must match PLAYERS_DATA in players_data.js for price lookup
+let FANTASY_PLAYERS = [
+    // Team A (Red Jerseys) 🔴 - 1 группа
+    { id: "mansur_sh", name: "Мансур Ш.", position: "FWD", price: 6.5, team: "A" },
+    { id: "daulet_e", name: "Даулет Е.", position: "MID", price: 7.0, team: "A" },
+    { id: "sanzhar_a", name: "Санжар А.", position: "MID", price: 7.0, team: "A" },
+    { id: "aibek_a", name: "Айбек А.", position: "FWD", price: 6.7, team: "A" },
+    { id: "alisher_a", name: "Алишер А.", position: "DEF", price: 3.0, team: "A" },
+    { id: "shyngys_t", name: "Шынгыс Т.", position: "FWD", price: 6.3, team: "A" },
 
-    // Team B (Blue Jerseys) 🔵
-    { id: 8, name: "Асан Т.", position: "DEF", price: 6.0, team: "B" },
-    { id: 9, name: "Димаш А.", position: "GK", price: 2.5, team: "B" },
-    { id: 10, name: "Акылбек А.", position: "FWD", price: 9.0, team: "B" },
-    { id: 11, name: "Ерасыл К.", position: "FWD", price: 7.5, team: "B" },
-    { id: 12, name: "Данияр А.", position: "MID", price: 5.5, team: "B" },
-    { id: 13, name: "Хамид Т.", position: "DEF", price: 4.0, team: "B" }
+    // Team B (Blue Jerseys) 🔵 - 2 группа
+    { id: "asan_t", name: "Асан Т.", position: "DEF", price: 6.2, team: "B" },
+    { id: "dimash_a", name: "Димаш А.", position: "GK", price: 2.5, team: "B" },
+    { id: "akylbek_a", name: "Акылбек А.", position: "FWD", price: 9.0, team: "B" },
+    { id: "yerasyl_k", name: "Ерасыл К.", position: "FWD", price: 7.5, team: "B" },
+    { id: "daniiar_a", name: "Данияр А.", position: "MID", price: 5.6, team: "B" },
+    { id: "hamid_t", name: "Хамид Т.", position: "DEF", price: 2.5, team: "B" }
 ];
+
 
 // Fantasy Configuration (team building)
 const FANTASY_TEAM_CONFIG = {
@@ -1944,7 +1946,9 @@ const FANTASY_TEAM_CONFIG = {
 let fantasyTeam = {
     players: [], // Array of player IDs
     captainId: null,
-    managerName: '' // User's nickname
+    viceCaptainId: null, // NEW: Vice-captain for snapshot model
+    managerName: '', // User's nickname
+    remainingBudget: null // Dynamic budget (bank balance)
 };
 let fantasyCurrentFilter = 'ALL';
 
@@ -1956,10 +1960,57 @@ let fantasyCurrentFilter = 'ALL';
 // FANTASY INITIALIZATION (Simplified & Robust)
 // ===================================
 
+/**
+ * Fetch latest player data (including prices) from Firestore.
+ * Updates the global FANTASY_PLAYERS array with current prices.
+ */
+async function fetchFantasyPlayers() {
+    if (typeof db === 'undefined') {
+        console.warn('⚠️ Firestore not available, using static player data');
+        return;
+    }
+
+    try {
+        const snapshot = await db.collection('players').get();
+        if (snapshot.empty) {
+            console.warn('⚠️ No players in Firestore, using static data');
+            return;
+        }
+
+        // Update FANTASY_PLAYERS with Firestore data
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // Find matching player in FANTASY_PLAYERS by name or id
+            const idx = FANTASY_PLAYERS.findIndex(p =>
+                p.name === data.name ||
+                p.id === doc.id ||
+                String(p.id) === doc.id
+            );
+
+            if (idx !== -1) {
+                // Update price from database
+                if (data.price !== undefined) {
+                    FANTASY_PLAYERS[idx].price = data.price;
+                }
+                // Also update other fields if needed
+                if (data.position) FANTASY_PLAYERS[idx].position = data.position;
+                if (data.team) FANTASY_PLAYERS[idx].team = data.team === '1 группа' ? 'A' : 'B';
+            }
+        });
+
+        console.log('✅ Fantasy players updated from Firestore');
+    } catch (error) {
+        console.error('❌ Error fetching fantasy players:', error);
+    }
+}
+
 async function initFantasy() {
     console.log('🎮 Initializing Fantasy Football...');
 
     try {
+        // 0. Fetch latest player prices from Firestore
+        await fetchFantasyPlayers();
+
         // 1. Load saved data (wait for async load to complete)
         await loadFantasyTeam();
         loadManagerName();
@@ -1977,8 +2028,6 @@ async function initFantasy() {
         renderFantasyPlayersList();
         renderSelectedTeam();
         updateFantasyBudget();
-        renderSelectedTeam();
-        updateFantasyBudget();
         updateDeadlineDisplay();
         updateGameweekLabel();
 
@@ -1991,6 +2040,7 @@ async function initFantasy() {
         showAlert('Ошибка загрузки Fantasy', 'error');
     }
 }
+
 
 // Load Manager Name
 function loadManagerName() {
@@ -2270,6 +2320,9 @@ function getNextDeadline() {
 // TEAM SELECTION
 // ===================================
 
+// Store pending buy player ID for modal confirmation
+let pendingBuyPlayerId = null;
+
 function selectFantasyPlayer(playerId) {
     if (checkTransferDeadline()) {
         showAlert('Трансферы закрыты!', 'error');
@@ -2279,7 +2332,7 @@ function selectFantasyPlayer(playerId) {
     const player = FANTASY_PLAYERS.find(p => p.id === playerId);
     if (!player) return;
 
-    // Check if already selected
+    // Check if already selected (toggle off - show sell modal)
     if (fantasyTeam.players.includes(playerId)) {
         removeFantasyPlayer(playerId);
         return;
@@ -2291,19 +2344,179 @@ function selectFantasyPlayer(playerId) {
         return;
     }
 
-    // Check budget
-    const currentSpent = calculateSpentBudget();
-    if (currentSpent + player.price > FANTASY_CONFIG.budget) {
-        showAlert('Недостаточно бюджета!', 'error');
+    // Show buy confirmation modal
+    pendingBuyPlayerId = playerId;
+
+    // Update modal content
+    document.getElementById('buyPlayerName').textContent = player.name;
+    document.getElementById('buyPlayerPrice').textContent = player.price.toFixed(1);
+    document.getElementById('buyPlayerBank').textContent = fantasyTeam.remainingBudget.toFixed(1);
+
+    // Update bank color based on affordability
+    const bankEl = document.getElementById('buyPlayerBank');
+    if (fantasyTeam.remainingBudget >= player.price) {
+        bankEl.style.color = '#22c55e'; // Green - can afford
+    } else {
+        bankEl.style.color = '#ef4444'; // Red - cannot afford
+    }
+
+    openModal('buyPlayerModal');
+}
+
+// Confirm buy player from modal
+function confirmBuyPlayer() {
+    if (!pendingBuyPlayerId) return;
+
+    const player = FANTASY_PLAYERS.find(p => p.id === pendingBuyPlayerId);
+    if (!player) {
+        closeModal('buyPlayerModal');
+        pendingBuyPlayerId = null;
         return;
     }
 
+    // Check if enough money
+    if (fantasyTeam.remainingBudget < player.price) {
+        closeModal('buyPlayerModal');
+        showAlert(`Недостаточно средств! Нужно: ${player.price}M, У вас: ${fantasyTeam.remainingBudget.toFixed(1)}M`, 'error');
+        pendingBuyPlayerId = null;
+        return;
+    }
+
+    // BUY: Subtract player's price from remaining budget
+    fantasyTeam.remainingBudget = parseFloat((fantasyTeam.remainingBudget - player.price).toFixed(1));
+
     // Add player
-    fantasyTeam.players.push(playerId);
+    fantasyTeam.players.push(pendingBuyPlayerId);
 
     // Set first player as captain by default
     if (fantasyTeam.players.length === 1) {
-        fantasyTeam.captainId = playerId;
+        fantasyTeam.captainId = pendingBuyPlayerId;
+    }
+
+    console.log(`💰 Bought ${player.name} for ${player.price}M. Bank: ${fantasyTeam.remainingBudget.toFixed(1)}M`);
+
+    // Close modal and reset
+    closeModal('buyPlayerModal');
+    pendingBuyPlayerId = null;
+
+    // Update UI
+    renderFantasyPlayersList();
+    renderSelectedTeam();
+    updateFantasyBudget();
+    updateSaveButtonState();
+
+    showAlert(`✅ ${player.name} куплен!`, 'success');
+}
+
+// Make confirmBuyPlayer globally available
+window.confirmBuyPlayer = confirmBuyPlayer;
+
+
+// Store pending sell player ID for modal confirmation
+let pendingSellPlayerId = null;
+
+function removeFantasyPlayer(playerId) {
+    if (checkTransferDeadline()) {
+        showAlert('Трансферы закрыты!', 'error');
+        return;
+    }
+
+    // 1. Find player in FANTASY_PLAYERS or PLAYERS_DATA to get CURRENT price
+    const numericId = parseInt(playerId);
+    const stringId = String(playerId);
+
+    let player = FANTASY_PLAYERS.find(p =>
+        p.id === numericId ||
+        p.id === playerId ||
+        String(p.id) === stringId
+    );
+
+    // If not found in FANTASY_PLAYERS, try PLAYERS_DATA (string IDs)
+    if (!player && typeof PLAYERS_DATA !== 'undefined') {
+        player = PLAYERS_DATA.find(p =>
+            p.id === stringId ||
+            p.id === playerId
+        );
+    }
+
+    if (!player) {
+        console.warn(`⚠️ removeFantasyPlayer: Player not found for ID "${playerId}"`);
+        // Still remove from array even if price unknown
+        fantasyTeam.players = fantasyTeam.players.filter(id => id !== playerId);
+        renderFantasyPlayersList();
+        renderSelectedTeam();
+        updateFantasyBudget();
+        updateSaveButtonState();
+        return;
+    }
+
+    // 2. Store player ID and show custom modal instead of browser confirm
+    pendingSellPlayerId = playerId;
+
+    // Update modal content
+    document.getElementById('sellPlayerName').textContent = player.name;
+    document.getElementById('sellPlayerPrice').textContent = player.price.toFixed(1);
+
+    // Set team color for icon
+    const iconEl = document.getElementById('sellPlayerIcon');
+    if (player.team === 'A' || player.team === '1 группа') {
+        iconEl.style.background = 'linear-gradient(135deg, #ff4444 0%, #ff6666 100%)';
+    } else {
+        iconEl.style.background = 'linear-gradient(135deg, #4a9eff 0%, #6bb0ff 100%)';
+    }
+
+    // Open the modal and RETURN - actual sale happens in confirmSellPlayer()
+    openModal('sellPlayerModal');
+}
+
+
+/**
+ * Called when user confirms the sale in the modal
+ */
+function confirmSellPlayer() {
+    if (!pendingSellPlayerId) return;
+
+    const playerId = pendingSellPlayerId;
+    pendingSellPlayerId = null;
+
+    // Close modal first
+    closeModal('sellPlayerModal');
+
+    // Find player again to get price
+    const numericId = parseInt(playerId);
+    const stringId = String(playerId);
+
+    let player = FANTASY_PLAYERS.find(p =>
+        p.id === numericId ||
+        p.id === playerId ||
+        String(p.id) === stringId
+    );
+
+    if (!player && typeof PLAYERS_DATA !== 'undefined') {
+        player = PLAYERS_DATA.find(p =>
+            p.id === stringId ||
+            p.id === playerId
+        );
+    }
+
+    // SELL: Add player's CURRENT price back to remaining budget
+    if (player) {
+        fantasyTeam.remainingBudget = parseFloat((fantasyTeam.remainingBudget + player.price).toFixed(1));
+        console.log(`💰 Sold ${player.name} for ${player.price}M. Bank: ${fantasyTeam.remainingBudget}M`);
+        showAlert(`${player.name} продан за ${player.price} млн!`, 'success');
+    }
+
+    // Remove player from squad
+    fantasyTeam.players = fantasyTeam.players.filter(id => id !== playerId);
+
+    // Reset captain if removed
+    if (fantasyTeam.captainId === playerId) {
+        fantasyTeam.captainId = fantasyTeam.players[0] || null;
+    }
+
+    // Reset vice-captain if removed
+    if (fantasyTeam.viceCaptainId === playerId) {
+        fantasyTeam.viceCaptainId = null;
     }
 
     // Update UI
@@ -2313,24 +2526,9 @@ function selectFantasyPlayer(playerId) {
     updateSaveButtonState();
 }
 
-function removeFantasyPlayer(playerId) {
-    if (checkTransferDeadline()) {
-        showAlert('Трансферы закрыты!', 'error');
-        return;
-    }
+// Make confirmSellPlayer globally accessible
+window.confirmSellPlayer = confirmSellPlayer;
 
-    fantasyTeam.players = fantasyTeam.players.filter(id => id !== playerId);
-
-    // Reset captain if removed
-    if (fantasyTeam.captainId === playerId) {
-        fantasyTeam.captainId = fantasyTeam.players[0] || null;
-    }
-
-    renderFantasyPlayersList();
-    renderSelectedTeam();
-    updateFantasyBudget();
-    updateSaveButtonState();
-}
 
 function setCaptain(playerId) {
     if (!fantasyTeam.players.includes(playerId)) return;
@@ -2340,13 +2538,38 @@ function setCaptain(playerId) {
         return;
     }
 
+    // If setting new captain on current vice-captain, swap them
+    if (fantasyTeam.viceCaptainId === playerId) {
+        fantasyTeam.viceCaptainId = fantasyTeam.captainId;
+    }
+
     fantasyTeam.captainId = playerId;
+    renderSelectedTeam();
+}
+
+function setViceCaptain(playerId) {
+    if (!fantasyTeam.players.includes(playerId)) return;
+
+    if (checkTransferDeadline()) {
+        showAlert('Трансферное окно закрыто! Вайс-капитана менять нельзя.', 'warning');
+        return;
+    }
+
+    // Cannot be same as captain
+    if (fantasyTeam.captainId === playerId) {
+        showAlert('Выберите другого игрока. Капитан и вайс-капитан должны быть разными.', 'warning');
+        return;
+    }
+
+    fantasyTeam.viceCaptainId = playerId;
     renderSelectedTeam();
 }
 
 function calculateSpentBudget() {
     return fantasyTeam.players.reduce((total, playerId) => {
-        const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+        // Convert to number for comparison (Firebase may store as string)
+        const numericId = parseInt(playerId);
+        const player = FANTASY_PLAYERS.find(p => p.id === numericId);
         return total + (player ? player.price : 0);
     }, 0);
 }
@@ -2395,13 +2618,18 @@ function renderFantasyPlayersList() {
     // Render each player
     const playersHTML = filteredPlayers.map(player => {
         const isSelected = fantasyTeam.players.includes(player.id);
-        const canAfford = calculateSpentBudget() + player.price <= FANTASY_CONFIG.budget || isSelected;
+        // Use remainingBudget for affordability check
+        const canAfford = fantasyTeam.remainingBudget >= player.price || isSelected;
         const teamFull = fantasyTeam.players.length >= FANTASY_CONFIG.maxPlayers && !isSelected;
         const isDisabled = !canAfford || teamFull;
 
+        // Only add onclick if not disabled, or if already selected (to allow selling)
+        // Wrap player.id in quotes since IDs can be strings like "alisher_a"
+        const clickHandler = (isDisabled && !isSelected) ? '' : `onclick="selectFantasyPlayer('${player.id}')"`;
+
         return `
-            <div class="fpl-player-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
-                 onclick="${isDisabled && !isSelected ? '' : `selectFantasyPlayer(${player.id})`}">
+            <div class="fpl-player-card ${isSelected ? 'selected' : ''} ${isDisabled && !isSelected ? 'disabled' : ''}" 
+                 ${clickHandler}>
                 <div class="fpl-card-header">
                     <span class="fpl-position-badge ${player.position}">${player.position}</span>
                     <span class="fpl-price-badge">${player.price.toFixed(1)}</span>
@@ -2417,7 +2645,7 @@ function renderFantasyPlayersList() {
     }).join('');
 
     container.innerHTML = playersHTML;
-    console.log(`✅ Rendered ${filteredPlayers.length} players`);
+    console.log(`✅ Rendered ${filteredPlayers.length} players, remainingBudget: ${fantasyTeam.remainingBudget}`);
 }
 
 function getPositionEmoji(position) {
@@ -2488,7 +2716,7 @@ async function renderSelectedTeam(pointsMap = null) {
                     captainBtnHtml = `
                             <button class="slot-action-btn ${isCaptain ? 'captain-active' : ''}" 
                                     onclick="event.stopPropagation(); setCaptain('${player.id}')" 
-                                    title="Назначить капитаном">
+                                    title="Назначить капитаном (x2 очки)">
                                     ${isCaptain ? '👑' : 'C'}
                             </button>
                     `;
@@ -2538,22 +2766,43 @@ async function renderSelectedTeam(pointsMap = null) {
 function updateFantasyBudget() {
     const budgetValueEl = document.getElementById('fantasyBudgetRemaining');
     const budgetBarEl = document.getElementById('fantasyBudgetBar');
+    const teamValueEl = document.getElementById('fantasyTeamValue');
 
-    if (!budgetValueEl || !budgetBarEl) return;
+    // Calculate current values
+    const bank = fantasyTeam.remainingBudget !== null ? fantasyTeam.remainingBudget : 0;
+    const teamValue = calculateTeamValue();
 
-    const spent = calculateSpentBudget();
-    const remaining = FANTASY_CONFIG.budget - spent;
-    const percentage = (spent / FANTASY_CONFIG.budget) * 100;
+    // Update Bank display
+    if (budgetValueEl) {
+        budgetValueEl.textContent = bank.toFixed(1);
 
-    budgetValueEl.textContent = remaining.toFixed(1);
-    budgetBarEl.style.width = `${percentage}%`;
+        // Color coding: Green if >= 0, Red if < 0
+        if (bank < 0) {
+            budgetValueEl.classList.add('over-budget');
+            budgetValueEl.style.color = '#ef4444'; // Red
+        } else {
+            budgetValueEl.classList.remove('over-budget');
+            budgetValueEl.style.color = '#22c55e'; // Green
+        }
+    }
 
-    if (remaining < 0) {
-        budgetValueEl.classList.add('over-budget');
-        budgetBarEl.classList.add('over-budget');
-    } else {
-        budgetValueEl.classList.remove('over-budget');
-        budgetBarEl.classList.remove('over-budget');
+    // Update Team Value display (if element exists)
+    if (teamValueEl) {
+        teamValueEl.textContent = teamValue.toFixed(1);
+    }
+
+    // Update budget bar (visual indicator)
+    if (budgetBarEl) {
+        // Bar shows team value as a percentage of total purchasing power
+        const totalPower = teamValue + Math.max(0, bank);
+        const percentage = totalPower > 0 ? (teamValue / totalPower) * 100 : 0;
+        budgetBarEl.style.width = `${Math.min(100, percentage)}%`;
+
+        if (bank < 0) {
+            budgetBarEl.classList.add('over-budget');
+        } else {
+            budgetBarEl.classList.remove('over-budget');
+        }
     }
 }
 
@@ -2562,17 +2811,28 @@ function updateSaveButtonState() {
     if (!saveBtn) return;
 
     const isValidTeam = fantasyTeam.players.length === FANTASY_CONFIG.maxPlayers;
-    const isWithinBudget = calculateSpentBudget() <= FANTASY_CONFIG.budget;
+    const isWithinBudget = fantasyTeam.remainingBudget >= 0; // Use remainingBudget instead of fixed budget
+    const hasCaptain = fantasyTeam.captainId !== null;
     const isLocked = checkTransferDeadline();
 
     if (isLocked) {
         saveBtn.disabled = true;
         saveBtn.textContent = '🔒 Тур идет (Изменения закрыты)';
+    } else if (!isWithinBudget) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '❌ Недостаточно средств';
+    } else if (!isValidTeam) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = `⚠️ Выберите ${FANTASY_CONFIG.maxPlayers} игроков`;
+    } else if (!hasCaptain) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⚠️ Выберите капитана';
     } else {
-        saveBtn.disabled = !(isValidTeam && isWithinBudget);
+        saveBtn.disabled = false;
         saveBtn.textContent = '💾 Сохранить команду';
     }
 }
+
 
 // ===================================
 // FANTASY POINT CALCULATION
@@ -3029,37 +3289,65 @@ async function saveFantasyTeam() {
         return;
     }
 
-    if (calculateSpentBudget() > FANTASY_CONFIG.budget) {
-        showAlert('Превышен бюджет!', 'error');
+    // NEW: Check remainingBudget instead of fixed budget
+    if (fantasyTeam.remainingBudget < 0) {
+        showAlert('Недостаточно средств! Продайте игроков.', 'error');
+        return;
+    }
+
+    if (!fantasyTeam.captainId) {
+        showAlert('Выберите капитана (C)', 'error');
         return;
     }
 
     try {
         const currentGw = window.currentGameweekId || 'gw1';
+        const teamValue = calculateTeamValue();
 
+        // NEW: Flat structure - no nested squads.gwX
+        // The snapshot_squads.js script will copy this to locked collection at deadline
         await db.collection('fantasyTeams').doc(currentUser.uid).set({
+            // Core squad data (flat)
             players: fantasyTeam.players,
             captainId: fantasyTeam.captainId,
+            viceCaptainId: fantasyTeam.viceCaptainId || null,
+
+            // NEW: Save dynamic budget data
+            remainingBudget: fantasyTeam.remainingBudget,
+            teamValue: teamValue,
+            totalBudget: teamValue + fantasyTeam.remainingBudget, // Total purchasing power
+
+            // Meta
             managerName: fantasyTeam.managerName || currentUser.email.split('@')[0],
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             userEmail: currentUser.email,
-            // Save history for points calculation
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+
+            // Also save to legacy nested structure for backwards compatibility
             squads: {
                 [currentGw]: {
                     players: fantasyTeam.players,
-                    captainId: fantasyTeam.captainId
+                    captainId: fantasyTeam.captainId,
+                    viceCaptainId: fantasyTeam.viceCaptainId || null,
+                    remainingBudget: fantasyTeam.remainingBudget,
+                    savedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             }
         }, { merge: true });
 
+        // Update local storage
+        localStorage.setItem('fantasyTeam', JSON.stringify(fantasyTeam));
+
+        console.log(`💾 Saved team. Bank: ${fantasyTeam.remainingBudget.toFixed(1)}M, Team Value: ${teamValue.toFixed(1)}M`);
+
         // Show success confirmation modal
-        showSaveConfirmation(true, 'Ваша команда успешно сохранена в базе данных!');
+        showSaveConfirmation(true, 'Ваша команда успешно сохранена!');
     } catch (error) {
         console.error('Error saving fantasy team:', error);
         // Show error confirmation modal
         showSaveConfirmation(false, 'Произошла ошибка при сохранении. Попробуйте ещё раз.');
     }
 }
+
 
 // Show Save Confirmation Modal
 function showSaveConfirmation(isSuccess, message) {
@@ -3100,6 +3388,8 @@ async function loadFantasyTeam() {
         return p ? p.id : id; // Return canonical String ID if found
     };
 
+    let loadedRemainingBudget = null;
+
     // Try localStorage first
     const savedTeam = localStorage.getItem('fantasyTeam');
     if (savedTeam) {
@@ -3108,6 +3398,8 @@ async function loadFantasyTeam() {
             // Normalize localStorage data too
             fantasyTeam.players = (parsed.players || []).map(normalizeId);
             fantasyTeam.captainId = normalizeId(parsed.captainId);
+            fantasyTeam.viceCaptainId = normalizeId(parsed.viceCaptainId);
+            loadedRemainingBudget = parsed.remainingBudget;
             console.log('📥 Loaded from localStorage:', fantasyTeam.players);
         } catch (e) {
             console.error('Error parsing saved team:', e);
@@ -3127,6 +3419,13 @@ async function loadFantasyTeam() {
                 const rawPlayers = data.players || [];
                 fantasyTeam.players = rawPlayers.map(normalizeId);
                 fantasyTeam.captainId = normalizeId(data.captainId);
+                fantasyTeam.viceCaptainId = normalizeId(data.viceCaptainId);
+
+                // Load remainingBudget from Firestore
+                if (data.remainingBudget !== undefined && data.remainingBudget !== null) {
+                    loadedRemainingBudget = data.remainingBudget;
+                    console.log('📥 Loaded remainingBudget from Firebase:', loadedRemainingBudget);
+                }
 
                 console.log('📥 Loaded & Normalized from Firebase:', fantasyTeam.players);
             } else {
@@ -3139,15 +3438,97 @@ async function loadFantasyTeam() {
         console.log('📥 Skipping Firebase load - no user or db');
     }
 
+    // *** CRITICAL FIX: Always calculate team value AFTER players are loaded ***
+    const currentTeamValue = calculateTeamValue();
+    console.log('📥 Calculated Team Value:', currentTeamValue, 'from players:', fantasyTeam.players);
+
+    // *** SIMPLE BUDGET LOGIC ***
+    // bank = 18.0 - teamValue, if negative then 0
+    const DEFAULT_BUDGET = FANTASY_TEAM_CONFIG.budget; // 18.0
+
+    if (fantasyTeam.players.length > 0 && currentTeamValue > 0) {
+        // Calculate bank from team value
+        let calculatedBank = DEFAULT_BUDGET - currentTeamValue;
+
+        // If negative (players appreciated), cap at 0
+        if (calculatedBank < 0) {
+            calculatedBank = 0;
+            console.log('📥 Team value exceeds budget, capping bank at 0');
+        }
+
+        fantasyTeam.remainingBudget = parseFloat(calculatedBank.toFixed(1));
+        console.log('📥 Calculated remainingBudget:', fantasyTeam.remainingBudget);
+    } else {
+        // New user with no team: give full budget
+        fantasyTeam.remainingBudget = DEFAULT_BUDGET;
+        console.log('📥 New user, starting with full budget:', DEFAULT_BUDGET);
+    }
+
     // Save normalized state back to localStorage
     localStorage.setItem('fantasyTeam', JSON.stringify(fantasyTeam));
-    console.log('📥 Final fantasyTeam.players:', fantasyTeam.players);
+    console.log('📥 Final fantasyTeam.players:', fantasyTeam.players, 'remainingBudget:', fantasyTeam.remainingBudget, 'teamValue:', currentTeamValue);
 }
+
+
+
+/**
+ * Calculate the current team value based on CURRENT player prices.
+ * Uses the latest prices from FANTASY_PLAYERS or PLAYERS_DATA.
+ * Handles both numeric IDs (legacy) and string IDs (new format).
+ */
+function calculateTeamValue() {
+    let total = 0;
+
+    console.log('🧮 calculateTeamValue called with players:', fantasyTeam.players);
+    console.log('🧮 FANTASY_PLAYERS available:', FANTASY_PLAYERS.map(p => ({ id: p.id, price: p.price })));
+
+    fantasyTeam.players.forEach(playerId => {
+        if (!playerId) return;
+
+        const numericId = parseInt(playerId);
+        const stringId = String(playerId);
+
+        console.log(`🔍 Looking for player: "${playerId}" (stringId: "${stringId}", numericId: ${numericId})`);
+
+        // First try FANTASY_PLAYERS
+        let player = FANTASY_PLAYERS.find(p =>
+            p.id === numericId ||
+            p.id === playerId ||
+            String(p.id) === stringId
+        );
+
+        // If not found, try PLAYERS_DATA (string IDs like "asan_t")
+        if (!player && typeof PLAYERS_DATA !== 'undefined') {
+            player = PLAYERS_DATA.find(p =>
+                p.id === stringId ||
+                p.id === playerId
+            );
+            if (player) console.log(`✅ Found in PLAYERS_DATA: ${player.name} = ${player.price}`);
+        } else if (player) {
+            console.log(`✅ Found in FANTASY_PLAYERS: ${player.name} = ${player.price}`);
+        }
+
+        if (player) {
+            total += player.price;
+        } else {
+            console.warn(`❌ Player NOT FOUND for ID "${playerId}"`);
+        }
+    });
+
+    console.log(`🧮 Total team value: ${total}`);
+
+    // Round to 1 decimal place to avoid floating-point issues
+    return parseFloat(total.toFixed(1));
+}
+
+
+
 
 // Make fantasy functions globally accessible
 window.selectFantasyPlayer = selectFantasyPlayer;
 window.removeFantasyPlayer = removeFantasyPlayer;
 window.setCaptain = setCaptain;
+window.setViceCaptain = setViceCaptain;
 window.openRatingModal = openRatingModal; // Expose for testing/admin
 window.loadGameweekStats = loadGameweekStats; // Explicitly expose for Tab Switching
 window.renderSelectedTeam = renderSelectedTeam;

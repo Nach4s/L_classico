@@ -188,11 +188,17 @@
 
                 <!-- Budget Bar -->
                 <div class="fpl-budget-bar">
-                    <span class="budget-text">💰 <span id="fantasyBudgetRemaining">18.0</span> / 18.0 млн</span>
+                    <div class="budget-info">
+                        <span class="budget-label">💰 Банк: <span id="fantasyBudgetRemaining"
+                                style="font-weight: bold;">0.0</span> млн</span>
+                        <span class="budget-label">📊 Стоимость: <span id="fantasyTeamValue"
+                                style="font-weight: bold;">0.0</span> млн</span>
+                    </div>
                     <div class="budget-progress">
                         <div id="fantasyBudgetBar" class="budget-progress-fill" style="width: 0%"></div>
                     </div>
                 </div>
+
 
                 <!-- Deadline Timer -->
                 <div id="fantasyDeadline" class="fpl-deadline">
@@ -523,6 +529,70 @@
         </div>
     </div>
 
+    <!-- SELL PLAYER CONFIRMATION MODAL -->
+    <div class="modal" id="sellPlayerModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3 class="modal-title">💰 Продажа игрока</h3>
+                <button class="modal-close" onclick="closeModal('sellPlayerModal')">&times;</button>
+            </div>
+            <div class="sell-confirm-content">
+                <div class="sell-player-info">
+                    <div class="sell-player-icon" id="sellPlayerIcon">👕</div>
+                    <div class="sell-player-details">
+                        <div class="sell-player-name" id="sellPlayerName">Игрок</div>
+                        <div class="sell-player-price">
+                            <span class="price-label">Цена:</span>
+                            <span class="price-value" id="sellPlayerPrice">0.0</span>
+                            <span class="price-unit">млн</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="sell-confirm-text">Вы действительно хотите продать этого игрока?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('sellPlayerModal')">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmSellBtn" onclick="confirmSellPlayer()">🔴
+                    Продать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUY PLAYER CONFIRMATION MODAL -->
+    <div class="modal" id="buyPlayerModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3 class="modal-title">🛒 Покупка игрока</h3>
+                <button class="modal-close" onclick="closeModal('buyPlayerModal')">&times;</button>
+            </div>
+            <div class="sell-confirm-content">
+                <div class="sell-player-info">
+                    <div class="sell-player-icon" id="buyPlayerIcon">👕</div>
+                    <div class="sell-player-details">
+                        <div class="sell-player-name" id="buyPlayerName">Игрок</div>
+                        <div class="sell-player-price">
+                            <span class="price-label">Цена:</span>
+                            <span class="price-value" id="buyPlayerPrice">0.0</span>
+                            <span class="price-unit">млн</span>
+                        </div>
+                        <div class="sell-player-price" style="margin-top: 5px;">
+                            <span class="price-label">Ваш банк:</span>
+                            <span class="price-value" id="buyPlayerBank">0.0</span>
+                            <span class="price-unit">млн</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="sell-confirm-text">Вы хотите купить этого игрока?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('buyPlayerModal')">Отмена</button>
+                <button type="button" class="btn btn-primary" id="confirmBuyBtn" onclick="confirmBuyPlayer()">✅
+                    Купить</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- OPPONENT SCOUTING MODAL -->
     <div id="managerModal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="background: #1e1e1e; border: 1px solid #444; color: white;">
@@ -551,7 +621,8 @@
     <script src="match_voting.js"></script>
     <script src="voting_cron.js"></script>
     <script src="leaderboard.js?v=1.1"></script>
-    <script src="app.js?v=1.8"></script>
+    <script src="app.js?v=1.9"></script>
+    <script src="fix_budget_migration.js"></script>
     <script src="fantasy_core.js"></script>
 </body>
 
