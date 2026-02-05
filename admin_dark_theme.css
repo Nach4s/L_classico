@@ -1,19 +1,19 @@
 /* ===================================
-   ADMIN PANEL - FOTMOB DARK STYLE
-   Minimalist, data-driven design
+   ADMIN PANEL - IMMERSIVE DARK STYLE
+   Unified with main theme
    =================================== */
 
-/* Dark theme colors */
+/* Dark theme colors - Synced with main theme */
 :root {
-    --admin-bg-primary: #1A1A1A;
-    --admin-bg-secondary: #252525;
-    --admin-bg-tertiary: #2F2F2F;
+    --admin-bg-primary: #121212;
+    --admin-bg-secondary: #1A1A1A;
+    --admin-bg-tertiary: #1E1E1E;
     --admin-text-primary: #FFFFFF;
     --admin-text-secondary: #9CA3AF;
     --admin-text-muted: #6B7280;
     --admin-accent-green: #00FF88;
     --admin-accent-green-dim: #00CC6D;
-    --admin-border: #3F3F3F;
+    --admin-border: #2D2D2D;
     --admin-error: #EF4444;
     --admin-warning: #F59E0B;
 }

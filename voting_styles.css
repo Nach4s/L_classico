@@ -6,17 +6,17 @@
 :root {
     --voting-bg-primary: #121212;
     --voting-bg-secondary: #1A1A1A;
-    --voting-bg-card: #212121;
+    --voting-bg-card: #1E1E1E;
     --voting-bg-hover: #2A2A2A;
     --voting-text-primary: #FFFFFF;
-    --voting-text-secondary: #A0A0A0;
-    --voting-text-muted: #666666;
-    --voting-accent: #00E676;
-    --voting-accent-dim: #00C853;
-    --voting-border: #333333;
-    --voting-success: #4CAF50;
-    --voting-warning: #FFC107;
-    --voting-danger: #F44336;
+    --voting-text-secondary: #9CA3AF;
+    --voting-text-muted: #6B7280;
+    --voting-accent: #00FF88;
+    --voting-accent-dim: #00CC6D;
+    --voting-border: #2D2D2D;
+    --voting-success: #00FF88;
+    --voting-warning: #F59E0B;
+    --voting-danger: #EF4444;
 }
 
 /* Container */

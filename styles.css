@@ -5,25 +5,26 @@
 
 /* === CSS VARIABLES === */
 :root {
-  /* Colors */
-  --bg-primary: #0a1628;
-  --bg-secondary: #1a2332;
-  --bg-card: #1e2936;
-  --bg-hover: #252f3f;
+  /* Colors - Immersive Dark Mode */
+  --bg-primary: #121212;
+  --bg-secondary: #1A1A1A;
+  --bg-card: #1E1E1E;
+  --bg-hover: #2A2A2A;
 
-  --color-primary: #00d664;
-  --color-warning: #ffd700;
-  --color-danger: #ff4444;
-  --color-info: #4a9eff;
+  --color-primary: #00FF88;
+  --color-primary-dim: #00CC6D;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #3B82F6;
 
-  --text-primary: #ffffff;
-  --text-secondary: #a0aec0;
-  --text-muted: #718096;
+  --text-primary: #FFFFFF;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
 
-  --border-color: #2d3748;
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+  --border-color: #2D2D2D;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -33,10 +34,17 @@
   --spacing-xl: 2rem;
   --spacing-2xl: 3rem;
 
-  /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* Border Radius - Softer, more modern */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Compatibility Maps (for fantasy_styles.css) */
+  --color-background: var(--bg-card);
+  --color-background-secondary: var(--bg-secondary);
+  --color-secondary: var(--bg-hover);
+  --color-secondary-light: var(--bg-hover);
+  --color-hover: var(--bg-hover);
 
   /* Transitions */
   --transition-fast: 0.15s ease;
@@ -52,7 +60,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
@@ -75,7 +83,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 2px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-primary);
 }
 
 .header-content {
@@ -171,9 +179,9 @@ body {
 }
 
 .btn-primary:hover {
-  background: #00ff7a;
+  background: var(--color-primary-dim);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 214, 100, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 255, 136, 0.4);
 }
 
 .btn-danger {
@@ -371,19 +379,25 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-info));
+  width: 4px;
+  height: 100%;
+  background: var(--color-primary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .match-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
   border-color: var(--color-primary);
 }
 
+.match-card:hover::before {
+  opacity: 1;
+}
+
 .match-date {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: var(--spacing-md);
   text-transform: uppercase;
@@ -404,23 +418,27 @@ body {
 
 .match-team-name {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
 }
 
+/* Enlarged Score Display */
 .match-score {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--color-primary);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .match-score-separator {
   color: var(--text-muted);
   font-weight: 400;
+  font-size: 1.5rem;
 }
 
 .match-actions {
@@ -1368,17 +1386,22 @@ body {
     font-size: 1.25rem;
   }
 
-  /* === TABS (Fixed & Premium) === */
+  /* === BOTTOM NAVIGATION BAR (Mobile) === */
   .main-tabs {
-    position: sticky;
-    top: 61px;
-    /* Header height approx */
-    z-index: 990;
-    background: var(--bg-primary);
-    margin: 0 -1rem var(--spacing-md) -1rem;
-    padding: 0 1rem;
-    border-bottom: 2px solid var(--border-color);
-    gap: var(--spacing-md);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    gap: var(--spacing-xs);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
 
     /* Hide Scrollbar */
     -ms-overflow-style: none;
@@ -1390,14 +1413,13 @@ body {
   }
 
   .main-tab {
-    padding: 1rem 0.5rem;
-    font-size: 0.9rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.8rem;
     background: transparent;
     border: none;
-    border-radius: 0;
-    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
     white-space: nowrap;
-    border-bottom: 3px solid transparent;
     flex: 1;
     text-align: center;
   }
@@ -1407,12 +1429,17 @@ body {
     color: var(--text-primary);
   }
 
+  /* Capsule Active State for Bottom Bar */
   .main-tab.active {
-    background: transparent;
-    color: var(--color-primary);
-    border-color: var(--color-primary);
-    border-radius: 0;
-    box-shadow: none;
+    background: var(--color-primary);
+    color: var(--bg-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(0, 255, 136, 0.4);
+  }
+
+  /* Add padding to container to prevent content overlap with bottom bar */
+  .container {
+    padding-bottom: 80px;
   }
 
   /* === CARDS === */
@@ -1751,33 +1778,35 @@ body {
   display: flex;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-lg);
-  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-lg);
   overflow-x: auto;
-  padding-bottom: 2px;
 }
 
 .main-tab {
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-xl);
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
-  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-md);
   white-space: nowrap;
 }
 
 .main-tab:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
+/* Capsule Active State */
 .main-tab.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--bg-primary);
+  box-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
 }
 
 .tab-content {
@@ -2647,37 +2676,31 @@ body {
   font-weight: 600;
 }
 
-/* Pitch Field */
+/* Pitch Field - Schematic Dark Style */
 .fpl-pitch {
   margin-bottom: var(--spacing-lg);
 }
 
 .pitch-field {
   background: linear-gradient(to bottom,
-      #2d8a4e 0%,
-      #3a9d5d 10%,
-      #2d8a4e 10%,
-      #3a9d5d 20%,
-      #2d8a4e 20%,
-      #3a9d5d 30%,
-      #2d8a4e 30%,
-      #3a9d5d 40%,
-      #2d8a4e 40%,
-      #3a9d5d 50%,
-      #2d8a4e 50%,
-      #3a9d5d 60%,
-      #2d8a4e 60%,
-      #3a9d5d 70%,
-      #2d8a4e 70%,
-      #3a9d5d 80%,
-      #2d8a4e 80%,
-      #3a9d5d 90%,
-      #2d8a4e 90%,
-      #3a9d5d 100%);
+      #1A1A1A 0%,
+      #1E1E1E 100%);
+  border: 1px solid #2D2D2D;
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   min-height: 250px;
   position: relative;
+
+  /* Schematic pitch lines overlay */
+  background-image:
+    /* Center circle */
+    radial-gradient(circle at 50% 50%, transparent 39px, rgba(255, 255, 255, 0.08) 40px, rgba(255, 255, 255, 0.08) 41px, transparent 42px),
+    /* Center line */
+    linear-gradient(to right, transparent 49.5%, rgba(255, 255, 255, 0.08) 49.5%, rgba(255, 255, 255, 0.08) 50.5%, transparent 50.5%),
+    /* Top penalty area */
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    /* Base gradient */
+    linear-gradient(to bottom, #1A1A1A 0%, #1E1E1E 100%);
 }
 
 .pitch-formation {
