@@ -1764,3 +1764,63 @@
         /* Smaller gap on mobile */
     }
 }
+
+/* =========================================
+   MOBILE FIX: TRIANGLE FORMATION OVERLAP
+   ========================================= */
+@media only screen and (max-width: 600px) {
+
+    /* Ensure container has enough height for vertical spacing */
+    .pitch-field {
+        min-height: 550px !important;
+    }
+
+    /* Scale down cards to fit 3 in a triangle */
+    .pitch-player-slot-dynamic {
+        transform: translate(-50%, -50%) scale(0.85) !important;
+        width: 110px;
+        /* Force constrained width */
+    }
+
+    /* REPOSITION PLAYERS FOR TRIANGLE (Assuming 3 slots) */
+
+    /* Player 1: Top Center */
+    .pitch-player-slot-dynamic:nth-child(1) {
+        top: 15% !important;
+        left: 50% !important;
+    }
+
+    /* Player 2: Bottom Left */
+    .pitch-player-slot-dynamic:nth-child(2) {
+        top: 60% !important;
+        left: 15% !important;
+    }
+
+    /* Player 3: Bottom Right */
+    .pitch-player-slot-dynamic:nth-child(3) {
+        top: 60% !important;
+        left: 85% !important;
+    }
+
+    /* Typography Adjustments for Mobile */
+    .pitch-player-slot-dynamic .player-name {
+        font-size: 9px !important;
+        max-width: 95px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+    }
+
+    .pitch-player-slot-dynamic .live-points-badge {
+        font-size: 9px !important;
+        padding: 2px 4px;
+        min-width: 20px;
+    }
+
+    /* Adjust stats badges if present */
+    .pitch-player-slot-dynamic .stats-badge {
+        font-size: 8px !important;
+        padding: 1px 3px;
+    }
+}
