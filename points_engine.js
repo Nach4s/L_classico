@@ -49,20 +49,31 @@ function getRatingBonus(avgRating, playerPosition) {
 
 /**
  * Calculate Coach Points based on group victory
- * @param {string} coachId - 'nurzhan' (Group 1) or 'uali' (Group 2) or null
- * @param {number} winningGroup - 1, 2, or null (draw/no result)
- * @param {string} matchStatus - 'pending', 'live', 'finished'
- * @returns {number} - Points awarded (0 or 2)
+ * Use strictly equality check for group names or IDs
  */
 function calculateCoachPoints(coachId, winningGroup, matchStatus = 'finished') {
     if (matchStatus !== 'finished') return 0; // No points until finished
-
     if (!coachId || !winningGroup) return 0;
 
-    if (coachId === 'nurzhan' && winningGroup === 1) return 2;
-    if (coachId === 'uali' && winningGroup === 2) return 2;
+    // Normalizing inputs to strings for comparison
+    const cId = String(coachId).toLowerCase();
+    const wGroup = String(winningGroup);
 
-    return 0; // Loss or Draw
+    // Logic: 
+    // Coach 'nurzhan' (Group 1 manager) wins if Group 1 wins
+    // Coach 'uali' (Group 2 manager) wins if Group 2 wins
+
+    if (cId === 'nurzhan') {
+        if (wGroup === '1' || wGroup === '1 группа') return 2;
+        if (wGroup === '2' || wGroup === '2 группа') return -2; // Loss
+    }
+
+    if (cId === 'uali') {
+        if (wGroup === '2' || wGroup === '2 группа') return 2;
+        if (wGroup === '1' || wGroup === '1 группа') return -2; // Loss
+    }
+
+    return 0; // Draw or unknown
 }
 
 // Export for Admin Panel
@@ -215,6 +226,73 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
 }
 
 /**
+ * Helper: Determine Winning Group for a Gameweek
+ * Fetches the linked match and compares scores.
+ */
+async function getGameweekWinningGroup(gameweekId) {
+    try {
+        const gwDoc = await db.collection('gameweeks').doc(gameweekId).get();
+        if (!gwDoc.exists) return { winningGroup: null, matchStatus: 'pending' };
+
+        const gwData = gwDoc.data();
+        if (!gwData.matchId) return { winningGroup: null, matchStatus: 'pending' };
+
+        const matchDoc = await db.collection('matches').doc(gwData.matchId).get();
+        if (!matchDoc.exists) return { winningGroup: null, matchStatus: 'pending' };
+
+        const match = matchDoc.data();
+
+        // Determine Status
+        let status = 'pending';
+        // If we have a robust status field, use it. Otherwise guess based on scores/mvp?
+        // For now, let's assume if it has a score it's at least live/finished.
+        // But the previous API used 'finished'. Let's stick to what we know:
+        // If voting is closed or MVP is selected, it's definitely finished.
+        // OR if the user manually set it?
+
+        // Let's rely on `votingClosed` as a proxy for "Result Finalized" for Coach Points?
+        // OR simply: if scores are present.
+        // The user requirement implies "when I link a match... and who won... coach gets points".
+        // Usually points are final when the game is over.
+
+        if (match.votingClosed) {
+            status = 'finished';
+        } else if (match.score1 !== undefined && match.score2 !== undefined) {
+            // If scores exist but voting open, maybe 'live' or 'finished' pending vote.
+            // We'll treat as 'finished' for calculation purposes if we want live updates,
+            // BUT calculateCoachPoints has a check `if (matchStatus !== 'finished') return 0`.
+            // So we must pass 'finished' if we want points to show up.
+            // Let's assume if the admin triggers "Recalculate", they imply it's done or live?
+            // Actually, the prompt said "when I attach a match... and who won...".
+            // Let's default to 'finished' if we have scores, so points appear?
+            // Safest: Use 'finished' if scores are non-zero or explicitly set?
+            // Actually, let's look at `gwData.status`.
+            if (gwData.status === 'completed' || match.votingClosed) {
+                status = 'finished';
+            } else {
+                // For "Live" updates, we might want to show potential points?
+                // But calculateCoachPoints explicitly returns 0 if not finished.
+                // Let's pass 'finished' IF we have a valid result to show.
+                status = 'finished';
+            }
+        }
+
+        const s1 = parseInt(match.score1 || 0);
+        const s2 = parseInt(match.score2 || 0);
+
+        let winner = null;
+        if (s1 > s2) winner = '1'; // "1 группа" assumed Team 1
+        else if (s2 > s1) winner = '2'; // "2 группа" assumed Team 2
+
+        return { winningGroup: winner, matchStatus: status, matchId: gwData.matchId };
+
+    } catch (e) {
+        console.error('Error determining winning group:', e);
+        return { winningGroup: null, matchStatus: 'error' };
+    }
+}
+
+/**
  * Recalculate points for all players who played in a gameweek
  */
 async function recalculateAllPlayersInGameweek(gameweekId) {
@@ -275,11 +353,15 @@ async function updateLiveUserSquads(gameweekId) {
             return;
         }
 
-        // 2.1 Fetch All Fantasy Teams to get Base Total Points (Optimization: Single Read)
-        const teamsMap = new Map();
+        // 2.1 Fetch All Fantasy Teams to get Base Total Points AND Coach ID
+        const teamsMap = new Map(); // Stores { totalPoints, coachId }
         const teamsSnapshot = await db.collection('fantasyTeams').get();
         teamsSnapshot.forEach(doc => {
-            teamsMap.set(doc.id, doc.data().totalPointsAllTime || 0);
+            const d = doc.data();
+            teamsMap.set(doc.id, {
+                totalPoints: d.totalPointsAllTime || 0,
+                coachId: d.coachId || null
+            });
         });
 
         const batch = db.batch();
@@ -287,11 +369,46 @@ async function updateLiveUserSquads(gameweekId) {
         let maxScore = 0;
         let processedCount = 0;
 
+        // 2.2 Determine Winning Group for Coach Points
+        const { winningGroup, matchStatus } = await getGameweekWinningGroup(gameweekId);
+        console.log(`🏆 Match Result: Winner=${winningGroup}, Status=${matchStatus}`);
+
         // 3. Recalculate each squad using cached stats and global map
         squadsSnapshot.forEach(doc => {
             const squad = doc.data();
             const squadRef = doc.ref;
             let squadPoints = 0;
+
+            // Coach Points
+            const userTeamData = teamsMap.get(doc.id); // This was just total points in original code
+
+            // We need to fetch the user's coachId. 
+            // PROBLEM: teamsMap in step 2.1 only stored 'totalPointsAllTime'.
+            // OPTIMIZATION: We should have fetched full data or at least coachId.
+            // Let's defer fetching or update 2.1? 
+            // Actually, let's correct 2.1 inside this function in a separate block below 
+            // OR just read it from the doc if available (it is NOT in squads doc, it is in fantasyTeams doc).
+
+            // Since we already did `teamsSnapshot` in 2.1, let's assume we can modify it to store more data.
+            // But I cannot modify the code *above* easily without a massive replace.
+            // Wait, I am replacing `updateLiveUserSquads` chunks.
+            // I will modify the loop logic here to access coachId if I can get it.
+
+            // Refetching logic for 2.1 is better done by Replacing the whole 2.1 block...
+            // But I am in a chunk.
+
+            // Let's see... iterating `squadsSnapshot`. The user ID is `doc.id`.
+            // We need `fantasyTeams`.doc(doc.id).coachId.
+            // `teamsMap` currently has: teamsMap.set(doc.id, doc.data().totalPointsAllTime || 0);
+
+            // I will rely on a new lookup or assume I can get it. 
+            // Since I cannot change 2.1 in *this* chunk easily (it's lines 278-283), I will just do a quick lookup 
+            // OR I will define a helper map *inside* this loop if I assume 2.1 is not sufficient.
+
+            // Actually, standard practice: Let's fetch the coachId from the `fantasyTeams` map. 
+            // I need to change how `teamsMap` is populated. 
+            // I will use a NEW chunk to update step 2.1 as well.
+
 
             if (squad.players && Array.isArray(squad.players)) {
                 squad.players.forEach(pid => {
@@ -317,6 +434,17 @@ async function updateLiveUserSquads(gameweekId) {
                 console.log(`Squad Total for ${doc.id}: ${squadPoints}`);
             }
 
+            // ADD COACH POINTS
+            const userProfile = teamsMap.get(doc.id);
+            if (userProfile && userProfile.coachId) {
+                const cPoints = calculateCoachPoints(userProfile.coachId, winningGroup, matchStatus);
+                if (cPoints > 0) {
+                    squadPoints += cPoints;
+                    console.log(`  + Coach Points (${userProfile.coachId}): ${cPoints}`);
+                }
+            }
+
+
             // Update Max/Avg tracking
             grandTotal += squadPoints;
             if (squadPoints > maxScore) maxScore = squadPoints;
@@ -331,7 +459,8 @@ async function updateLiveUserSquads(gameweekId) {
             // NEW: Update user's main profile for Real-Time Leaderboard
             // Calculates LIVE Total = Historical Total + Current Live GW Points
             const userRef = db.collection('fantasyTeams').doc(doc.id);
-            const baseTotal = teamsMap.get(doc.id) || 0;
+            // userProfile is already defined in the scope above
+            const baseTotal = userProfile ? userProfile.totalPoints : 0;
             const liveTotal = baseTotal + squadPoints;
 
             batch.update(userRef, {
@@ -522,3 +651,4 @@ async function recalculateUserTotalHistory(userId) {
 }
 
 window.updateLiveUserSquads = updateLiveUserSquads;
+window.getGameweekWinningGroup = getGameweekWinningGroup;

@@ -6,8 +6,9 @@
 // ===================================
 // COACH POINTS CONFIGURATION
 // ===================================
-const CURRENT_WINNING_GROUP = 1; // Temporary: 1, 2, or null (Draw/Not played)
-const CURRENT_MATCH_STATUS = 'pending'; // 'pending', 'live', 'finished'
+// CONSTANTS REMOVED: Now fetched dynamically via getGameweekWinningGroup
+// const CURRENT_WINNING_GROUP = 1; 
+// const CURRENT_MATCH_STATUS = 'pending';
 const COACH_NAMES = {
     'nurzhan': 'Нуржан К.',
     'uali': 'Уали Б.'
@@ -589,11 +590,15 @@ function prepareSquadData(playerIds, playerMap, statsMap, captainId, viceCaptain
 function renderOpponentSquadList(container, squadData, teamName, coachInfo = null) {
     const { players, totalPoints } = squadData;
 
+    // Add coach points to total if available
+    const coachPts = (coachInfo && coachInfo.coachPoints) ? coachInfo.coachPoints : 0;
+    const finalTotal = totalPoints + coachPts;
+
     let html = `
         <div class="opponent-squad-list">
             <div class="squad-header">
                 <span class="team-name">${teamName}</span>
-                <span class="total-pts">${totalPoints} pts</span>
+                <span class="total-pts">${finalTotal} pts</span>
             </div>
     `;
 
@@ -646,7 +651,9 @@ function renderOpponentSquadList(container, squadData, teamName, coachInfo = nul
         } else {
             // Finished
             pointsDisplay = coachPoints > 0 ? '+' + coachPoints : coachPoints;
-            pointsClass = coachPoints > 0 ? 'positive' : 'zero';
+            if (coachPoints > 0) pointsClass = 'positive';
+            else if (coachPoints < 0) pointsClass = 'negative';
+            else pointsClass = 'zero';
         }
 
         html += `
@@ -727,19 +734,31 @@ async function openManagerTeam(targetUserId, teamName) {
         // 5. Fetch coachId and calculate coach points
         const teamDoc = await db.collection('fantasyTeams').doc(targetUserId).get();
         const coachId = teamDoc.exists ? (teamDoc.data().coachId || null) : null;
-        const coachPoints = window.calculateCoachPoints ? window.calculateCoachPoints(coachId, CURRENT_WINNING_GROUP, CURRENT_MATCH_STATUS) : 0;
+
+        let coachPoints = 0;
+        let matchStatus = 'pending';
+
+        // Fetch real match status logic if available
+        if (window.getGameweekWinningGroup && window.calculateCoachPoints) {
+            const gwStatus = await window.getGameweekWinningGroup(gwId);
+            matchStatus = gwStatus.matchStatus;
+            coachPoints = window.calculateCoachPoints(coachId, gwStatus.winningGroup, matchStatus);
+        } else {
+            // Fallback if engines not loaded (should not happen in main app)
+            console.warn("Points Engine not loaded, cannot calculate coach points");
+        }
 
         const coachInfo = {
             coachId: coachId,
             coachPoints: coachPoints,
-            matchStatus: CURRENT_MATCH_STATUS
+            matchStatus: matchStatus
         };
 
         renderOpponentSquadList(container, squadData, managerName, coachInfo);
 
     } catch (e) {
         console.error(e);
-        container.innerHTML = `< div style = "color:#ef4444; padding:20px;" > Ошибка загрузки: ${e.message}</div > `;
+        container.innerHTML = `<div style="color:#ef4444; padding:20px;">Ошибка загрузки: ${e.message}</div>`;
     }
 }
 
