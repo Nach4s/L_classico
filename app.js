@@ -2750,42 +2750,24 @@ async function renderSelectedTeam(pointsMap = null) {
             // Check Locked (for actions)
             const isLocked = checkTransferDeadline();
 
-            // --- HTML ГЕНЕРАЦИЯ С ИНЛАЙН СТИЛЯМИ (CSS FIX) ---
-            // Добавляем style="position: relative" прямо сюда, чтобы значок не улетал
+            // --- HTML ГЕНЕРАЦИЯ (Сlass-Based) ---
             slotHtml = `
-                <div class="pitch-player-slot ${isCaptain ? 'captain' : ''}" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <div class="pitch-player-slot ${isCaptain ? 'captain' : ''}">
                     
-                    <div class="live-points-badge" style="
-                        position: absolute; 
-                        top: -10px; 
-                        right: -10px; 
-                        background-color: ${displayPoints < 0 ? '#ef4444' : '#00FF85'}; 
-                        color: ${displayPoints < 0 ? '#fff' : '#000'}; 
-                        font-weight: bold; 
-                        border-radius: 50%; 
-                        width: 28px; 
-                        height: 28px; 
-                        display: flex; 
-                        align-items: center; 
-                        justify-content: center; 
-                        font-size: 12px;
-                        z-index: 20;
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-                        ${displayPoints === 0 ? '' : ''} 
-                    ">
+                    <div class="live-points-badge ${displayPoints < 0 ? 'negative' : ''}">
                         ${displayPoints > 0 ? '+' + displayPoints : displayPoints}
                     </div>
 
-                    <div class="player-kit" style="width: 50px; height: 50px; margin-bottom: 5px;">
-                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey" style="width:100%; height:100%; object-fit:contain;">
+                    <div class="player-kit">
+                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
                     </div>
 
-                    <div class="player-info" style="background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; text-align: center; width: 100%;">
-                        <div class="player-name" style="color: white; font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${displayName}</div>
-                        <div class="player-pos" style="color: #bbb; font-size: 10px;">${displayPos}</div>
+                    <div class="player-info">
+                        <div class="player-name">${displayName}</div>
+                        <div class="player-pos">${displayPos}</div>
                     </div>
                     
-                    ${isCaptain ? '<div class="captain-badge" style="color: gold; font-size: 16px; margin-top: -5px; position:absolute; top:-5px; left:-5px; background:black; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">👑</div>' : ''}
+                    ${isCaptain ? '<div class="captain-badge">👑</div>' : ''}
                     
                     <div class="player-slot-actions">
                          ${!isLocked && !isCaptain && playerId ? `
@@ -2801,59 +2783,28 @@ async function renderSelectedTeam(pointsMap = null) {
 
         if (!slotHtml) {
             slotHtml = `
-                    <div class="pitch-player-slot empty" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <div class="player-jersey-placeholder" style="font-size: 24px;">+</div>
-                        <div class="player-slot-name" style="font-size: 12px; margin-top: 5px;">Пусто</div>
+                    <div class="pitch-player-slot empty">
+                        <div class="player-jersey-placeholder">+</div>
+                        <div class="player-slot-name">Пусто</div>
                     </div>
                 `;
         }
 
-        // --- ВСТАВКА В HTML (V2.0 - ROBUST) ---
-        // Вариант 1: Ищем конкретный слот
-        // Note: The original code used row1/row2 construction. This replacement assumes we want to inject directly.
-        // However, standard renderSelectedTeam clears container. We need to respect that.
-        // But since we are replacing the loop body, we can't easily change the pre-loop clear.
-        // Wait, the user said "replace the end of the loop".
-
-        // Let's stick to the requested logic:
-        // Try to find an existing slot element. If this is a re-render, maybe they exist?
-        // Actually, renderSelectedTeam clears container.innerHTML = '' usually at start?
-        // No, in the CURRENT app.js (Step 119), it does `let row1 = ''; let row2 = '';` and `container.innerHTML = ...` at the end.
-        // So `document.getElementById('pitch-slot-' + index)` will NOT find anything because we haven't written strictly ID-based slots yet.
-        // UNLESS the user implies we should change the rendering strategy entirely.
-
-        // CRITICAL DEVIATION: The user's request assumes slots exist.
-        // "Если слотов нет ... ищем общий контейнер ... Если это первый игрок, чистим поле".
-
-        const pitchContainer = container; // We know container exists from start of function
+        const pitchContainer = container;
 
         if (pitchContainer) {
-            // Clean container on first iteration if we are doing direct append
             if (index === 0) pitchContainer.innerHTML = '';
 
-            // Create a wrapper that acts as the slot
             const wrapper = document.createElement('div');
             wrapper.className = 'pitch-player-slot-dynamic';
-            wrapper.style.position = 'relative';
-            wrapper.style.display = 'flex';
-            wrapper.style.flexDirection = 'column';
-            wrapper.style.alignItems = 'center';
-            wrapper.style.justifyContent = 'center';
-            wrapper.style.marginBottom = '20px'; // Spacing
-
-            // If we want to maintain the 1-2 layout (GK top, others bottom), we might need CSS grid on container
-            // or just let them stack if that's what the user wants. 
-            // The user said: "даже если он не находит слоты... в общий контейнер".
-
             wrapper.innerHTML = slotHtml;
             pitchContainer.appendChild(wrapper);
-            console.log(`✅ Игрок ${index} добавлен в общий контейнер.`);
         }
     }
-
-    // REMOVED: container.innerHTML = ... row1/row2 logic
-    // because we are now appending directly in the loop.
 }
+// REMOVED: container.innerHTML = ... row1/row2 logic
+// because we are now appending directly in the loop.
+
 
 function updateFantasyBudget() {
     const budgetValueEl = document.getElementById('fantasyBudgetRemaining');
@@ -3983,9 +3934,6 @@ function renderHistoricalTeam(squad, pointsMap, playerMap) {
     const container = document.getElementById('fantasySelectedPlayers');
     if (!container) return;
 
-    let row1 = '';
-    let row2 = '';
-
     // We assume maxPlayers = 3
     for (let i = 0; i < 3; i++) {
         const playerId = squad.players[i];
@@ -3993,65 +3941,50 @@ function renderHistoricalTeam(squad, pointsMap, playerMap) {
 
         if (playerId) {
             // Find player details (from global cache passed in)
-            // This supports numeric IDs (e.g. 9) mapping to objects
             const player = playerMap ? playerMap.get(playerId) : FANTASY_PLAYERS.find(p => p.id === playerId);
 
-            // Fallback if player deleted?
-            const name = player ? (player.appName || player.name) : 'Unknown';
-            const team = player ? player.team : 'A';
-            const position = player ? player.position : '';
-            const jerseyImage = team && team.includes('1') ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
+            const displayName = player ? (player.appName || player.name) : 'Unknown';
+            const displayPos = player ? player.position : '??';
+            const team = player ? player.team : '1';
+            const jerseyImage = team && team.includes('1') ? 'assets/jerseys/team_a.png' : 'assets/jerseys/team_b.png';
 
             const isCaptain = squad.captainId === playerId;
-            const points = pointsMap[playerId] || 0;
+            const displayPoints = pointsMap[playerId] || 0;
 
+            // --- HTML ГЕНЕРАЦИЯ (Premium FUT Card Structure) ---
             slotHtml = `
-                <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}" style="position: relative;">
-                    <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey" style="width: 50px; height: 50px; object-fit: contain;">
-                    <div class="player-slot-name" style="font-size: 11px; font-weight: bold; margin-top: 4px;">${name}</div>
+                <div class="pitch-player-slot ${isCaptain ? 'captain' : ''}">
                     
-                    <!-- POINTS DISPLAY -->
-                    <div class="player-slot-points" style="
-                        background: ${points > 0 ? '#4CAF50' : (points < 0 ? '#ef4444' : '#333')}; 
-                        color: white; 
-                        font-weight: bold; 
-                        padding: 2px 6px; 
-                        border-radius: 4px; 
-                        margin-top:2px;
-                        font-size: 11px;
-                    ">
-                        ${points} pts
+                    <div class="live-points-badge ${displayPoints < 0 ? 'negative' : ''}">
+                        ${displayPoints > 0 ? '+' + displayPoints : displayPoints}
+                    </div>
+
+                    <div class="player-kit">
+                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
+                    </div>
+
+                    <div class="player-info">
+                        <div class="player-name">${displayName}</div>
+                        <div class="player-pos">${displayPos}</div>
                     </div>
                     
-                    ${isCaptain ? '<div class="captain-badge" style="position:absolute; top:-5px; left:-5px;">👑</div>' : ''}
+                    ${isCaptain ? '<div class="captain-badge">👑</div>' : ''}
                 </div>
             `;
-        }
-
-        if (!slotHtml) {
+        } else {
             slotHtml = `
                 <div class="pitch-player-slot empty">
-                    <div class="player-jersey-placeholder" style="font-size: 20px;">+</div>
-                    <div class="player-slot-name" style="font-size: 11px;">Пусто</div>
-                    <div class="player-slot-points" style="font-size: 11px;">0</div>
+                    <div class="player-jersey-placeholder">+</div>
+                    <div class="player-slot-name">Пусто</div>
                 </div>
             `;
         }
 
-        // Using simple flex rendering (append all to container via row mechanism if needed, 
-        // but existing CSS might rely on specific structure. 
-        // Let's mimic the structure we see in renderSelectedTeam or simplify.)
-        // Original code used row1/row2. Let's keep it compatible.
+        if (i === 0) container.innerHTML = '';
 
-        if (i === 0) row1 = slotHtml;
-        else row2 += slotHtml;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'pitch-player-slot-dynamic';
+        wrapper.innerHTML = slotHtml;
+        container.appendChild(wrapper);
     }
-
-    // Use the dynamic slot wrapper if possible, or just the rows.
-    // The previous renderSelectedTeam used dynamic appending. 
-    // Let's stick to the rows implementation here as it was replaced previously but this function is distinct.
-    container.innerHTML = `
-        <div class="pitch-row" style="display:flex; justify-content:center; margin-bottom:15px;">${row1}</div>
-        <div class="pitch-row" style="display:flex; justify-content:center; gap:20px;">${row2}</div>
-    `;
 }

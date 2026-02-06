@@ -334,6 +334,7 @@
     border-radius: 4px;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
     background: linear-gradient(to right, #dc2626 0%, #fbbf24 50%, #10b981 100%);
     cursor: pointer;
     transition: all 0.3s;
@@ -1611,20 +1612,155 @@
 /* Style the live points badge to ensure it's not floating randomly */
 .live-points-badge {
     position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #00ff87; /* Green */
+    top: -10px;
+    right: -10px;
+    background: linear-gradient(135deg, #00ff87 0%, #00bc63 100%);
     color: #000;
     font-weight: 800;
-    font-size: 0.85rem;
-    padding: 2px 6px;
-    border-radius: 6px;
-    z-index: 10;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.9rem;
+    padding: 2px 8px;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    border: 2px solid #fff;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+.live-points-badge:hover {
+    transform: scale(1.15);
+}
+
+
 .live-points-badge.negative {
-    background: #ef4444; /* Red */
+    background: #ef4444;
+    /* Red */
     color: #fff;
+}
+
+/* ===================================
+   PITCH PLAYER CARD LAYOUT FIXES
+   =================================== */
+
+/* Main Container for Players */
+.pitch-formation,
+#fantasySelectedPlayers {
+    display: flex;
+    flex-direction: row;
+    /* Horizontal */
+    flex-wrap: wrap;
+    /* Allow wrapping */
+    justify-content: center;
+    /* Center horizontally */
+    align-items: flex-start;
+    /* Align to top */
+    gap: 30px;
+    /* Spacing between cards */
+    width: 100%;
+    padding: 20px 0;
+    /* Vertical spacing */
+}
+
+/* Ensure the outer pitch field validates centering */
+.pitch-field {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 400px;
+}
+
+/* Individual Player Card Slots (Dynamic) */
+.pitch-player-slot-dynamic {
+    flex: 0 0 auto;
+    /* Don't stretch */
+    margin-bottom: 25px;
+    position: relative !important;
+    transition: transform 0.3s ease;
+}
+
+.pitch-player-slot-dynamic:hover {
+    transform: translateY(-5px);
+}
+
+/* Premium Player Info Box (Glassmorphism) */
+.pitch-player-slot-dynamic .player-info {
+    background: rgba(20, 20, 20, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    padding: 6px 10px;
+    text-align: center;
+    width: 100%;
+    min-width: 90px;
+    margin-top: 5px;
+}
+
+/* Typography Overhaul */
+.pitch-player-slot-dynamic .player-name {
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.pitch-player-slot-dynamic .player-pos {
+    color: #a0a0a0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Captain Icon Enhancement */
+.pitch-player-slot-dynamic .captain-badge {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    background: #000;
+    color: #ffd700;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border: 1.5px solid #ffd700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+    z-index: 21;
+    animation: glow-pulse 2s infinite ease-in-out;
+}
+
+@keyframes glow-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+    }
+}
+
+
+/* Mobile Adjustments for Pitch */
+@media (max-width: 480px) {
+
+    .pitch-formation,
+    #fantasySelectedPlayers {
+        gap: 15px;
+        /* Smaller gap on mobile */
+    }
 }
