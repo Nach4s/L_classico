@@ -1762,65 +1762,91 @@
     #fantasySelectedPlayers {
         gap: 15px;
         /* Smaller gap on mobile */
+
     }
 }
 
 /* =========================================
-   MOBILE FIX: TRIANGLE FORMATION OVERLAP
+   MOBILE FIX: LARGE PYRAMID LAYOUT
    ========================================= */
 @media only screen and (max-width: 600px) {
 
-    /* Ensure container has enough height for vertical spacing */
+    /* 1. Deep pitch for vertical spacing */
     .pitch-field {
-        min-height: 550px !important;
+        min-height: 600px !important;
+        position: relative !important;
     }
 
-    /* Scale down cards to fit 3 in a triangle */
+    /* 2. Generic Card Style - BIGGER */
     .pitch-player-slot-dynamic {
-        transform: translate(-50%, -50%) scale(0.85) !important;
-        width: 110px;
-        /* Force constrained width */
+        zoom: 1 !important;
+        /* Reset zooom */
+        position: absolute !important;
+        width: 120px !important;
+        /* Larger width */
+        min-width: 120px !important;
+        margin: 0 !important;
+        transform-origin: top center;
+        /* Reset any JS scaling if necessary, or enforce specific scale */
+        transform: scale(1) !important;
+        z-index: 10;
     }
 
-    /* REPOSITION PLAYERS FOR TRIANGLE (Assuming 3 slots) */
+    /* 3. PYRAMID POSITIONS */
 
-    /* Player 1: Top Center */
+    /* Top: Center & High */
     .pitch-player-slot-dynamic:nth-child(1) {
-        top: 15% !important;
+        top: 5% !important;
         left: 50% !important;
+        /* Center horizontally */
+        transform: translateX(-50%) scale(1) !important;
     }
 
-    /* Player 2: Bottom Left */
+    /* Bottom Left */
     .pitch-player-slot-dynamic:nth-child(2) {
-        top: 60% !important;
-        left: 15% !important;
+        top: 55% !important;
+        left: 10% !important;
+        /* Closer to edge for space */
+        transform: scale(1) !important;
     }
 
-    /* Player 3: Bottom Right */
+    /* Bottom Right */
     .pitch-player-slot-dynamic:nth-child(3) {
-        top: 60% !important;
-        left: 85% !important;
+        top: 55% !important;
+        right: 10% !important;
+        /* Use right for symmetry */
+        left: auto !important;
+        transform: scale(1) !important;
     }
 
-    /* Typography Adjustments for Mobile */
+    /* 4. Readable Typography */
     .pitch-player-slot-dynamic .player-name {
-        font-size: 9px !important;
-        max-width: 95px;
+        font-size: 11px !important;
+        /* Larger text */
+        max-width: 110px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.2;
+        display: block;
+        text-align: center;
+        margin-top: 5px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
     }
 
+    /* 5. Big Badges */
     .pitch-player-slot-dynamic .live-points-badge {
-        font-size: 9px !important;
-        padding: 2px 4px;
-        min-width: 20px;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 11px !important;
+        top: -10px !important;
+        right: -5px !important;
     }
 
-    /* Adjust stats badges if present */
-    .pitch-player-slot-dynamic .stats-badge {
-        font-size: 8px !important;
-        padding: 1px 3px;
+    .pitch-player-slot-dynamic .captain-badge {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 11px !important;
+        top: -10px !important;
+        left: -5px !important;
     }
 }
