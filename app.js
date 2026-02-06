@@ -2669,98 +2669,190 @@ async function renderSelectedTeam(pointsMap = null) {
     let row1 = ''; // First player (GK usually, but here 1st slot)
     let row2 = ''; // Second and third players
 
-    for (let i = 0; i < FANTASY_CONFIG.maxPlayers; i++) {
-        const playerId = fantasyTeam.players[i];
-        let slotHtml = '';
+    // 2. Бежим по игрокам команды
+    for (let index = 0; index < FANTASY_CONFIG.maxPlayers; index++) {
+        let p = fantasyTeam.players[index];
+        console.log(`🔍 Processing Player ${index}:`, p);
 
-        if (playerId) {
-            // HYDRATION STEP: Lookup by ID or Index
-            const player = playerMap.get(playerId);
+        let playerId = null;
+        let historyPoints = null;
 
-            if (player) {
-                const isCaptain = (fantasyTeam.captainId === playerId || fantasyTeam.captainId === player.id);
-                const jerseyImage = player.team && player.team.includes('1') ? 'assets/jerseys/team_a.png' : 'assets/jerseys/team_b.png';
+        // --- ЛОГИКА ПОИСКА ID (ДЕТЕКТИВ) ---
+        if (p) {
+            if (typeof p === 'string') {
+                // Случай А: Это просто ID (Live режим)
+                playerId = p;
+            } else if (typeof p === 'object' && p !== null) {
+                // Случай Б: Это объект (История)
+                // Проверяем все возможные варианты названия поля ID
+                playerId = p.id || p.playerId || p.player_id || p.uid;
 
-                // Check deadline for UI lock
-                const isLocked = checkTransferDeadline();
-                let captainBtnHtml = '';
-
-                // Live Points Display
-                let pointsHtml = '';
-                let pointsClass = '';
-
-                // Check points by various ID forms
-                let pts = 0;
-                let hasPoints = false;
-                if (pointsMap) {
-                    if (pointsMap[player.id] !== undefined) { pts = pointsMap[player.id]; hasPoints = true; }
-                    else if (pointsMap[playerId] !== undefined) { pts = pointsMap[playerId]; hasPoints = true; }
-                }
-
-                if (hasPoints) {
-                    if (isCaptain) pts *= 2; // Apply captain multiplier visually if not already applied
-
-                    if (pts > 0) {
-                        pointsHtml = `<div class="live-points-badge">+${pts}</div>`;
-                        pointsClass = 'has-points';
-                    } else if (pts < 0) {
-                        pointsHtml = `<div class="live-points-badge negative">${pts}</div>`;
-                    }
-                }
-
-                if (isLocked) {
-                    if (isCaptain) {
-                        captainBtnHtml = `<span class="captain-badge-static" style="font-size:1.2em; cursor:help;" title="Капитан (Зафиксировано)">👑</span>`;
-                    }
-                } else {
-                    captainBtnHtml = `
-                            <button class="slot-action-btn ${isCaptain ? 'captain-active' : ''}" 
-                                    onclick="event.stopPropagation(); setCaptain('${player.id}')" 
-                                    title="Назначить капитаном (x2 очки)">
-                                    ${isCaptain ? '👑' : 'C'}
-                            </button>
-                    `;
-                }
-
-                slotHtml = `
-                    <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''} ${pointsClass}">
-                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
-                        ${pointsHtml}
-                        <div class="player-slot-name">${player.name}</div>
-                        <div class="player-slot-points">${player.position}</div>
-                        <div class="player-slot-actions">
-                            ${captainBtnHtml}
-                            ${!isLocked ? `
-                            <button class="slot-action-btn remove" 
-                                    onclick="event.stopPropagation(); removeFantasyPlayer('${player.id}')" 
-                                    title="Удалить">
-                                    ✕
-                            </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
+                // Пытаемся достать очки
+                if (p.points !== undefined) historyPoints = p.points;
+                if (p.roundPoints !== undefined) historyPoints = p.roundPoints;
             }
         }
 
-        if (!slotHtml) {
+        // --- НОРМАЛИЗАЦИЯ ID ---
+        // Если ID всё еще нет, или он странный - чистим его
+        if (playerId && typeof playerId === 'string') {
+            playerId = playerId.trim().toLowerCase(); // Приводим к формату базы
+        }
+
+        // --- ПОИСК В БАЗЕ ---
+        let playerData = null;
+        if (playerId) {
+            playerData = playerMap.get(playerId);
+        }
+
+        // ПОПЫТКА СПАСЕНИЯ: Если по ID не нашли, ищем по Имени (если оно сохранилось в истории)
+        if (!playerData && p && typeof p === 'object' && p.name) {
+            console.warn(`⚠️ Поиск по ID (${playerId}) не дал результата. Ищем по имени: ${p.name}`);
+            for (let [key, val] of playerMap) {
+                if (val.name === p.name || val.appName === p.name) {
+                    playerData = val;
+                    playerId = key; // Нашли настоящий ID!
+                    break;
+                }
+            }
+        }
+
+        // --- ОТОБРАЖЕНИЕ (РЕНДЕР) ---
+        let slotHtml = '';
+
+        if (playerData || (p && (typeof p === 'string' || (typeof p === 'object' && p.name)))) {
+            // Если всё еще Unknown - ставим заглушку, но красивую
+            const displayName = playerData ? (playerData.appName || playerData.name) : ((p && p.name) || "Unknown");
+            const displayPos = playerData ? playerData.position : "??";
+            // Determine kit or jersey image
+            // Existing logic uses team_a/team_b.png based on team name
+            let jerseyImage = 'assets/jerseys/team_b.png'; // Default
+            if (playerData && playerData.team) {
+                jerseyImage = playerData.team.includes('1') ? 'assets/jerseys/team_a.png' : 'assets/jerseys/team_b.png';
+            }
+
+            // Очки: Берем из истории, если есть. Если нет - берем 0 (для истории это правильнее, чем live очки)
+            // Also check pointsMap (Live Mode) if historyPoints is null
+            let displayPoints = historyPoints !== null ? historyPoints : 0;
+
+            if (historyPoints === null && pointsMap) {
+                if (playerId && pointsMap[playerId] !== undefined) {
+                    displayPoints = pointsMap[playerId];
+                }
+            }
+
+            console.log(`✅ Result for ${index}: Name=${displayName}, ID=${playerId}, Points=${displayPoints}`);
+
+            // Captain Logic
+            const isCaptain = (fantasyTeam.captainId === playerId || (playerData && fantasyTeam.captainId === playerData.id));
+            if (isCaptain) displayPoints *= 2;
+
+            // Check Locked (for actions)
+            const isLocked = checkTransferDeadline();
+
+            // --- HTML ГЕНЕРАЦИЯ С ИНЛАЙН СТИЛЯМИ (CSS FIX) ---
+            // Добавляем style="position: relative" прямо сюда, чтобы значок не улетал
             slotHtml = `
-                <div class="pitch-player-slot empty">
-                    <div class="player-jersey-placeholder">+</div>
-                    <div class="player-slot-name">Пусто</div>
-                    <div class="player-slot-points">—</div>
+                <div class="pitch-player-slot ${isCaptain ? 'captain' : ''}" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    
+                    <div class="live-points-badge" style="
+                        position: absolute; 
+                        top: -10px; 
+                        right: -10px; 
+                        background-color: ${displayPoints < 0 ? '#ef4444' : '#00FF85'}; 
+                        color: ${displayPoints < 0 ? '#fff' : '#000'}; 
+                        font-weight: bold; 
+                        border-radius: 50%; 
+                        width: 28px; 
+                        height: 28px; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        font-size: 12px;
+                        z-index: 20;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                        ${displayPoints === 0 ? '' : ''} 
+                    ">
+                        ${displayPoints > 0 ? '+' + displayPoints : displayPoints}
+                    </div>
+
+                    <div class="player-kit" style="width: 50px; height: 50px; margin-bottom: 5px;">
+                        <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey" style="width:100%; height:100%; object-fit:contain;">
+                    </div>
+
+                    <div class="player-info" style="background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; text-align: center; width: 100%;">
+                        <div class="player-name" style="color: white; font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${displayName}</div>
+                        <div class="player-pos" style="color: #bbb; font-size: 10px;">${displayPos}</div>
+                    </div>
+                    
+                    ${isCaptain ? '<div class="captain-badge" style="color: gold; font-size: 16px; margin-top: -5px; position:absolute; top:-5px; left:-5px; background:black; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">👑</div>' : ''}
+                    
+                    <div class="player-slot-actions">
+                         ${!isLocked && !isCaptain && playerId ? `
+                            <button class="slot-action-btn" onclick="event.stopPropagation(); setCaptain('${playerId}')" title="Капитан">C</button>
+                         ` : ''}
+                         ${!isLocked && playerId ? `
+                            <button class="slot-action-btn remove" onclick="event.stopPropagation(); removeFantasyPlayer('${playerId}')" title="Удалить">✕</button>
+                         ` : ''}
+                    </div>
                 </div>
             `;
         }
 
-        if (i === 0) row1 = slotHtml;
-        else row2 += slotHtml;
+        if (!slotHtml) {
+            slotHtml = `
+                    <div class="pitch-player-slot empty" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div class="player-jersey-placeholder" style="font-size: 24px;">+</div>
+                        <div class="player-slot-name" style="font-size: 12px; margin-top: 5px;">Пусто</div>
+                    </div>
+                `;
+        }
+
+        // --- ВСТАВКА В HTML (V2.0 - ROBUST) ---
+        // Вариант 1: Ищем конкретный слот
+        // Note: The original code used row1/row2 construction. This replacement assumes we want to inject directly.
+        // However, standard renderSelectedTeam clears container. We need to respect that.
+        // But since we are replacing the loop body, we can't easily change the pre-loop clear.
+        // Wait, the user said "replace the end of the loop".
+
+        // Let's stick to the requested logic:
+        // Try to find an existing slot element. If this is a re-render, maybe they exist?
+        // Actually, renderSelectedTeam clears container.innerHTML = '' usually at start?
+        // No, in the CURRENT app.js (Step 119), it does `let row1 = ''; let row2 = '';` and `container.innerHTML = ...` at the end.
+        // So `document.getElementById('pitch-slot-' + index)` will NOT find anything because we haven't written strictly ID-based slots yet.
+        // UNLESS the user implies we should change the rendering strategy entirely.
+
+        // CRITICAL DEVIATION: The user's request assumes slots exist.
+        // "Если слотов нет ... ищем общий контейнер ... Если это первый игрок, чистим поле".
+
+        const pitchContainer = container; // We know container exists from start of function
+
+        if (pitchContainer) {
+            // Clean container on first iteration if we are doing direct append
+            if (index === 0) pitchContainer.innerHTML = '';
+
+            // Create a wrapper that acts as the slot
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pitch-player-slot-dynamic';
+            wrapper.style.position = 'relative';
+            wrapper.style.display = 'flex';
+            wrapper.style.flexDirection = 'column';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.justifyContent = 'center';
+            wrapper.style.marginBottom = '20px'; // Spacing
+
+            // If we want to maintain the 1-2 layout (GK top, others bottom), we might need CSS grid on container
+            // or just let them stack if that's what the user wants. 
+            // The user said: "даже если он не находит слоты... в общий контейнер".
+
+            wrapper.innerHTML = slotHtml;
+            pitchContainer.appendChild(wrapper);
+            console.log(`✅ Игрок ${index} добавлен в общий контейнер.`);
+        }
     }
 
-    container.innerHTML = `
-        <div class="pitch-row">${row1}</div>
-        <div class="pitch-row">${row2}</div>
-    `;
+    // REMOVED: container.innerHTML = ... row1/row2 logic
+    // because we are now appending directly in the loop.
 }
 
 function updateFantasyBudget() {
@@ -3650,35 +3742,53 @@ function setupGameweekNavigation() {
     // Initialize with current active gameweek
     const activeGwId = window.currentGameweekId || 'gw1';
     currentViewGwNum = parseInt(activeGwId.replace('gw', '')) || 1;
+    console.log(`🧭 Init Gameweek Navigation: Start at GW${currentViewGwNum}`);
 
     // Load initial data (for the active week)
     loadGameweekStats(`gw${currentViewGwNum}`);
 
+    // Remove old listeners (by cloning) to prevent duplicates if function called multiple times
     if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            if (currentViewGwNum > 1) {
-                currentViewGwNum--;
-                loadGameweekStats(`gw${currentViewGwNum}`);
-            }
+        const newPrev = prevBtn.cloneNode(true);
+        prevBtn.parentNode.replaceChild(newPrev, prevBtn);
+        newPrev.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            changeGameweek(-1);
         });
     }
 
     if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            // Allow navigating 1 step ahead or bound to active?
-            // User requirement: "Changes in My Team for next week...".
-            // Let's assume unlimited forward for now, or bound +1.
-            currentViewGwNum++;
-            loadGameweekStats(`gw${currentViewGwNum}`);
+        const newNext = nextBtn.cloneNode(true);
+        nextBtn.parentNode.replaceChild(newNext, nextBtn);
+        newNext.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            changeGameweek(1);
         });
     }
 }
 
+function changeGameweek(offset) {
+    const newGwNum = currentViewGwNum + offset;
+    if (newGwNum < 1) return; // Can't go below 1
+
+    // Optional: limit upper bound if needed, e.g. current active gameweek + 1
+    // For now allow browsing forward freely or limit to some reasonable max (e.g. 38)
+    if (newGwNum > 38) return;
+
+    console.log(`🧭 Navigation: ${currentViewGwNum} -> ${newGwNum}`);
+    currentViewGwNum = newGwNum;
+    loadGameweekStats(`gw${currentViewGwNum}`);
+}
+
 async function loadGameweekStats(gwId) {
+    // 1. Synchronize state (Critical for external calls)
+    const num = parseInt(gwId.replace('gw', '')) || 1;
+    currentViewGwNum = num;
+
     const gwLabel = document.querySelector('.fpl-gameweek');
     if (gwLabel) {
-        // Extract number for display
-        const num = gwId.replace('gw', '');
         gwLabel.textContent = `Тур ${num}`;
     }
 
@@ -3780,13 +3890,23 @@ async function loadGameweekStats(gwId) {
         };
 
         // 2.1 Pass live stats to playerPointsMap
+        // FIX: Use Global Map to handle Numeric IDs in snapshot data
+        const playerMap = await window.getGlobalPlayerMap();
+
         if (snapshotSquad && snapshotSquad.players) {
             snapshotSquad.players.forEach(pid => {
                 let pName = null;
-                const pObj = FANTASY_PLAYERS.find(p => p.id === pid);
-                if (pObj) pName = pObj.name;
+                // Try resolving ID (works for both "mansur_sh" and 9)
+                const pObj = playerMap.get(pid);
 
-                let total = getPointsForPlayer(pid, pName);
+                // If resolved, retrieve proper String ID (for points lookup) and Name
+                let lookupId = pid;
+                if (pObj) {
+                    pName = pObj.name;
+                    lookupId = pObj.id || pid; // Use canonical ID if available
+                }
+
+                let total = getPointsForPlayer(lookupId, pName);
                 if (snapshotSquad.captainId === pid) total *= 2;
                 playerPointsMap[pid] = total;
             });
@@ -3836,7 +3956,8 @@ async function loadGameweekStats(gwId) {
         // Pitch Rendering
         if (snapshotSquad) {
             // If we have a snapshot (past or current active locked), show it with points
-            renderHistoricalTeam(snapshotSquad, playerPointsMap);
+            // Pass playerMap for robust rendering
+            renderHistoricalTeam(snapshotSquad, playerPointsMap, playerMap);
         } else {
             // No snapshot -> Show editable team (for Setup phase or future)
             // or empty state if completed.
@@ -3858,7 +3979,7 @@ async function loadGameweekStats(gwId) {
 /**
  * Render historical squad with points
  */
-function renderHistoricalTeam(squad, pointsMap) {
+function renderHistoricalTeam(squad, pointsMap, playerMap) {
     const container = document.getElementById('fantasySelectedPlayers');
     if (!container) return;
 
@@ -3871,30 +3992,38 @@ function renderHistoricalTeam(squad, pointsMap) {
         let slotHtml = '';
 
         if (playerId) {
-            // Find player details (from global cache)
-            const player = FANTASY_PLAYERS.find(p => p.id === playerId);
+            // Find player details (from global cache passed in)
+            // This supports numeric IDs (e.g. 9) mapping to objects
+            const player = playerMap ? playerMap.get(playerId) : FANTASY_PLAYERS.find(p => p.id === playerId);
+
             // Fallback if player deleted?
-            const name = player ? player.name : 'Unknown';
+            const name = player ? (player.appName || player.name) : 'Unknown';
             const team = player ? player.team : 'A';
             const position = player ? player.position : '';
-            const jerseyImage = team === 'A' ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
+            const jerseyImage = team && team.includes('1') ? '/assets/jerseys/team_a.png' : '/assets/jerseys/team_b.png';
 
             const isCaptain = squad.captainId === playerId;
             const points = pointsMap[playerId] || 0;
 
             slotHtml = `
-                <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}">
-                    <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey">
-                    <div class="player-slot-name">${name}</div>
+                <div class="pitch-player-slot filled ${isCaptain ? 'captain' : ''}" style="position: relative;">
+                    <img src="${jerseyImage}" class="player-jersey-img" alt="Jersey" style="width: 50px; height: 50px; object-fit: contain;">
+                    <div class="player-slot-name" style="font-size: 11px; font-weight: bold; margin-top: 4px;">${name}</div>
                     
                     <!-- POINTS DISPLAY -->
-                    <div class="player-slot-points" style="background: ${points > 0 ? '#4CAF50' : '#333'}; color: white; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-top:2px;">
+                    <div class="player-slot-points" style="
+                        background: ${points > 0 ? '#4CAF50' : (points < 0 ? '#ef4444' : '#333')}; 
+                        color: white; 
+                        font-weight: bold; 
+                        padding: 2px 6px; 
+                        border-radius: 4px; 
+                        margin-top:2px;
+                        font-size: 11px;
+                    ">
                         ${points} pts
                     </div>
                     
-                    <div class="player-slot-actions">
-                         ${isCaptain ? '<span title="Captain">👑</span>' : ''}
-                    </div>
+                    ${isCaptain ? '<div class="captain-badge" style="position:absolute; top:-5px; left:-5px;">👑</div>' : ''}
                 </div>
             `;
         }
@@ -3902,19 +4031,27 @@ function renderHistoricalTeam(squad, pointsMap) {
         if (!slotHtml) {
             slotHtml = `
                 <div class="pitch-player-slot empty">
-                    <div class="player-jersey-placeholder">-</div>
-                    <div class="player-slot-name">---</div>
-                    <div class="player-slot-points">0</div>
+                    <div class="player-jersey-placeholder" style="font-size: 20px;">+</div>
+                    <div class="player-slot-name" style="font-size: 11px;">Пусто</div>
+                    <div class="player-slot-points" style="font-size: 11px;">0</div>
                 </div>
             `;
         }
+
+        // Using simple flex rendering (append all to container via row mechanism if needed, 
+        // but existing CSS might rely on specific structure. 
+        // Let's mimic the structure we see in renderSelectedTeam or simplify.)
+        // Original code used row1/row2. Let's keep it compatible.
 
         if (i === 0) row1 = slotHtml;
         else row2 += slotHtml;
     }
 
+    // Use the dynamic slot wrapper if possible, or just the rows.
+    // The previous renderSelectedTeam used dynamic appending. 
+    // Let's stick to the rows implementation here as it was replaced previously but this function is distinct.
     container.innerHTML = `
-        <div class="pitch-row">${row1}</div>
-        <div class="pitch-row">${row2}</div>
+        <div class="pitch-row" style="display:flex; justify-content:center; margin-bottom:15px;">${row1}</div>
+        <div class="pitch-row" style="display:flex; justify-content:center; gap:20px;">${row2}</div>
     `;
 }

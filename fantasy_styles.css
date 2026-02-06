@@ -1598,3 +1598,33 @@
         font-size: 0.6rem;
     }
 }
+
+/* =========================================
+   FIXES FOR HISTORY MODE UI
+   ========================================= */
+
+/* Ensure player slot is a positioning context for the absolute badge */
+.pitch-player-slot {
+    position: relative;
+}
+
+/* Style the live points badge to ensure it's not floating randomly */
+.live-points-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #00ff87; /* Green */
+    color: #000;
+    font-weight: 800;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.live-points-badge.negative {
+    background: #ef4444; /* Red */
+    color: #fff;
+}
