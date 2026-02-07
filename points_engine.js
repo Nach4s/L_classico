@@ -342,27 +342,62 @@ async function updateLiveUserSquads(gameweekId) {
             });
         });
 
-        // 2. Fetch ALL User Squads (Snapshots)
+        // 2. Fetch ALL User Squads (Hybrid: Snapshot OR Legacy)
+        console.log(`🔍 Fetching squads for ${gameweekId}...`);
+
+        // Try Snapshots first
         const squadsSnapshot = await db.collection('gameweeks')
             .doc(gameweekId)
             .collection('squads')
             .get();
 
-        if (squadsSnapshot.empty) {
-            console.log('⚠️ No squads found for live update.');
-            return;
-        }
+        let squadsToProcess = [];
 
-        // 2.1 Fetch All Fantasy Teams to get Base Total Points AND Coach ID
-        const teamsMap = new Map(); // Stores { totalPoints, coachId }
+        // 2.1 Fetch All Fantasy Teams (Required for Coach ID and Legacy Fallback)
         const teamsSnapshot = await db.collection('fantasyTeams').get();
+        const teamsMap = new Map(); // Stores { totalPoints, coachId, doc }
+
         teamsSnapshot.forEach(doc => {
             const d = doc.data();
             teamsMap.set(doc.id, {
                 totalPoints: d.totalPointsAllTime || 0,
-                coachId: d.coachId || null
+                coachId: d.coachId || null,
+                managerName: d.managerName || 'User',
+                doc: d // Store full doc for legacy checks
             });
         });
+
+        if (!squadsSnapshot.empty) {
+            console.log(`✅ Found ${squadsSnapshot.size} snapshots.`);
+            squadsSnapshot.forEach(doc => {
+                squadsToProcess.push({
+                    userId: doc.id,
+                    squad: doc.data(),
+                    ref: doc.ref,
+                    isSnapshot: true
+                });
+            });
+        } else {
+            console.warn(`⚠️ No snapshots found for ${gameweekId}. Checking LEGACY structure...`);
+            // Fallback: Iterate all users and check for squads[gwId]
+            teamsMap.forEach((userData, userId) => {
+                const userDoc = userData.doc;
+                if (userDoc.squads && userDoc.squads[gameweekId]) {
+                    squadsToProcess.push({
+                        userId: userId,
+                        squad: userDoc.squads[gameweekId],
+                        ref: db.collection('fantasyTeams').doc(userId), // We'll update the main doc
+                        isSnapshot: false
+                    });
+                }
+            });
+            console.log(`✅ Found ${squadsToProcess.length} legacy squads.`);
+        }
+
+        if (squadsToProcess.length === 0) {
+            console.log('⚠️ No squads found for live update (checked both snapshot and legacy).');
+            return;
+        }
 
         const batch = db.batch();
         let grandTotal = 0;
@@ -373,108 +408,105 @@ async function updateLiveUserSquads(gameweekId) {
         const { winningGroup, matchStatus } = await getGameweekWinningGroup(gameweekId);
         console.log(`🏆 Match Result: Winner=${winningGroup}, Status=${matchStatus}`);
 
-        // 3. Recalculate each squad using cached stats and global map
-        squadsSnapshot.forEach(doc => {
-            const squad = doc.data();
-            const squadRef = doc.ref;
+        // 3. Recalculate each squad
+        for (const entry of squadsToProcess) {
+            const { userId, squad, ref, isSnapshot } = entry;
             let squadPoints = 0;
 
-            // Coach Points
-            const userTeamData = teamsMap.get(doc.id); // This was just total points in original code
-
-            // We need to fetch the user's coachId. 
-            // PROBLEM: teamsMap in step 2.1 only stored 'totalPointsAllTime'.
-            // OPTIMIZATION: We should have fetched full data or at least coachId.
-            // Let's defer fetching or update 2.1? 
-            // Actually, let's correct 2.1 inside this function in a separate block below 
-            // OR just read it from the doc if available (it is NOT in squads doc, it is in fantasyTeams doc).
-
-            // Since we already did `teamsSnapshot` in 2.1, let's assume we can modify it to store more data.
-            // But I cannot modify the code *above* easily without a massive replace.
-            // Wait, I am replacing `updateLiveUserSquads` chunks.
-            // I will modify the loop logic here to access coachId if I can get it.
-
-            // Refetching logic for 2.1 is better done by Replacing the whole 2.1 block...
-            // But I am in a chunk.
-
-            // Let's see... iterating `squadsSnapshot`. The user ID is `doc.id`.
-            // We need `fantasyTeams`.doc(doc.id).coachId.
-            // `teamsMap` currently has: teamsMap.set(doc.id, doc.data().totalPointsAllTime || 0);
-
-            // I will rely on a new lookup or assume I can get it. 
-            // Since I cannot change 2.1 in *this* chunk easily (it's lines 278-283), I will just do a quick lookup 
-            // OR I will define a helper map *inside* this loop if I assume 2.1 is not sufficient.
-
-            // Actually, standard practice: Let's fetch the coachId from the `fantasyTeams` map. 
-            // I need to change how `teamsMap` is populated. 
-            // I will use a NEW chunk to update step 2.1 as well.
-
+            // Fetch User Profile early
+            const userProfile = teamsMap.get(userId);
 
             if (squad.players && Array.isArray(squad.players)) {
                 squad.players.forEach(pid => {
                     // ID Mismatch Fix: Use Global Map to find the canonical String ID
-                    let stringId = pid;
+                    let stringId = String(pid);
 
-                    const pData = playerMap.get(pid);
+                    const pData = playerMap.get(pid) || playerMap.get(stringId);
                     if (pData) {
-                        stringId = pData.id;
+                        stringId = String(pData.id);
                     }
 
                     const stat = statsMap.get(stringId);
 
                     if (stat) {
                         let pts = stat.points;
-                        // Captain Multiplier
-                        if (squad.captainId === pid || squad.captainId === stringId) {
-                            pts *= 2;
+
+                        // Captain Multiplier Logic
+                        const captainIdStr = squad.captainId ? String(squad.captainId) : null;
+                        const isCaptain = (captainIdStr === stringId || captainIdStr === String(pid));
+
+                        if (isCaptain) {
+                            if (squad.activeChip === 'triple' || squad.activeChip === 'tc') {
+                                pts *= 3;
+                            } else {
+                                pts *= 2;
+                            }
                         }
                         squadPoints += pts;
                     }
                 });
-                console.log(`Squad Total for ${doc.id}: ${squadPoints}`);
             }
 
-            // ADD COACH POINTS
-            const userProfile = teamsMap.get(doc.id);
-            if (userProfile && userProfile.coachId) {
-                const cPoints = calculateCoachPoints(userProfile.coachId, winningGroup, matchStatus);
-                if (cPoints > 0) {
+            // Coach Points
+            const coachId = userProfile ? userProfile.coachId : null;
+
+            if (coachId) {
+                const cPoints = calculateCoachPoints(coachId, winningGroup, matchStatus);
+                if (cPoints !== 0) {
                     squadPoints += cPoints;
-                    console.log(`  + Coach Points (${userProfile.coachId}): ${cPoints}`);
                 }
             }
-
 
             // Update Max/Avg tracking
             grandTotal += squadPoints;
             if (squadPoints > maxScore) maxScore = squadPoints;
             processedCount++;
 
-            // Queue update
-            batch.update(squadRef, {
-                totalPoints: squadPoints,
-                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // NEW: Update user's main profile for Real-Time Leaderboard
-            // Calculates LIVE Total = Historical Total + Current Live GW Points
-            const userRef = db.collection('fantasyTeams').doc(doc.id);
-            // userProfile is already defined in the scope above
+            // PREPARE UPDATES
+            const userRef = db.collection('fantasyTeams').doc(userId);
             const baseTotal = userProfile ? userProfile.totalPoints : 0;
-            const liveTotal = baseTotal + squadPoints;
+            // IMPORTANT: If we are recalculating just one gameweek, "Total" might be wrong if we just add to it?
+            // "live_total_points" is mostly for display. 
+            // Better strategy: "live_total_points" = (Total All Time) - (Old GW Points) + (New GW Points).
+            // But getting "Old GW Points" is hard without a read.
+            // Simplified approach: Just update `weekPoints` and let the aggregation script handle the hard math later.
+            // For now, we update `live_gw_points`.
 
+            // Actually, `aggregateAllUsersPoints` does the hard math.
+            // Here we just want the LEADERBOARD to feel "Live".
+
+            // We'll update the snapshot if it exists
+            if (isSnapshot) {
+                batch.update(ref, {
+                    totalPoints: squadPoints,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                // If legacy, we might want to create the snapshot now?
+                // Or just update the legacy field?
+                // Let's update legacy field to be safe
+                batch.update(userRef, {
+                    [`squads.${gameweekId}.totalPoints`]: squadPoints,
+                    [`squads.${gameweekId}.lastUpdated`]: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // AND create/update the snapshot so next time it's faster?
+                const snapshotRef = db.collection('gameweeks').doc(gameweekId).collection('squads').doc(userId);
+                batch.set(snapshotRef, {
+                    ...squad,
+                    managerName: userProfile ? userProfile.managerName : 'User',
+                    totalPoints: squadPoints,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+
+            // Common User Profile Update
             batch.update(userRef, {
-                // Fields used by Leaderboard UI (leaderboard.js uses weekPoints & totalPoints)
                 weekPoints: squadPoints,
-                totalPoints: liveTotal,
-
-                // Detailed fields for debugging/live tracking
                 live_gw_points: squadPoints,
-                live_total_points: liveTotal,
-
                 livePointsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-        });
+        }
 
         // 4. Commit Squad Updates
         await batch.commit();
@@ -558,10 +590,19 @@ async function calculateUserSquadPoints(userId, gameweekId) {
         for (const playerId of squad.players) {
             const stats = await getMatchStats(gameweekId, playerId);
             if (stats) {
-                // TODO: Add Captain logic (x2)
                 let points = stats.totalPoints || 0;
-                if (squad.captainId === playerId) {
-                    points *= 2;
+
+                // Captain Logic with Normalization
+                const pIdStr = String(playerId);
+                const capIdStr = squad.captainId ? String(squad.captainId) : null;
+
+                if (capIdStr === pIdStr) {
+                    // Check for Triple Captain chip
+                    if (squad.activeChip === 'triple' || squad.activeChip === 'tc') {
+                        points *= 3;
+                    } else {
+                        points *= 2;
+                    }
                 }
                 totalSquadPoints += points;
             }

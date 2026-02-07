@@ -790,6 +790,48 @@ async function recalculateMVP(matchId) {
     }
 }
 
+// Recalculate ONLY points (skips MVP determination)
+async function recalculatePointsOnly(matchId) {
+    if (!isAdminLoggedIn) return;
+    if (!confirm('Пересчитать только очки (Frontend fix)?')) return;
+
+    try {
+        console.log('🔄 Recalculating points for match:', matchId);
+
+        // Find Gameweek
+        const gameweeksSnapshot = await db.collection('gameweeks')
+            .where('matchId', '==', matchId)
+            .get();
+
+        if (gameweeksSnapshot.empty) {
+            showAlert('Тур не найден', 'error');
+            return;
+        }
+
+        const gameweekId = gameweeksSnapshot.docs[0].id;
+
+        // Force update all squads
+        if (typeof updateLiveUserSquads === 'function') {
+            await updateLiveUserSquads(gameweekId);
+        }
+
+        // Aggregate for leaderboard
+        if (typeof aggregateAllUsersPoints === 'function') {
+            await aggregateAllUsersPoints(gameweekId);
+        }
+
+        showAlert('✅ Очки пересчитаны!', 'success');
+        if (typeof renderGlobalLeaderboard === 'function') renderGlobalLeaderboard();
+
+    } catch (e) {
+        console.error(e);
+        showAlert('Ошибка: ' + e.message, 'error');
+    }
+}
+
+window.recalculateMVP = recalculateMVP;
+window.recalculatePointsOnly = recalculatePointsOnly;
+
 // Local fallback for MVP bonus
 function getLocalMVPBonusFallback(position) {
     const bonuses = { 'GK': 8, 'DEF': 6, 'MID': 4, 'FWD': 2 };
@@ -1357,6 +1399,7 @@ function renderMatches() {
                         <button class="btn btn-info btn-small" onclick="showMatchDetails('${match.id}')" title="Статистика">📊</button>
                         <button class="btn btn-warning btn-small" onclick="resetVoting('${match.id}')" title="Возобновить голосование">🔄</button>
                         <button class="btn btn-success btn-small" onclick="recalculateMVP('${match.id}')" title="Закрыть голосование и пересчитать MVP">🏆</button>
+                        <button class="btn btn-info btn-small" onclick="recalculatePointsOnly('${match.id}')" title="Пересчитать только очки (без MVP)">🔢</button>
                     </div>
                 ` : ''}
             </div>

@@ -232,7 +232,7 @@ function renderLeaderboardTable(tbody, data) {
 
     tbody.innerHTML = data.map((entry, idx) => {
         const icon = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1;
-        const isLive = entry.livePoints > 0;
+        const isLive = entry.livePoints !== 0;
 
         return `
             <tr class="leaderboard-row" onclick="openManagerTeam('${entry.userId}', '${entry.managerName}')" style="cursor: pointer;">
@@ -242,7 +242,7 @@ function renderLeaderboardTable(tbody, data) {
                 </td>
                 <td class="text-center points-cell">
                     ${isLive ? `<span class="live-indicator">🔴</span>` : ''} 
-                    <span class="live-points">${entry.livePoints > 0 ? '+' + entry.livePoints : '0'}</span>
+                    <span class="live-points">${entry.livePoints > 0 ? '+' + entry.livePoints : entry.livePoints}</span>
                 </td>
                 <td class="text-center total-points-cell">
                     <strong>${entry.realTimeTotal}</strong>
