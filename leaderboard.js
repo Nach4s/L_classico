@@ -99,6 +99,19 @@ async function renderFantasyLeaderboard(gameweekId) {
         const teamsSnapshot = await db.collection('fantasyTeams').get();
         const leaderboardData = [];
 
+        // 0. Pre-fetch Match Status for Coach Points
+        let winningGroup = null;
+        let matchStatus = 'pending';
+        try {
+            if (window.getGameweekWinningGroup) {
+                const status = await window.getGameweekWinningGroup(gameweekId);
+                winningGroup = status.winningGroup;
+                matchStatus = status.matchStatus;
+            }
+        } catch (e) {
+            console.warn("Could not fetch match status for coach points", e);
+        }
+
         for (const teamDoc of teamsSnapshot.docs) {
             const data = teamDoc.data();
             const gwSquad = data.squads ? data.squads[gameweekId] : null;
@@ -107,14 +120,37 @@ async function renderFantasyLeaderboard(gameweekId) {
 
             // Calculate total points for this gameweek (LIVE calculation)
             let gwPoints = 0;
-            for (const playerId of gwSquad.players) {
-                const stats = await getMatchStats(gameweekId, playerId);
-                if (stats) {
-                    // Use components for Live Scoring
-                    let playerPoints = (stats.statsPoints || 0) + (stats.mvpBonus || 0) + (stats.ratingBonus || 0);
-                    // Apply Captain multiplier
-                    if (gwSquad.captainId === playerId) playerPoints *= 2;
-                    gwPoints += playerPoints;
+
+            // Use stored weekPoints for active gameweek or fallback to history
+            if (data.weekPoints !== undefined && (gameweekId === window.currentGameweekId)) {
+                gwPoints = data.weekPoints;
+            } else if (gwSquad && gwSquad.totalPoints !== undefined) {
+                gwPoints = gwSquad.totalPoints;
+            } else {
+                // Fallback: Calculate live if value missing
+                for (const playerId of gwSquad.players) {
+                    const stats = await getMatchStats(gameweekId, playerId);
+                    if (stats) {
+                        let playerPoints = (stats.statsPoints || 0) + (stats.mvpBonus || 0) + (stats.ratingBonus || 0);
+                        if (gwSquad.captainId === playerId) playerPoints *= 2;
+                        gwPoints += playerPoints;
+                    }
+                }
+
+                // Add Coach Points (if calculating manually)
+                if (data.coachId && window.calculateCoachPoints) {
+                    let winningGroup = null;
+                    let matchStatus = 'pending';
+                    try {
+                        if (window.getGameweekWinningGroup) {
+                            const status = await window.getGameweekWinningGroup(gameweekId);
+                            winningGroup = status.winningGroup;
+                            matchStatus = status.matchStatus;
+                        }
+                    } catch (e) { console.warn(e); }
+
+                    const coachPts = window.calculateCoachPoints(data.coachId, winningGroup, matchStatus);
+                    gwPoints += coachPts;
                 }
             }
 
@@ -528,6 +564,12 @@ async function renderFantasyResults(gameweekId) {
  * - Calculates final points (x2 for Captain)
  * - Sorts by position order: GK -> DEF -> MID -> FWD
  */
+/**
+ * Prepare squad data for rendering
+ * - Maps numeric IDs to player objects
+ * - Calculates final points (x2 for Captain)
+ * - Sorts by position order: GK -> DEF -> MID -> FWD
+ */
 function prepareSquadData(playerIds, playerMap, statsMap, captainId, viceCaptainId) {
     const positionOrder = { 'GK': 1, 'DEF': 2, 'MID': 3, 'FWD': 4 };
     const squadData = [];
@@ -536,8 +578,9 @@ function prepareSquadData(playerIds, playerMap, statsMap, captainId, viceCaptain
     if (!Array.isArray(playerIds)) return { players: [], totalPoints: 0 };
 
     for (const pid of playerIds) {
-        // 1. Map ID to Player Object
-        const pData = playerMap.get(pid) || playerMap.get(String(pid)) || playerMap.get(Number(pid));
+        // 1. Resolve Player Data & Canonical ID
+        let stringId = String(pid);
+        const pData = playerMap.get(pid) || playerMap.get(stringId) || playerMap.get(Number(pid));
 
         const player = pData ? { ...pData, odId: pid } : {
             id: pid,
@@ -547,23 +590,28 @@ function prepareSquadData(playerIds, playerMap, statsMap, captainId, viceCaptain
             team: "?"
         };
 
-        // 2. Get raw points from statsMap
-        const rawPoints = statsMap[pid] || statsMap[String(pid)] || statsMap[player.id] || 0;
+        // If we found the player, use their canonical ID for comparisons
+        if (pData && pData.id) {
+            stringId = String(pData.id);
+        }
 
-        // 3. Captain check (type-safe comparison)
-        const pIdNum = parseInt(pid);
-        const capIdNum = parseInt(captainId);
-        const vcIdNum = parseInt(viceCaptainId);
+        // 2. Get raw points from statsMap (try multiple ID formats)
+        const rawPoints = statsMap[stringId] || statsMap[pid] || statsMap[Number(pid)] || 0;
 
-        const isCaptain = !isNaN(pIdNum) && !isNaN(capIdNum) && pIdNum === capIdNum;
-        const isViceCaptain = !isNaN(pIdNum) && !isNaN(vcIdNum) && pIdNum === vcIdNum && !isCaptain;
+        // 3. Captain check (Robust String Comparison)
+        const capIdStr = captainId ? String(captainId) : null;
+        const vcIdStr = viceCaptainId ? String(viceCaptainId) : null;
+
+        // Check against both the array ID and the resolved canonical ID
+        const isCaptain = (capIdStr === stringId || capIdStr === String(pid));
+        const isViceCaptain = !isCaptain && (vcIdStr === stringId || vcIdStr === String(pid));
 
         // 4. Calculate final points (Captain x2)
         const finalPoints = isCaptain ? rawPoints * 2 : rawPoints;
         totalPoints += finalPoints;
 
         squadData.push({
-            id: player.id,
+            id: player.id || pid,
             name: player.name,
             position: player.position || 'MID',
             team: player.team || '?',
