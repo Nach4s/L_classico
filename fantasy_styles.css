@@ -1797,7 +1797,7 @@
     /* Top: Center & High */
     .pitch-player-slot-dynamic:nth-child(1) {
         top: 5% !important;
-        left: 50% !important;
+        left: 52% !important;
         /* Center horizontally */
         transform: translateX(-50%) scale(1) !important;
     }
