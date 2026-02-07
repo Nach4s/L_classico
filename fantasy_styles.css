@@ -1797,7 +1797,7 @@
     /* Top: Center & High */
     .pitch-player-slot-dynamic:nth-child(1) {
         top: 5% !important;
-        left: 52% !important;
+        left: 56% !important;
         /* Center horizontally */
         transform: translateX(-50%) scale(1) !important;
     }
@@ -1805,7 +1805,7 @@
     /* Bottom Left */
     .pitch-player-slot-dynamic:nth-child(2) {
         top: 55% !important;
-        left: 10% !important;
+        left: 12% !important;
         /* Closer to edge for space */
         transform: scale(1) !important;
     }
@@ -1813,7 +1813,7 @@
     /* Bottom Right */
     .pitch-player-slot-dynamic:nth-child(3) {
         top: 55% !important;
-        right: 10% !important;
+        right: 1% !important;
         /* Use right for symmetry */
         left: auto !important;
         transform: scale(1) !important;
