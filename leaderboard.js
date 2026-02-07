@@ -154,11 +154,24 @@ async function renderFantasyLeaderboard(gameweekId) {
                 }
             }
 
+            // Calculate Total Points: Sum of History (excluding current GW) + Current Live GW Points
+            let historyTotal = 0;
+            if (data.history) {
+                Object.entries(data.history).forEach(([gw, val]) => {
+                    // Robust check for current gameweek exclusion
+                    if (String(gw) !== String(gameweekId)) {
+                        historyTotal += Number(val.points || 0);
+                    }
+                });
+            }
+
+            const finalTotalPoints = historyTotal + Number(gwPoints);
+
             leaderboardData.push({
                 userId: teamDoc.id,
                 managerName: data.managerName || 'Анонимный менеджер',
                 gameweekPoints: gwPoints,
-                totalPoints: data.totalPointsAllTime || 0,
+                totalPoints: finalTotalPoints,
                 squad: gwSquad
             });
         }
@@ -235,8 +248,29 @@ function renderOverallLeaderboard() {
 
                 // Use stored calculated values or fallback to 0
                 const teamName = data.managerName || 'Аноним';
-                const liveGw = data.live_gw_points || 0;
-                const liveTotal = (data.live_total_points !== undefined) ? data.live_total_points : (data.totalPointsAllTime || 0);
+                // user explicitly wants 'weekPoints' (which is the finalized calculation with coach pts)
+                // but for live updates 'live_gw_points' might be the field updated?
+                // The user prompt said: "weekPoints -6 знаечение берешь отсюда из FantasyTeams"
+                // So let's prioritize weekPoints, then live_gw_points.
+                const liveGw = Number((data.weekPoints !== undefined) ? data.weekPoints : (data.live_gw_points || 0));
+
+                // Dynamic Total Calculation: History + Live GW
+                let historyTotal = 0;
+                const currentGwId = window.currentGameweekId || 'gw1'; // Default or Global
+
+                if (data.history) {
+                    Object.entries(data.history).forEach(([gw, val]) => {
+                        // Robust comparison (String vs String)
+                        if (String(gw) !== String(currentGwId)) {
+                            historyTotal += Number(val.points || 0);
+                        }
+                    });
+                }
+
+                // If history is empty, check if totalPointsAllTime could be useful? 
+                // No, sticking to pure summation is safer to avoid "stale" totals overriding live data.
+
+                const liveTotal = historyTotal + liveGw;
 
                 leaderboardData.push({
                     userId: doc.id,
