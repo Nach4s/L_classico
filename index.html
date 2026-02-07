@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="admin_dark_theme.css">
     <link rel="stylesheet" href="match_voting_styles.css">
     <link rel="stylesheet" href="voting_styles.css?v=2.0">
+    <link rel="stylesheet" href="manager_banner.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
@@ -200,12 +202,14 @@
                 </div>
 
                 <!-- Coach Selector -->
-                <div class="fpl-coach-selector" style="background: rgba(255, 255, 255, 0.05); padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(255, 255, 255, 0.1);">
+                <div class="fpl-coach-selector"
+                    style="background: rgba(255, 255, 255, 0.05); padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(255, 255, 255, 0.1);">
                     <div class="coach-label">
                         <span style="font-size: 1.1em;">👔 Главный Тренер</span>
                         <div style="font-size: 0.75em; color: #888; margin-top: 2px;">+2 очка за победу группы</div>
                     </div>
-                    <select id="fantasyCoachSelect" class="form-select" style="width: auto; max-width: 180px; padding: 8px 12px; border-radius: 6px; background: #2a2a2a; color: #fff; border: 1px solid #444;">
+                    <select id="fantasyCoachSelect" class="form-select"
+                        style="width: auto; max-width: 180px; padding: 8px 12px; border-radius: 6px; background: #2a2a2a; color: #fff; border: 1px solid #444;">
                         <option value="">Нет тренера</option>
                         <option value="nurzhan">Нуржан К. (1 группа)</option>
                         <option value="uali">Уали Б. (2 группа)</option>
@@ -305,6 +309,27 @@
                         <h2 class="card-title">📊 Результаты Тура</h2>
                     </div>
                     <div id="fantasyResults" class="fantasy-results-list">
+                        <!-- Best Manager of the Week Banner -->
+                        <div class="weekly-manager-banner best-manager-banner">
+                            <div class="banner-left">
+                                <div class="trophy-container">
+                                    <i class="fas fa-trophy"></i>
+                                    <!-- Fallback if FontAwesome is not loaded -->
+                                    <span class="trophy-fallback" style="display:none;">🏆</span>
+                                </div>
+                                <div class="banner-content">
+                                    <span class="banner-label">ЛУЧШИЙ ТРЕНЕР ТУРА</span>
+                                    <span class="manager-name best-manager-name">Менеджер...</span>
+                                </div>
+                            </div>
+                            <div class="banner-right">
+                                <div class="points-display">
+                                    <span class="points-value best-manager-points">0</span>
+                                    <span class="points-label">ОЧКОВ</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Results will be rendered here by JS -->
                     </div>
                 </section>
@@ -317,6 +342,25 @@
                         <h2 class="card-title">🏆 Таблица Лидеров</h2>
                     </div>
                     <div class="league-table-wrapper">
+                        <!-- Best Manager of the Week Banner (Duplicate for Leaderboard) -->
+                        <div class="weekly-manager-banner best-manager-banner" style="display: none;">
+                            <div class="banner-left">
+                                <div class="trophy-container">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <div class="banner-content">
+                                    <span class="banner-label">ЛУЧШИЙ ТРЕНЕР ТУРА</span>
+                                    <span class="manager-name best-manager-name">Менеджер...</span>
+                                </div>
+                            </div>
+                            <div class="banner-right">
+                                <div class="points-display">
+                                    <span class="points-value best-manager-points">0</span>
+                                    <span class="points-label">ОЧКОВ</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <table class="league-table">
                             <thead>
                                 <tr>

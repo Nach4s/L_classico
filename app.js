@@ -3947,6 +3947,51 @@ async function loadGameweekStats(gwId) {
             }
         }
 
+        // 3.1 Update "Best Manager of the Week" Banner
+        try {
+            const bannerNameEls = document.querySelectorAll('.best-manager-name');
+            const bannerPointsEls = document.querySelectorAll('.best-manager-points');
+            const bannerEls = document.querySelectorAll('.best-manager-banner');
+
+            const updateAllBanners = (name, points, show) => {
+                bannerEls.forEach(el => el.style.display = show ? 'flex' : 'none');
+                if (show) {
+                    bannerNameEls.forEach(el => el.textContent = name);
+                    bannerPointsEls.forEach(el => el.textContent = points);
+                }
+            };
+
+            // If we have stats.highestPoints, try to find who it is
+            if (stats.highestPoints > 0) {
+                const squadsSnapshot = await db.collection('gameweeks').doc(gwId)
+                    .collection('squads').where('totalPoints', '==', stats.highestPoints).limit(1).get();
+
+                if (!squadsSnapshot.empty) {
+                    const bestData = squadsSnapshot.docs[0].data();
+                    updateAllBanners(bestData.managerName || 'Аноним', stats.highestPoints, true);
+                } else {
+                    // Fallback: search all squads if query fails or returns nothing
+                    const allSquads = await db.collection('gameweeks').doc(gwId).collection('squads').get();
+                    let best = { name: '...', points: 0 };
+                    allSquads.forEach(doc => {
+                        const d = doc.data();
+                        if ((d.totalPoints || 0) > best.points) {
+                            best = { name: d.managerName || 'Аноним', points: d.totalPoints };
+                        }
+                    });
+                    if (best.points > 0) {
+                        updateAllBanners(best.name, best.points, true);
+                    } else {
+                        updateAllBanners('', 0, false);
+                    }
+                }
+            } else {
+                updateAllBanners('', 0, false);
+            }
+        } catch (bannerErr) {
+            console.error('Error updating banner:', bannerErr);
+        }
+
         // Pitch Rendering
         if (snapshotSquad) {
             // If we have a snapshot (past or current active locked), show it with points
