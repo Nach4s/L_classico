@@ -342,60 +342,82 @@ async function updateLiveUserSquads(gameweekId) {
             });
         });
 
-        // 2. Fetch ALL User Squads (Hybrid: Snapshot OR Legacy)
+        // 2. Fetch ALL User Squads (Hybrid: Snapshot OR Legacy OR Active Fallback)
         console.log(`🔍 Fetching squads for ${gameweekId}...`);
 
-        // Try Snapshots first
+        // A. Get Snapshots (Best Source)
         const squadsSnapshot = await db.collection('gameweeks')
             .doc(gameweekId)
             .collection('squads')
             .get();
 
-        let squadsToProcess = [];
+        const snapshotMap = new Map();
+        squadsSnapshot.forEach(doc => snapshotMap.set(doc.id, { ...doc.data(), ref: doc.ref }));
 
-        // 2.1 Fetch All Fantasy Teams (Required for Coach ID and Legacy Fallback)
+        // B. Get All Users (Source of Truth for "who exists")
         const teamsSnapshot = await db.collection('fantasyTeams').get();
         const teamsMap = new Map(); // Stores { totalPoints, coachId, doc }
 
-        teamsSnapshot.forEach(doc => {
-            const d = doc.data();
-            teamsMap.set(doc.id, {
-                totalPoints: d.totalPointsAllTime || 0,
-                coachId: d.coachId || null,
-                managerName: d.managerName || 'User',
-                doc: d // Store full doc for legacy checks
-            });
-        });
+        let squadsToProcess = [];
 
-        if (!squadsSnapshot.empty) {
-            console.log(`✅ Found ${squadsSnapshot.size} snapshots.`);
-            squadsSnapshot.forEach(doc => {
+        teamsSnapshot.forEach(doc => {
+            const userId = doc.id;
+            const userData = doc.data();
+
+            // Store User Profile Data for Coach Points & Final Updates
+            teamsMap.set(userId, {
+                totalPoints: userData.totalPointsAllTime || 0,
+                coachId: userData.coachId || null,
+                managerName: userData.managerName || 'User',
+                doc: userData
+            });
+
+            // DECISION LOGIC: Which squad to use?
+            // Priority 1: Snapshot (Already Saved for this GW)
+            if (snapshotMap.has(userId)) {
+                const snapData = snapshotMap.get(userId);
                 squadsToProcess.push({
-                    userId: doc.id,
-                    squad: doc.data(),
-                    ref: doc.ref,
+                    userId: userId,
+                    squad: snapData,
+                    ref: snapData.ref,
                     isSnapshot: true
                 });
-            });
-        } else {
-            console.warn(`⚠️ No snapshots found for ${gameweekId}. Checking LEGACY structure...`);
-            // Fallback: Iterate all users and check for squads[gwId]
-            teamsMap.forEach((userData, userId) => {
-                const userDoc = userData.doc;
-                if (userDoc.squads && userDoc.squads[gameweekId]) {
-                    squadsToProcess.push({
-                        userId: userId,
-                        squad: userDoc.squads[gameweekId],
-                        ref: db.collection('fantasyTeams').doc(userId), // We'll update the main doc
-                        isSnapshot: false
-                    });
-                }
-            });
-            console.log(`✅ Found ${squadsToProcess.length} legacy squads.`);
-        }
+            }
+            // Priority 2: Legacy Nested Array (Old Logic)
+            else if (userData.squads && userData.squads[gameweekId]) {
+                console.log(`⚠️ Found LEGACY squad for ${userData.managerName} (${userId})`);
+                squadsToProcess.push({
+                    userId: userId,
+                    squad: userData.squads[gameweekId],
+                    ref: db.collection('fantasyTeams').doc(userId),
+                    isSnapshot: false,
+                    needsSnapshot: true // Flag to create snapshot
+                });
+            }
+            // Priority 3: Active Squad Carry-Over (New Logic)
+            // If user has 'players' array but didn't save specific GW squad, use Active Squad.
+            else if (userData.players && userData.players.length > 0) {
+                console.log(`🔄 Auto-Renewing ACTIVE squad for ${userData.managerName} (${userId})`);
+                squadsToProcess.push({
+                    userId: userId,
+                    squad: {
+                        players: userData.players,
+                        captainId: userData.captainId || null,
+                        viceCaptainId: userData.viceCaptainId || null,
+                        activeChip: null // Chips don't carry over typically
+                    },
+                    ref: db.collection('fantasyTeams').doc(userId),
+                    isSnapshot: false,
+                    needsSnapshot: true // Flag to create snapshot
+                });
+            }
+            // Else: User has no squad details at all -> Skip
+        });
+
+        console.log(`✅ Ready to process ${squadsToProcess.length} squads.`);
 
         if (squadsToProcess.length === 0) {
-            console.log('⚠️ No squads found for live update (checked both snapshot and legacy).');
+            console.log('⚠️ No squads found for live update.');
             return;
         }
 
@@ -410,7 +432,7 @@ async function updateLiveUserSquads(gameweekId) {
 
         // 3. Recalculate each squad
         for (const entry of squadsToProcess) {
-            const { userId, squad, ref, isSnapshot } = entry;
+            const { userId, squad, ref, isSnapshot, needsSnapshot } = entry;
             let squadPoints = 0;
 
             // Fetch User Profile early
@@ -482,18 +504,23 @@ async function updateLiveUserSquads(gameweekId) {
                     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } else {
-                // If legacy, we might want to create the snapshot now?
-                // Or just update the legacy field?
-                // Let's update legacy field to be safe
+                // Legacy or Active Carry-Over -> Needs Snapshot Creation/Update
+
+                // 1. Update Legacy Field (only if it exists/applicable)
+                // If it was "Active Squad" carry-over, there might NOT be a legacy field to update.
+                // We should only update legacy if we want to BACKFILL the legacy structure.
+                // Let's do it for consistency.
                 batch.update(userRef, {
+                    [`squads.${gameweekId}.players`]: squad.players, // Ensure players are saved
+                    [`squads.${gameweekId}.captainId`]: squad.captainId || null,
                     [`squads.${gameweekId}.totalPoints`]: squadPoints,
                     [`squads.${gameweekId}.lastUpdated`]: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // AND create/update the snapshot so next time it's faster?
+                // 2. Create/Update Snapshot (The Future)
                 const snapshotRef = db.collection('gameweeks').doc(gameweekId).collection('squads').doc(userId);
                 batch.set(snapshotRef, {
-                    ...squad,
+                    ...squad, // players, captainId, etc.
                     managerName: userProfile ? userProfile.managerName : 'User',
                     totalPoints: squadPoints,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
