@@ -17,6 +17,13 @@ async function loadVotingInterface(gameweekId) {
     // Use global current gameweek if not provided
     currentVotingGameweekId = gameweekId || window.currentGameweekId || currentGameweekId;
 
+    // PROTECT TEST MODE: If test mode was just triggered, block this load
+    if (window.votingTestMode) {
+        console.log('🧪 Skipping loadVotingInterface (Test Mode Active)');
+        window.votingTestMode = false; // Reset for next time
+        return;
+    }
+
     console.log('🗳️ Loading voting interface for gameweek:', currentVotingGameweekId);
 
     if (!currentVotingGameweekId) {
@@ -250,10 +257,10 @@ function renderVotingUI(players) {
                         <div class="voting-slider-container">
                             <input 
                                 type="range" 
-                                min="1" 
-                                max="10" 
-                                step="0.1" 
-                                value="5.0" 
+                                min="10" 
+                                max="100" 
+                                step="1" 
+                                value="50" 
                                 class="voting-slider"
                                 data-player-id="${player.id}"
                                 oninput="updateVoteDisplay(this)"
@@ -316,7 +323,7 @@ function startFantasyVotingTimer(gameweekId) {
  */
 function updateVoteDisplay(slider) {
     const playerId = slider.dataset.playerId;
-    const rating = parseFloat(slider.value);
+    const rating = parseInt(slider.value) / 10;
 
     // Store in memory
     userVotes.set(playerId, rating);
@@ -379,6 +386,22 @@ async function submitAllVotes() {
     }
 
     try {
+        if (currentVotingGameweekId === 'test_mode') {
+            showAlert('🧪 [ТЕСТ] Успешно! Оценки "отправлены" (в базу не пишутся)', 'success');
+            console.log('Test votes:', Object.fromEntries(userVotes));
+
+            // Allow re-voting in test mode
+            setTimeout(() => {
+                if (confirm('Очистить и попробовать еще раз?')) {
+                    userVotes.clear();
+                    startTestVoting();
+                } else {
+                    document.getElementById('fantasyVotingContent').innerHTML = '<div class="voting-closed"><h3>🧪 Тест завершен</h3></div>';
+                }
+            }, 1500);
+            return;
+        }
+
         const batch = db.batch();
 
         for (const [playerId, rating] of userVotes.entries()) {
@@ -416,6 +439,56 @@ async function submitAllVotes() {
         showAlert('Ошибка при сохранении оценок', 'error');
     }
 }
+
+/**
+ * Start Test Voting Mode (Admin Only, No DB)
+ */
+function startTestVoting() {
+    if (!window.isAdminLoggedIn) {
+        alert('Только для админов');
+        return;
+    }
+
+    // Set flag to block loadVotingInterface from overwriting
+    window.votingTestMode = true;
+
+    // Switch to voting tab if needed
+    if (window.goToVotingPage) {
+        window.goToVotingPage();
+    } else {
+        // Fallback
+        const tab = document.querySelector('[data-fantasy-tab="voting"]');
+        if (tab) tab.click();
+    }
+
+    console.log('🧪 Starting Test Voting Mode...');
+    currentVotingGameweekId = 'test_mode';
+
+    // Generate dummy players
+    const dummyPlayers = [
+        { id: 'test_1', name: 'Test Player 1', position: 'FWD', team: 'Team A', goals: 1, assists: 0, isMVP: true },
+        { id: 'test_2', name: 'Test Player 2', position: 'MID', team: 'Team A', goals: 0, assists: 2, isMVP: false },
+        { id: 'test_3', name: 'Test Player 3', position: 'DEF', team: 'Team B', goals: 0, assists: 0, isMVP: false },
+        { id: 'test_4', name: 'Test Player 4', position: 'GK', team: 'Team B', goals: 0, assists: 0, isMVP: false },
+        { id: 'test_5', name: 'Test Player 5', position: 'FWD', team: 'Team A', goals: 2, assists: 1, isMVP: false }
+    ];
+
+    renderVotingUI(dummyPlayers);
+
+    // Add visual indicator
+    const container = document.getElementById('fantasyVotingContent');
+    if (container) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background: #ff9800; color: #000; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 20px; border-radius: 8px;';
+        banner.innerHTML = '🧪 ТЕСТОВЫЙ РЕЖИМ (Данные не сохраняются)';
+        container.prepend(banner);
+    }
+
+    // Scroll to view
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+window.startTestVoting = startTestVoting;
 
 /**
  * Render voting results after user has voted

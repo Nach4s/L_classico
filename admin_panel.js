@@ -792,11 +792,14 @@ async function renderGameweekSelector() {
                     <button class="btn btn-primary" onclick="selectGameweek()">
                         Загрузить
                     </button>
-                    <button class="btn btn-danger" onclick="deleteSelectedGameweek()" title="Удалить тур и все данные">
-                        🗑️
-                    </button>
                     <button class="btn btn-warning" onclick="manualRecalcWrapper()" title="Принудительный пересчет очков">
                         ♻️
+                    </button>
+                    <button class="btn btn-info" onclick="startTestVoting()" title="Тестовое голосование без сохранения">
+                        🧪 ТестUI
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteSelectedGameweek()" title="Удалить тур и все данные">
+                        🗑️
                     </button>
                 </div>
             </div>

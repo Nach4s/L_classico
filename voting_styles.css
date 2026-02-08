@@ -188,7 +188,7 @@
 .voting-slider {
     -webkit-appearance: none;
     appearance: none;
-    width: 100px;
+    width: 150px;
     height: 4px;
     background: var(--voting-border);
     border-radius: 2px;
@@ -435,7 +435,7 @@
 /* Mobile Responsive */
 @media (max-width: 480px) {
     .voting-slider {
-        width: 70px;
+        width: 110px;
         /* Even smaller to give space to names */
     }
 

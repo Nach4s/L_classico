@@ -3594,3 +3594,47 @@ body {
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   transform: translateY(-1px);
 }
+
+/* === RATING SLIDER (MATCH VOTING) === */
+.rating-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 150px;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.rating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.rating-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.rating-value {
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 1.1em;
+  color: var(--color-primary);
+  min-width: 35px;
+  display: inline-block;
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .rating-slider {
+    width: 110px;
+  }
+}

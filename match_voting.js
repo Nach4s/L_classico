@@ -82,8 +82,8 @@ async function renderMatchVotingBlock(matchId, containerSelector) {
                                 </div>
                                 <div class="player-rating-input">
                                     <input type="range" 
-                                           min="1" max="10" step="0.1" 
-                                           value="${userRating || 6}" 
+                                           min="10" max="100" step="1" 
+                                           value="${(userRating || 6) * 10}" 
                                            class="rating-slider"
                                            data-player="${playerName}"
                                            ${userVote ? 'disabled' : ''}
@@ -116,7 +116,7 @@ async function renderMatchVotingBlock(matchId, containerSelector) {
 function updateVotingRatingDisplay(slider) {
     const valueSpan = slider.parentElement.querySelector('.rating-value');
     if (valueSpan) {
-        valueSpan.textContent = parseFloat(slider.value).toFixed(1);
+        valueSpan.textContent = (parseInt(slider.value) / 10).toFixed(1);
     }
 }
 
@@ -215,7 +215,7 @@ async function submitMatchVoteRatings(matchId) {
 
     sliders.forEach(slider => {
         const playerName = slider.dataset.player;
-        ratings[playerName] = parseFloat(slider.value);
+        ratings[playerName] = parseInt(slider.value) / 10;
     });
 
     try {
