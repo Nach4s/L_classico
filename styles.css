@@ -869,16 +869,22 @@ body {
 }
 
 /* === MVP BADGE === */
+/* === MVP BADGE === */
 .mvp-badge {
-  background: linear-gradient(135deg, #ffd700, #ffb700);
-  color: #1a1a1a;
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
+  background: linear-gradient(135deg, #2c2c2c, #1a1a1a);
+  color: #ffd700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
   font-weight: 700;
-  display: inline-block;
-  margin-bottom: var(--spacing-md);
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--spacing-sm);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* === VOTING BUTTON === */
