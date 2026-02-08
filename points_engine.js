@@ -175,6 +175,32 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
 
         const playerData = playerDoc.data();
 
+        // 0. NEW: Fetch Gameweek Data for Participation Points Rule
+        // We need to check if this is a "future tour" (has active_players)
+        // and if the player is in that list.
+        let participationPoints = 0;
+        try {
+            const gwDoc = await db.collection('gameweeks').doc(gameweekId).get();
+            if (gwDoc.exists) {
+                const gwData = gwDoc.data();
+                const activePlayers = gwData.active_players || [];
+
+                // Rule: If gameweek has active_players (future structure)
+                if (activePlayers.length > 0) {
+                    // Check if player is in this list
+                    // We assume IDs match. matchStats.played should also be true.
+                    const isInActiveList = activePlayers.some(p => String(p.id) === String(playerId));
+
+                    if (isInActiveList && matchStats.played) {
+                        participationPoints = 1;
+                    }
+                }
+            }
+        } catch (gwError) {
+            console.warn('Error fetching gameweek for participation points:', gwError);
+            // Default to 0 on error to be safe
+        }
+
         // 1. Calculate Stats Points
         const statsPoints = calculateStatsPoints(
             matchStats.goals || 0,
@@ -190,14 +216,15 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
         // 4. Calculate Rating Bonus
         const ratingBonus = getRatingBonus(avgRating, playerData.position);
 
-        // 5. Calculate Total Points
-        const totalPoints = statsPoints + mvpBonus + ratingBonus;
+        // 5. Calculate Total Points (Now includes Participation)
+        const totalPoints = statsPoints + mvpBonus + ratingBonus + participationPoints;
 
         // 6. Update match_stats document
         await docRef.update({
             statsPoints,
             mvpBonus,
             ratingBonus,
+            participationPoints, // Store for transparency
             totalPoints,
             averageRating: Math.round(avgRating * 10) / 10, // Round to 1 decimal
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -207,6 +234,7 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
             statsPoints,
             mvpBonus,
             ratingBonus,
+            participationPoints,
             totalPoints,
             avgRating: Math.round(avgRating * 10) / 10
         });
@@ -215,6 +243,7 @@ async function recalculatePlayerPoints(gameweekId, playerId) {
             statsPoints,
             mvpBonus,
             ratingBonus,
+            participationPoints,
             totalPoints,
             averageRating: avgRating
         };
