@@ -830,6 +830,59 @@ async function recalculatePointsOnly(matchId) {
 }
 
 window.recalculateMVP = recalculateMVP;
+// NEW: Recalculate Points Only (Debug/Fix)
+async function recalculatePointsOnly(matchId) {
+    if (!isAdminLoggedIn) {
+        showAlert('Только админ может выполнять это действие', 'error');
+        return;
+    }
+
+    if (!confirm('🔢 Пересчитать ТОЛЬКО ОЧКИ для этого матча?\n(Без пересчета MVP и рейтинга)\n\nЭто полезно если баллы не обновились в таблице лидеров.')) {
+        return;
+    }
+
+    try {
+        // 1. Find Gameweek linked to this match
+        const gwSnapshot = await db.collection('gameweeks')
+            .where('matchId', '==', matchId)
+            .limit(1)
+            .get();
+
+        if (gwSnapshot.empty) {
+            showAlert('❌ Ошибка: Этот матч не привязан ни к одному туру', 'error');
+            return;
+        }
+
+        const gwId = gwSnapshot.docs[0].id;
+        console.log(`Match ${matchId} is linked to GW ${gwId}`);
+
+        // 2. Call Points Engine
+        if (typeof window.updateLiveUserSquads === 'function') {
+            const btn = event.target.closest('button');
+            const originalContent = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳';
+            }
+
+            await window.updateLiveUserSquads(gwId);
+
+            showAlert(`✅ Очки пересчитаны для тура ${gwId}`, 'success');
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        } else {
+            showAlert('❌ Функция пересчета (updateLiveUserSquads) не найдена', 'error');
+        }
+
+    } catch (e) {
+        console.error(e);
+        showAlert('Ошибка: ' + e.message, 'error');
+    }
+}
+
 window.recalculatePointsOnly = recalculatePointsOnly;
 
 // Local fallback for MVP bonus
@@ -1399,7 +1452,7 @@ function renderMatches() {
                         <button class="btn btn-info btn-small" onclick="showMatchDetails('${match.id}')" title="Статистика">📊</button>
                         <button class="btn btn-warning btn-small" onclick="resetVoting('${match.id}')" title="Возобновить голосование">🔄</button>
                         <button class="btn btn-success btn-small" onclick="recalculateMVP('${match.id}')" title="Закрыть голосование и пересчитать MVP">🏆</button>
-                        <button class="btn btn-info btn-small" onclick="recalculatePointsOnly('${match.id}')" title="Пересчитать только очки (без MVP)">🔢</button>
+                        <button class="btn btn-warning btn-small" onclick="recalculateMVP('${match.id}')" title="♻️ Полный пересчет (Рейтинг + MVP + Очки)">♻️</button>
                     </div>
                 ` : ''}
             </div>

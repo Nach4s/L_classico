@@ -618,9 +618,6 @@ function renderStage3_OpenVoting() {
             </div>
 
             <div class="admin-stage-actions">
-                <button class="btn btn-warning" onclick="updateLiveUserSquads(currentGameweekId)">
-                    ♻️ Пересчитать Очки (Debug)
-                </button>
                 <button class="btn btn-secondary" onclick="backToStage2()">
                     ← Вернуться к Этапу 2
                 </button>
@@ -1119,19 +1116,51 @@ function renderCompletedStatus() {
     `;
 }
 
-// NEW: Recalculate Wrapper
+// NEW: Recalculate Wrapper (Full Update: Ratings -> MVP -> Points)
 async function manualRecalcWrapper() {
     const gwId = document.getElementById('gameweekSelect')?.value;
     if (!gwId) {
         alert('Выберите тур из списка!');
         return;
     }
-    if (confirm(`Пересчитать очки для ${gwId}? Это обновит таблицу лидеров.`)) {
-        if (typeof updateLiveUserSquads === 'function') {
+
+    if (!confirm(`⚠️ ПОЛНЫЙ ПЕРЕСЧЕТ для ${gwId}?\n\nЭто действие:\n1. 📊 Пересчитает рейтинг игроков (из базы голосов)\n2. 🏆 Переопределит MVP и бонусы\n3. 👥 Обновит очки всех фэнтези команд\n\nИспользуйте это, если вы правили голоса в базе вручную.\nПродолжить?`)) {
+        return;
+    }
+
+    const btn = document.querySelector('button[onclick="manualRecalcWrapper()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳';
+    }
+
+    try {
+        // 1. Get Match ID linked to this gameweek
+        const gwDoc = await db.collection('gameweeks').doc(gwId).get();
+        if (!gwDoc.exists) throw new Error('Gameweek not found');
+
+        const matchId = gwDoc.data().matchId;
+
+        if (matchId && typeof recalculateMVP === 'function') {
+            // This function does everything: MVP, Ratings, Points, User Squads
+            console.log(`🔄 Calling recalculateMVP for match ${matchId} (GW: ${gwId})`);
+            await recalculateMVP(matchId);
+        } else if (typeof updateLiveUserSquads === 'function') {
+            // Fallback if no match linked or function missing
+            console.warn('⚠️ No matchId found, falling back to updateLiveUserSquads');
             await updateLiveUserSquads(gwId);
-            alert('✅ Пересчет завершен!');
+            alert('✅ Очки команд пересчитаны (НО рейтинги матча не обновлены, т.к. матч не найден)');
         } else {
-            alert('❌ Ошибка: функция пересчета не найдена');
+            throw new Error('Функции пересчета не найдены');
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert('❌ Ошибка: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '♻️';
         }
     }
 }
