@@ -4014,30 +4014,25 @@ async function loadGameweekStats(gwId) {
                 }
             };
 
-            // If we have stats.highestPoints, try to find who it is
-            if (stats.highestPoints > 0) {
-                const squadsSnapshot = await db.collection('gameweeks').doc(gwId)
-                    .collection('squads').where('totalPoints', '==', stats.highestPoints).limit(1).get();
+            // Use LIVE data from fantasyTeams instead of snapshot squads
+            // This ensures banner reflects current weekPoints, not historical totalPoints
+            const teamsSnapshot = await db.collection('fantasyTeams').get();
+            let best = { name: '...', points: 0 };
 
-                if (!squadsSnapshot.empty) {
-                    const bestData = squadsSnapshot.docs[0].data();
-                    updateAllBanners(bestData.managerName || 'Аноним', stats.highestPoints, true);
-                } else {
-                    // Fallback: search all squads if query fails or returns nothing
-                    const allSquads = await db.collection('gameweeks').doc(gwId).collection('squads').get();
-                    let best = { name: '...', points: 0 };
-                    allSquads.forEach(doc => {
-                        const d = doc.data();
-                        if ((d.totalPoints || 0) > best.points) {
-                            best = { name: d.managerName || 'Аноним', points: d.totalPoints };
-                        }
-                    });
-                    if (best.points > 0) {
-                        updateAllBanners(best.name, best.points, true);
-                    } else {
-                        updateAllBanners('', 0, false);
-                    }
+            teamsSnapshot.forEach(doc => {
+                const data = doc.data();
+                const weekPoints = data.weekPoints || 0;
+                if (weekPoints > best.points) {
+                    best = {
+                        name: data.managerName || 'Аноним',
+                        points: weekPoints
+                    };
                 }
+            });
+
+            // Only show banner if someone has points > 0
+            if (best.points > 0) {
+                updateAllBanners(best.name, best.points, true);
             } else {
                 updateAllBanners('', 0, false);
             }

@@ -45,6 +45,20 @@ async function createGameweek(gameweekNumber, deadlineDate) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // Reset weekPoints to 0 for all users
+        console.log('🔄 Resetting weekPoints for all users...');
+        const teamsSnapshot = await db.collection('fantasyTeams').get();
+        const batch = db.batch();
+
+        teamsSnapshot.forEach(doc => {
+            batch.update(doc.ref, {
+                weekPoints: 0
+            });
+        });
+
+        await batch.commit();
+        console.log(`✅ Reset weekPoints for ${teamsSnapshot.size} users`);
+
         showAlert(`Тур ${gameweekNumber} создан!`, 'success');
         loadGameweek(gameweekId);
 
@@ -822,6 +836,18 @@ async function renderGameweekSelector() {
                 </div>
             </div>
             
+            <div class="utility-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #333;">
+                <h4>🛠️ Служебные функции:</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-warning" onclick="resetWeekPoints()" title="Сбросить weekPoints для всех пользователей">
+                        🔄 Сбросить Очки Тура
+                    </button>
+                </div>
+                <p style="font-size: 0.85em; color: #888; margin-top: 8px;">
+                    ⚠️ Используйте "Сбросить Очки Тура" если новый тур показывает старые очки
+                </p>
+            </div>
+
 
         </div>
     `;
@@ -1165,11 +1191,44 @@ async function manualRecalcWrapper() {
     }
 }
 
+// NEW: Manual Reset Week Points
+async function resetWeekPoints() {
+    if (!isAdminLoggedIn) {
+        alert('Только администратор может сбросить очки');
+        return;
+    }
+
+    if (!confirm('⚠️ СБРОСИТЬ ОЧКИ ТУРА для всех пользователей?\n\nЭто установит weekPoints = 0 для всех менеджеров.\n\nИспользуйте это для нового тура, если очки не сбросились автоматически.\n\nПродолжить?')) {
+        return;
+    }
+
+    try {
+        console.log('🔄 Resetting weekPoints for all users...');
+        const teamsSnapshot = await db.collection('fantasyTeams').get();
+        const batch = db.batch();
+
+        teamsSnapshot.forEach(doc => {
+            batch.update(doc.ref, {
+                weekPoints: 0
+            });
+        });
+
+        await batch.commit();
+        console.log(`✅ Reset weekPoints for ${teamsSnapshot.size} users`);
+        alert(`✅ Очки тура сброшены для ${teamsSnapshot.size} пользователей!`);
+
+    } catch (error) {
+        console.error('Error resetting week points:', error);
+        alert('❌ Ошибка при сбросе очков: ' + error.message);
+    }
+}
+
 // ===================================
 // GLOBAL EXPORTS
 // ===================================
 window.renderAdminPanel = renderAdminPanel;
 window.manualRecalcWrapper = manualRecalcWrapper;
+window.resetWeekPoints = resetWeekPoints;
 window.renderGameweekSelector = renderGameweekSelector;
 window.loadGameweek = loadGameweek;
 window.createNewGameweek = createNewGameweek;
