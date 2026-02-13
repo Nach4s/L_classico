@@ -347,6 +347,107 @@ async function recalculateAllPlayersInGameweek(gameweekId) {
 }
 
 /**
+ * Recalculate ONLY points and ratings for all players
+ * WITHOUT changing MVP status or closing voting
+ * 
+ * This is used by the manual recalculation button to update
+ * points based on current votes, while preserving MVP and voting state.
+ */
+async function recalculatePointsAndRatingsOnly(gameweekId) {
+    console.log(`🔄 Recalculating points and ratings (MVP preserved) for ${gameweekId}...`);
+
+    try {
+        // Get all players who played
+        const statsSnapshot = await db.collection('match_stats')
+            .doc(gameweekId)
+            .collection('players')
+            .where('played', '==', true)
+            .get();
+
+        if (statsSnapshot.empty) {
+            console.warn('⚠️ No players found in gameweek');
+            return 0;
+        }
+
+        const batch = db.batch();
+        let updatedCount = 0;
+
+        // Get gameweek data for participation points
+        const gwDoc = await db.collection('gameweeks').doc(gameweekId).get();
+        const gwData = gwDoc.exists ? gwDoc.data() : {};
+        const activePlayers = gwData.active_players || [];
+
+        for (const statDoc of statsSnapshot.docs) {
+            const statsData = statDoc.data();
+            const playerId = statsData.playerId;
+
+            // Get player info for position
+            const playerDoc = await db.collection('players').doc(playerId).get();
+            if (!playerDoc.exists) {
+                console.warn(`⚠️ Player ${playerId} not found`);
+                continue;
+            }
+
+            const playerData = playerDoc.data();
+            const playerPosition = playerData.position;
+
+            // 1. Calculate Stats Points (goals, assists)
+            const statsPoints = calculateStatsPoints(
+                statsData.goals || 0,
+                statsData.assists || 0
+            );
+
+            // 2. PRESERVE existing MVP status (don't recalculate)
+            const isMVP = statsData.isMVP || false;
+            const mvpBonus = getMVPBonus(playerPosition, isMVP);
+
+            // 3. Calculate Average Rating from votes
+            const avgRating = await calculateAverageRating(gameweekId, playerId);
+
+            // 4. Calculate Rating Bonus
+            const ratingBonus = getRatingBonus(avgRating, playerPosition);
+
+            // 5. Calculate Participation Points
+            let participationPoints = 0;
+            if (activePlayers.length > 0) {
+                const isInActiveList = activePlayers.some(p => String(p.id) === String(playerId));
+                if (isInActiveList && statsData.played) {
+                    participationPoints = 1;
+                }
+            }
+
+            // 6. Calculate Total Points
+            const totalPoints = statsPoints + mvpBonus + ratingBonus + participationPoints;
+
+            // 7. Update player stats (batch operation)
+            batch.update(statDoc.ref, {
+                statsPoints,
+                ratingBonus,
+                participationPoints,
+                totalPoints,
+                averageRating: Math.round(avgRating * 10) / 10,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                // NOTE: isMVP and mvpBonus are NOT updated - they are preserved
+            });
+
+            console.log(`  📊 ${playerData.name}: ${totalPoints} pts (MVP: ${isMVP}, Rating: ${avgRating.toFixed(1)}, Bonus: ${ratingBonus})`);
+            updatedCount++;
+        }
+
+        // Commit all updates
+        await batch.commit();
+        console.log(`✅ Updated ${updatedCount} players (MVP preserved)`);
+
+        return updatedCount;
+
+    } catch (error) {
+        console.error('Error in recalculatePointsAndRatingsOnly:', error);
+        throw error;
+    }
+}
+
+
+/**
  * LIVE SCORING: Update ALL user squads with latest stats
  * This is triggered immediately after Admin saves stats or closes voting.
  */
@@ -366,7 +467,7 @@ async function updateLiveUserSquads(gameweekId) {
         statsSnapshot.forEach(doc => {
             const data = doc.data();
             statsMap.set(doc.id, {
-                points: (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0),
+                points: (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0) + (data.participationPoints || 0),
                 isMVP: data.isMVP || false
             });
         });
@@ -749,3 +850,4 @@ async function recalculateUserTotalHistory(userId) {
 
 window.updateLiveUserSquads = updateLiveUserSquads;
 window.getGameweekWinningGroup = getGameweekWinningGroup;
+window.recalculatePointsAndRatingsOnly = recalculatePointsAndRatingsOnly;

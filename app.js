@@ -3914,7 +3914,7 @@ async function loadGameweekStats(gwId) {
 
             statsSnapshot.forEach(doc => {
                 const data = doc.data();
-                const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
+                const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0) + (data.participationPoints || 0);
                 liveStatsMap[data.playerId] = total;
 
                 if (data.name) {

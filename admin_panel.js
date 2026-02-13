@@ -754,6 +754,72 @@ async function closeVoting() {
     }
 }
 
+/**
+ * Resume Tour (Reopen voting while keeping existing votes)
+ * This allows accidentally closed tours to be reopened:
+ * - Status changes back to 'voting_open'
+ * - All existing votes are preserved
+ * - MVP points are cleared and voting restarts
+ * - New 24-hour voting window is created
+ */
+async function resumeTour() {
+    if (!isAdminLoggedIn || !currentGameweekId) return;
+
+    if (!confirm('🔄 Возобновить тур?\n\nЭто действие:\n- Откроет голосование заново\n- Сохранит все существующие голоса\n- Уберёт очки за MVP\n- Запустит голосование с новым таймером (24 часа)\n\nПродолжить?')) {
+        return;
+    }
+
+    try {
+        // 1. Clear MVP designation from all players
+        const playersSnapshot = await db.collection('match_stats')
+            .doc(currentGameweekId)
+            .collection('players')
+            .get();
+
+        const batch = db.batch();
+
+        for (const playerDoc of playersSnapshot.docs) {
+            const playerData = playerDoc.data();
+
+            // Recalculate points without MVP bonus
+            const statsPoints = calculateStatsPoints(playerData.goals || 0, playerData.assists || 0);
+
+            batch.update(playerDoc.ref, {
+                isMVP: false,
+                mvpBonus: 0,
+                totalPoints: statsPoints + (playerData.ratingBonus || 0), // Keep rating bonus, remove MVP
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // 2. Update gameweek status and set new voting deadline
+        const now = new Date();
+        const votingEndsAt = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // 24 hours from now
+
+        const gameweekRef = db.collection('gameweeks').doc(currentGameweekId);
+        batch.update(gameweekRef, {
+            status: 'voting_open',
+            votingReopenedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            votingEndsAt: firebase.firestore.Timestamp.fromDate(votingEndsAt),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        await batch.commit();
+
+        // 3. Recalculate user squad points with updated player points (no MVP)
+        if (typeof updateLiveUserSquads === 'function') {
+            await updateLiveUserSquads(currentGameweekId);
+        }
+
+        showAlert('✅ Тур возобновлён! Голосование открыто на 24 часа. Очки за MVP убраны, голоса сохранены.', 'success');
+        await loadGameweek(currentGameweekId);
+
+    } catch (error) {
+        console.error('Error resuming tour:', error);
+        showAlert('Ошибка при возобновлении тура: ' + error.message, 'error');
+    }
+}
+
 // ===================================
 // MAIN ADMIN PANEL RENDERER
 // ===================================
@@ -1173,6 +1239,9 @@ function renderCompletedStatus() {
             <p class="stage-description">Голосование закрыто. Результаты зафиксированы.</p>
 
             <div class="admin-stage-actions">
+                <button class="btn btn-warning" onclick="resumeTour()">
+                    🔄 Возобновить Тур
+                </button>
                 <button class="btn btn-secondary" onclick="forceEditStage1()">
                     👥 Редактировать (Открыть заново)
                 </button>
@@ -1191,7 +1260,7 @@ async function manualRecalcWrapper() {
         return;
     }
 
-    if (!confirm(`⚠️ ПОЛНЫЙ ПЕРЕСЧЕТ для ${gwId}?\n\nЭто действие:\n1. 📊 Пересчитает рейтинг игроков (из базы голосов)\n2. 🏆 Переопределит MVP и бонусы\n3. 👥 Обновит очки всех фэнтези команд\n\nИспользуйте это, если вы правили голоса в базе вручную.\nПродолжить?`)) {
+    if (!confirm(`♻️ ПЕРЕСЧЕТ ОЧКОВ для ${gwId}?\n\nЭто действие:\n1. 📊 Пересчитает рейтинг игроков (из базы голосов)\n2. 🔢 Обновит очки игроков\n3. 👥 Обновит очки всех фэнтези команд\n\n⚠️ НЕ изменит:\n- ❌ MVP (останется прежним)\n- ❌ Статус голосования (останется открытым)\n- ❌ Статус тура\n\nИспользуйте это, если нужно обновить очки без закрытия голосования.\nПродолжить?`)) {
         return;
     }
 
@@ -1202,23 +1271,20 @@ async function manualRecalcWrapper() {
     }
 
     try {
-        // 1. Get Match ID linked to this gameweek
-        const gwDoc = await db.collection('gameweeks').doc(gwId).get();
-        if (!gwDoc.exists) throw new Error('Gameweek not found');
+        // Use new function that preserves MVP and voting status
+        if (typeof recalculatePointsAndRatingsOnly === 'function') {
+            console.log(`🔄 Calling recalculatePointsAndRatingsOnly for ${gwId}`);
+            const updatedCount = await recalculatePointsAndRatingsOnly(gwId);
 
-        const matchId = gwDoc.data().matchId;
+            // Update user squad points
+            if (typeof updateLiveUserSquads === 'function') {
+                await updateLiveUserSquads(gwId);
+                console.log('✅ User squads updated');
+            }
 
-        if (matchId && typeof recalculateMVP === 'function') {
-            // This function does everything: MVP, Ratings, Points, User Squads
-            console.log(`🔄 Calling recalculateMVP for match ${matchId} (GW: ${gwId})`);
-            await recalculateMVP(matchId);
-        } else if (typeof updateLiveUserSquads === 'function') {
-            // Fallback if no match linked or function missing
-            console.warn('⚠️ No matchId found, falling back to updateLiveUserSquads');
-            await updateLiveUserSquads(gwId);
-            alert('✅ Очки команд пересчитаны (НО рейтинги матча не обновлены, т.к. матч не найден)');
+            alert(`✅ Пересчет завершён!\n\nОбновлено игроков: ${updatedCount}\nMVP: сохранён\nГолосование: остаётся открытым`);
         } else {
-            throw new Error('Функции пересчета не найдены');
+            throw new Error('Функция recalculatePointsAndRatingsOnly не найдена');
         }
 
     } catch (e) {

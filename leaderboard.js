@@ -356,8 +356,8 @@ async function viewUserSquad(userId, gameweekId) {
             const stats = await getMatchStats(gameweekId, playerId);
 
             if (playerDoc.exists && stats) {
-                // Live Score calculation
-                const livePts = (stats.statsPoints || 0) + (stats.mvpBonus || 0) + (stats.ratingBonus || 0);
+                // Live Score calculation (includes participation points)
+                const livePts = (stats.statsPoints || 0) + (stats.mvpBonus || 0) + (stats.ratingBonus || 0) + (stats.participationPoints || 0);
 
                 const playerData = {
                     name: playerDoc.data().name,
@@ -557,7 +557,7 @@ async function renderFantasyResults(gameweekId) {
             const data = doc.data();
             const player = playersMap.get(data.playerId);
             if (player) {
-                const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0);
+                const total = (data.statsPoints || 0) + (data.mvpBonus || 0) + (data.ratingBonus || 0) + (data.participationPoints || 0);
                 playerResults.push({
                     name: player.name,
                     position: player.position,
@@ -807,7 +807,7 @@ async function openManagerTeam(targetUserId, teamName) {
         const statsMap = {};
         statsSnapshot.docs.forEach(doc => {
             const d = doc.data();
-            statsMap[doc.id] = (d.statsPoints || 0) + (d.mvpBonus || 0) + (d.ratingBonus || 0);
+            statsMap[doc.id] = (d.statsPoints || 0) + (d.mvpBonus || 0) + (d.ratingBonus || 0) + (d.participationPoints || 0);
         });
 
         // 4. Prepare & Render List View
@@ -894,7 +894,7 @@ function renderOpponentPitch(container, playerIds, playerMap, statsMap, captainI
             const capId = parseInt(captainId);
             const vcId = parseInt(viceCaptainId);
 
-            // 2. GET RAW POINTS
+            // 2. GET RAW POINTS (now includes participation)
             // Try to find stats by all possible ID variants just in case
             let rawPoints = statsMap[pDetails.id] || statsMap[String(pDetails.id)] || statsMap[Number(pDetails.id)] || 0;
 
