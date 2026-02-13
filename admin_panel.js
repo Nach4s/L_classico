@@ -424,6 +424,43 @@ async function saveStage1_PlayedPlayers() {
     }
 }
 
+/**
+ * Force edit Stage 1 (revert to player selection)
+ * Allows admin to go back and edit player lineup even after voting has started
+ */
+async function forceEditStage1() {
+    if (!isAdminLoggedIn || !currentGameweekId) {
+        showAlert('Ошибка: нет доступа или тур не выбран', 'error');
+        return;
+    }
+
+    if (!confirm('⚠️ Вернуться к редактированию состава игроков?\n\nЭто позволит изменить список игроков, которые участвуют в туре.\n\nПродолжить?')) {
+        return;
+    }
+
+    try {
+        await db.collection('gameweeks').doc(currentGameweekId).update({
+            status: 'setup',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showAlert('✅ Возвращено к этапу редактирования состава', 'success');
+        await loadGameweek(currentGameweekId);
+
+    } catch (error) {
+        console.error('Error reverting to stage 1:', error);
+        showAlert('Ошибка: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Edit player lineup - alias for forceEditStage1
+ * This is called from the voting open status screen
+ */
+async function editPlayerLineup() {
+    await forceEditStage1();
+}
+
 // ===================================
 // STAGE 2: STATS INPUT (GOALS, ASSISTS, MVP)
 // ===================================
@@ -1111,6 +1148,10 @@ function renderVotingOpenStatus() {
                 -->
             </div>
             
+            <button class="btn btn-warning" onclick="editPlayerLineup()" style="margin-top:20px">
+                ✏️ Изменить Состав Игроков
+            </button>
+            
             <button class="btn btn-secondary btn-sm" onclick="renderGameweekSelector()" style="margin-top:20px">
                 ← Назад к списку туров
             </button>
@@ -1237,6 +1278,7 @@ window.saveGameweekSettings = saveGameweekSettings;
 window.freezeSquadsForVoting = freezeSquadsForVoting;
 window.saveStage1_PlayedPlayers = saveStage1_PlayedPlayers;
 window.forceEditStage1 = forceEditStage1;
+window.editPlayerLineup = editPlayerLineup;
 window.extendVoting = extendVoting;
 window.goToVotingPage = goToVotingPage;
 
