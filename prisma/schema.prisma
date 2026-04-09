@@ -1,0 +1,314 @@
+// ===================================
+// L CLASICO V2.0 — Prisma Schema
+// PostgreSQL (Supabase)
+// ===================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===================================
+// CORE: Seasons
+// ===================================
+
+model Season {
+  id         Int      @id @default(autoincrement())
+  name       String   // "Сезон 1", "Сезон 2"
+  isArchived Boolean  @default(false) @map("is_archived")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  matches      Match[]
+  gameweeks    Gameweek[]
+  fantasyTeams FantasyTeam[]
+
+  @@map("seasons")
+}
+
+// ===================================
+// CORE: Players
+// ===================================
+
+model Player {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique // "mansur_sh", "daulet_e" — human-readable ID
+  name      String   // "Мансур Ш."
+  position  Position // GK, DEF, MID, FWD
+  team      String   // "1 группа", "2 группа"
+  price     Decimal  @db.Decimal(4, 1) // Fantasy price, e.g. 6.5
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  goalsScored  Goal[]              @relation("GoalScorer")
+  goalsAssisted Goal[]             @relation("GoalAssist")
+  mvpVotes     MatchMvpVote[]
+  playerStats  GameweekPlayerStat[]
+  ratingVotes  PlayerRatingVote[]
+  fantasyTeamPlayers FantasyTeamPlayer[]
+  captainSnapshots   GameweekSquadSnapshot[] @relation("SnapshotCaptain")
+  viceCaptainSnapshots GameweekSquadSnapshot[] @relation("SnapshotViceCaptain")
+
+  @@map("players")
+}
+
+enum Position {
+  GK
+  DEF
+  MID
+  FWD
+}
+
+// ===================================
+// CORE: Matches
+// ===================================
+
+model Match {
+  id           Int       @id @default(autoincrement())
+  seasonId     Int       @map("season_id")
+  team1        String    @default("1 группа")
+  team2        String    @default("2 группа")
+  score1       Int?      // null = match not played yet
+  score2       Int?
+  matchDate    DateTime  @map("match_date")
+  votingClosed Boolean   @default(false) @map("voting_closed")
+  votingStartedAt DateTime? @map("voting_started_at")
+  votingEndsAt DateTime? @map("voting_ends_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  season    Season         @relation(fields: [seasonId], references: [id])
+  goals     Goal[]
+  mvpVotes  MatchMvpVote[]
+  gameweeks Gameweek[]
+
+  @@map("matches")
+}
+
+// ===================================
+// CORE: Goals (Normalized)
+// ===================================
+
+model Goal {
+  id             Int    @id @default(autoincrement())
+  matchId        Int    @map("match_id")
+  scorerPlayerId Int    @map("scorer_player_id")
+  assistPlayerId Int?   @map("assist_player_id") // nullable — not all goals have assists
+  team           String // "1 группа" or "2 группа"
+  minute         Int?   // optional: minute of goal
+
+  // Relations
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  scorer Player @relation("GoalScorer", fields: [scorerPlayerId], references: [id])
+  assist Player? @relation("GoalAssist", fields: [assistPlayerId], references: [id])
+
+  @@map("goals")
+}
+
+// ===================================
+// VOTING: Match MVP Votes
+// ===================================
+
+model MatchMvpVote {
+  id       Int      @id @default(autoincrement())
+  matchId  Int      @map("match_id")
+  userId   String   @map("user_id") // Firebase UID or NextAuth user id
+  playerId Int      @map("player_id")
+  votedAt  DateTime @default(now()) @map("voted_at")
+
+  // Relations
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Constraint: 1 vote per user per match
+  @@unique([matchId, userId])
+  @@map("match_mvp_votes")
+}
+
+// ===================================
+// FANTASY: Gameweeks
+// ===================================
+
+model Gameweek {
+  id            Int            @id @default(autoincrement())
+  seasonId      Int            @map("season_id")
+  number        Int            // Gameweek number (1, 2, 3...)
+  matchId       Int?           @map("match_id") // linked match (optional during setup)
+  status        GameweekStatus @default(SETUP)
+  deadline      DateTime?      // Transfer deadline
+  votingEndsAt  DateTime?      @map("voting_ends_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  season         Season                  @relation(fields: [seasonId], references: [id])
+  match          Match?                  @relation(fields: [matchId], references: [id])
+  playerStats    GameweekPlayerStat[]
+  ratingVotes    PlayerRatingVote[]
+  squadSnapshots GameweekSquadSnapshot[]
+
+  // Constraint: unique gameweek number per season
+  @@unique([seasonId, number])
+  @@map("gameweeks")
+}
+
+enum GameweekStatus {
+  SETUP        // Admin is configuring (transfers open)
+  STATS_ENTRY  // Match played, admin entering stats
+  VOTING_OPEN  // Players voting on ratings
+  COMPLETED    // All done, points finalized
+
+  @@map("gameweek_status")
+}
+
+// ===================================
+// FANTASY: Gameweek Player Stats
+// ===================================
+
+model GameweekPlayerStat {
+  id                  Int     @id @default(autoincrement())
+  gameweekId          Int     @map("gameweek_id")
+  playerId            Int     @map("player_id")
+  played              Boolean @default(false)
+  goals               Int     @default(0)
+  assists             Int     @default(0)
+  isMvp               Boolean @default(false) @map("is_mvp")
+  statsPoints         Int     @default(0) @map("stats_points")       // (goals × 3) + (assists × 2)
+  mvpBonus            Int     @default(0) @map("mvp_bonus")          // GK:+8, DEF:+6, MID:+4, FWD:+2
+  avgRating           Decimal @default(0) @map("avg_rating") @db.Decimal(3, 1) // Average user rating (1.0-10.0)
+  ratingBonus         Int     @default(0) @map("rating_bonus")       // Bonus/penalty from avg rating
+  participationPoints Int     @default(0) @map("participation_points") // +1 if played and in active list
+  totalPoints         Int     @default(0) @map("total_points")       // Sum of all above
+
+  // Relations
+  gameweek Gameweek @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+  player   Player   @relation(fields: [playerId], references: [id])
+
+  // Constraint: 1 stat record per player per gameweek
+  @@unique([gameweekId, playerId])
+  @@map("gameweek_player_stats")
+}
+
+// ===================================
+// VOTING: Player Rating Votes (per Gameweek)
+// ===================================
+
+model PlayerRatingVote {
+  id         Int      @id @default(autoincrement())
+  gameweekId Int      @map("gameweek_id")
+  playerId   Int      @map("player_id")
+  userId     String   @map("user_id")
+  rating     Decimal  @db.Decimal(3, 1) // 1.0 to 10.0
+  votedAt    DateTime @default(now()) @map("voted_at")
+
+  // Relations
+  gameweek Gameweek @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+  player   Player   @relation(fields: [playerId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  // Constraint: 1 rating per user per player per gameweek
+  @@unique([gameweekId, playerId, userId])
+  @@map("player_rating_votes")
+}
+
+// ===================================
+// AUTH: Users
+// ===================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(USER)
+  managerName  String?  @map("manager_name") // Fantasy manager display name
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  mvpVotes       MatchMvpVote[]
+  ratingVotes    PlayerRatingVote[]
+  fantasyTeams   FantasyTeam[]
+  squadSnapshots GameweekSquadSnapshot[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+
+  @@map("user_role")
+}
+
+// ===================================
+// FANTASY: Teams (per User per Season)
+// ===================================
+
+model FantasyTeam {
+  id              Int     @id @default(autoincrement())
+  userId          String  @map("user_id")
+  seasonId        Int     @map("season_id")
+  remainingBudget Decimal @default(18.0) @map("remaining_budget") @db.Decimal(4, 1) // Starting budget 18.0M
+  coachId         String? @map("coach_id") // "nurzhan" or "uali"
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user    User                @relation(fields: [userId], references: [id])
+  season  Season              @relation(fields: [seasonId], references: [id])
+  players FantasyTeamPlayer[]
+
+  // Constraint: 1 team per user per season
+  @@unique([userId, seasonId])
+  @@map("fantasy_teams")
+}
+
+// ===================================
+// FANTASY: Team Players (Join Table)
+// ===================================
+
+model FantasyTeamPlayer {
+  id            Int     @id @default(autoincrement())
+  fantasyTeamId Int     @map("fantasy_team_id")
+  playerId      Int     @map("player_id")
+  isCaptain     Boolean @default(false) @map("is_captain")
+  isViceCaptain Boolean @default(false) @map("is_vice_captain")
+
+  // Relations
+  fantasyTeam FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  player      Player      @relation(fields: [playerId], references: [id])
+
+  // Constraint: player can only be in team once
+  @@unique([fantasyTeamId, playerId])
+  @@map("fantasy_team_players")
+}
+
+// ===================================
+// FANTASY: Gameweek Squad Snapshots
+// ===================================
+
+model GameweekSquadSnapshot {
+  id                 Int      @id @default(autoincrement())
+  gameweekId         Int      @map("gameweek_id")
+  userId             String   @map("user_id")
+  playerIds          Int[]    @map("player_ids") // Array of player IDs in the squad
+  captainPlayerId    Int?     @map("captain_player_id")
+  viceCaptainPlayerId Int?    @map("vice_captain_player_id")
+  activeChip         String?  @map("active_chip") // "triple", "bench_boost", etc.
+  totalPoints        Int      @default(0) @map("total_points")
+  coachPoints        Int      @default(0) @map("coach_points")
+  lockedAt           DateTime @default(now()) @map("locked_at")
+
+  // Relations
+  gameweek    Gameweek @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+  captain     Player?  @relation("SnapshotCaptain", fields: [captainPlayerId], references: [id])
+  viceCaptain Player?  @relation("SnapshotViceCaptain", fields: [viceCaptainPlayerId], references: [id])
+
+  // Constraint: 1 snapshot per user per gameweek
+  @@unique([gameweekId, userId])
+  @@map("gameweek_squad_snapshots")
+}
