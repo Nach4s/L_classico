@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function RegisterPage() {
       if (!res.ok) {
         // Surface the exact server error (e.g. "email уже занят")
         setError(data.error ?? "Ошибка регистрации");
+        toast.error(data.error ?? "Ошибка регистрации");
         return;
       }
 
@@ -47,15 +49,18 @@ export default function RegisterPage() {
 
       if (signInResult?.error) {
         // Registration succeeded but auto-login failed — send to login page
+        toast.success("Регистрация успешна! Войдите в аккаунт.");
         router.push("/auth/login?registered=true");
         return;
       }
 
       // 3. Redirect to home
+      toast.success("Регистрация успешна! Добро пожаловать.");
       router.push("/");
       router.refresh();
     } catch {
       setError("Произошла ошибка. Попробуйте снова.");
+      toast.error("Произошла ошибка. Попробуйте снова.");
     } finally {
       setIsLoading(false);
     }

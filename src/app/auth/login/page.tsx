@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,14 +27,17 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError("Неверный email или пароль");
+        toast.error("Неверный email или пароль");
         return;
       }
 
       // Success — redirect to home (or to where user came from)
+      toast.success("Вход выполнен успешно!");
       router.push("/");
       router.refresh(); // Ensure server components re-render with new session
     } catch {
       setError("Произошла ошибка. Попробуйте снова.");
+      toast.error("Произошла ошибка. Попробуйте снова.");
     } finally {
       setIsLoading(false);
     }

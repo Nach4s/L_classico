@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -6,7 +8,9 @@ export const metadata: Metadata = {
   description: "Официальная платформа футбольного дерби L Clásico. Турнирная таблица, статистика игроков и Fantasy лига.",
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+
   const navItems = [
     {
       href: "/table",
@@ -91,20 +95,22 @@ export default function HomePage() {
           </div>
 
           {/* Auth links */}
-          <div className="mt-10 flex items-center gap-3 justify-center">
-            <Link
-              href="/auth/login"
-              className="btn-secondary text-xs px-4 py-2"
-            >
-              Войти
-            </Link>
-            <Link
-              href="/auth/register"
-              className="btn-primary text-xs px-4 py-2"
-            >
-              Зарегистрироваться
-            </Link>
-          </div>
+          {!session && (
+            <div className="mt-10 flex items-center gap-3 justify-center">
+              <Link
+                href="/auth/login"
+                className="btn-secondary text-xs px-4 py-2"
+              >
+                Войти
+              </Link>
+              <Link
+                href="/auth/register"
+                className="btn-primary text-xs px-4 py-2"
+              >
+                Зарегистрироваться
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

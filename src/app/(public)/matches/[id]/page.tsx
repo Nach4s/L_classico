@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import type { GoalWithPlayers } from "@/components/league/MatchCard";
+import { MvpVoting } from "@/components/league/MvpVoting";
+import { PlayerRatingForm } from "@/components/league/PlayerRatingForm";
 
 // ─── Data fetching ─────────────────────────────────────────────────────────────
 
@@ -245,42 +247,32 @@ export default async function MatchDetailPage({
         </div>
       )}
 
-      {/* MVP Block */}
-      <div className="card animate-slide-up" style={{ animationDelay: "160ms" }}>
-        <div className="card-header flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">MVP матча</h2>
-          {isVotingOpen && (
-            <span className="badge bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px]">
-              🗳 Голосование открыто
-            </span>
-          )}
+      {/* MVP Voting Block */}
+      {isPlayed ? (
+        <div className="animate-slide-up" style={{ animationDelay: "160ms" }}>
+          <MvpVoting
+            matchId={match.id}
+            votingEndsAt={match.votingEndsAt?.toISOString() || null}
+          />
         </div>
-        <div className="card-body">
-          {mvpPlayer ? (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg">
-                ⭐
-              </div>
-              <div>
-                <p className="font-semibold text-white">{mvpPlayer.name}</p>
-                <p className="text-xs text-slate-500">
-                  {mvpPlayer.count} {mvpPlayer.count === 1 ? "голос" : "голоса"}
-                </p>
-              </div>
-            </div>
-          ) : isPlayed ? (
-            <p className="text-sm text-slate-500">
-              {isVotingOpen
-                ? "Идёт голосование. Результаты появятся после закрытия."
-                : "MVP не определён."}
-            </p>
-          ) : (
-            <p className="text-sm text-slate-500">
-              Голосование откроется после завершения матча.
-            </p>
-          )}
+      ) : (
+        <div className="card animate-slide-up mt-6" style={{ animationDelay: "160ms" }}>
+           <div className="p-5 text-sm text-slate-500 text-center">
+             Голосование за MVP откроется после завершения матча.
+           </div>
         </div>
-      </div>
+      )}
+
+      {/* Player Rating Block */}
+      {isPlayed && (
+        <PlayerRatingForm
+          matchId={match.id}
+          team1={match.team1}
+          team2={match.team2}
+          votingEndsAt={match.votingEndsAt?.toISOString() || null}
+          votingClosed={match.votingClosed ?? false}
+        />
+      )}
     </main>
   );
 }

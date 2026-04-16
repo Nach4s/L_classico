@@ -40,6 +40,7 @@ model Player {
   position  Position // GK, DEF, MID, FWD
   team      String   // "1 группа", "2 группа"
   price     Decimal  @db.Decimal(4, 1) // Fantasy price, e.g. 6.5
+  avatarUrl String?  @map("avatar_url") // Link to player's picture
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -61,6 +62,7 @@ enum Position {
   DEF
   MID
   FWD
+  COACH
 }
 
 // ===================================
@@ -94,16 +96,17 @@ model Match {
 // ===================================
 
 model Goal {
-  id             Int    @id @default(autoincrement())
-  matchId        Int    @map("match_id")
-  scorerPlayerId Int    @map("scorer_player_id")
-  assistPlayerId Int?   @map("assist_player_id") // nullable — not all goals have assists
-  team           String // "1 группа" or "2 группа"
-  minute         Int?   // optional: minute of goal
+  id             Int     @id @default(autoincrement())
+  matchId        Int     @map("match_id")
+  scorerPlayerId Int     @map("scorer_player_id")
+  assistPlayerId Int?    @map("assist_player_id") // nullable — not all goals have assists
+  team           String  // "1 группа" or "2 группа" — which team this goal is credited TO
+  isOwnGoal      Boolean @default(false) @map("is_own_goal")
+  minute         Int?    // optional: minute of goal
 
   // Relations
-  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  scorer Player @relation("GoalScorer", fields: [scorerPlayerId], references: [id])
+  match  Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  scorer Player  @relation("GoalScorer", fields: [scorerPlayerId], references: [id])
   assist Player? @relation("GoalAssist", fields: [assistPlayerId], references: [id])
 
   @@map("goals")
@@ -248,11 +251,12 @@ enum UserRole {
 // ===================================
 
 model FantasyTeam {
-  id              Int     @id @default(autoincrement())
-  userId          String  @map("user_id")
-  seasonId        Int     @map("season_id")
-  remainingBudget Decimal @default(18.0) @map("remaining_budget") @db.Decimal(4, 1) // Starting budget 18.0M
-  coachId         String? @map("coach_id") // "nurzhan" or "uali"
+  id              Int      @id @default(autoincrement())
+  userId          String   @map("user_id")
+  seasonId        Int      @map("season_id")
+  remainingBudget Decimal  @default(18.0) @map("remaining_budget") @db.Decimal(4, 1)
+  coachId         Int?     @map("coach_id")
+  activeChip      String?  @map("active_chip") // "triple" — active for next GW lock
   updatedAt       DateTime @updatedAt @map("updated_at")
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -297,9 +301,10 @@ model GameweekSquadSnapshot {
   playerIds          Int[]    @map("player_ids") // Array of player IDs in the squad
   captainPlayerId    Int?     @map("captain_player_id")
   viceCaptainPlayerId Int?    @map("vice_captain_player_id")
-  activeChip         String?  @map("active_chip") // "triple", "bench_boost", etc.
-  totalPoints        Int      @default(0) @map("total_points")
-  coachPoints        Int      @default(0) @map("coach_points")
+  coachPlayerId       Int?    @map("coach_player_id")
+  activeChip          String? @map("active_chip") // "triple", "bench_boost", etc.
+  totalPoints         Int     @default(0) @map("total_points")
+  coachPoints         Int     @default(0) @map("coach_points")
   lockedAt           DateTime @default(now()) @map("locked_at")
 
   // Relations

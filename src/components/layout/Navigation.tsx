@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/table", label: "Таблица" },
   { href: "/matches", label: "Матчи" },
   { href: "/stats", label: "Статистика" },
+  { href: "/rules", label: "Правила" },
 ];
 
 export function Navigation() {
@@ -52,13 +53,23 @@ export function Navigation() {
         </div>
 
         {/* Right side: auth */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
           {isLoading ? (
             // Skeleton while session loads
             <div className="h-7 w-20 rounded-lg bg-slate-800 animate-pulse" />
           ) : session ? (
             // Logged in
             <>
+              <Link
+                href="/profile"
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
+                  ${isActive("/profile")
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  }`}
+              >
+                👤 Профиль
+              </Link>
               <Link
                 href="/fantasy"
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
@@ -69,6 +80,19 @@ export function Navigation() {
               >
                 🎮 Фэнтези
               </Link>
+
+              {session.user.role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
+                    ${isActive("/admin")
+                      ? "bg-amber-500/20 text-amber-500 border border-amber-500/30"
+                      : "text-amber-500/70 hover:text-amber-400 hover:bg-amber-500/10"
+                    }`}
+                >
+                  ★ Админка
+                </Link>
+              )}
 
               <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
                 <span className="text-xs text-slate-500 hidden md:block max-w-[120px] truncate">
@@ -109,28 +133,69 @@ export function Navigation() {
       </nav>
 
       {/* Mobile: bottom nav links for small screens */}
-      <div className="sm:hidden flex items-center gap-1 px-4 pb-2 overflow-x-auto">
+      <div className="sm:hidden flex items-center gap-2 px-4 pb-2 pt-1 overflow-x-auto hide-scrollbar border-b border-slate-800/80">
         {NAV_LINKS.map(({ href, label }) => (
           <Link
             key={href}
             href={href}
-            className={`flex-shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-colors
+            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors
               ${isActive(href)
                 ? "bg-slate-800 text-white"
-                : "text-slate-500 hover:text-white"
+                : "text-slate-400 hover:text-white"
               }`}
           >
             {label}
           </Link>
         ))}
-        {session && (
-          <Link
-            href="/fantasy"
-            className={`flex-shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-colors
-              ${isActive("/fantasy") ? "bg-slate-800 text-white" : "text-slate-500 hover:text-white"}`}
-          >
-            🎮 Фэнтези
-          </Link>
+        {isLoading ? (
+          <div className="h-8 w-24 rounded-lg bg-slate-800 animate-pulse ml-2" />
+        ) : session ? (
+          <>
+            <Link
+              href="/profile"
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors
+                ${isActive("/profile") ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}
+            >
+              👤 Профиль
+            </Link>
+            <Link
+              href="/fantasy"
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors
+                ${isActive("/fantasy") ? "bg-emerald-500/20 text-emerald-400" : "text-slate-400 hover:text-white"}`}
+            >
+              🎮 Фэнтези
+            </Link>
+            {session.user.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors
+                  ${isActive("/admin") ? "bg-amber-500/20 text-amber-500" : "text-amber-500/70 hover:text-amber-400 hover:bg-amber-500/10"}`}
+              >
+                ★ Админка
+              </Link>
+            )}
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              Выйти
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/auth/login"
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium text-slate-400 hover:text-white transition-colors"
+            >
+              Войти
+            </Link>
+            <Link
+              href="/auth/register"
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-emerald-500 text-slate-950 transition-colors"
+            >
+              Регистрация
+            </Link>
+          </>
         )}
       </div>
     </header>
