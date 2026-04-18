@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/matches/[id]/vote
 export async function GET(
   req: Request,
@@ -30,12 +32,22 @@ export async function GET(
     }
 
     // Вытягиваем всех активных игроков этих двух команд
-    const candidates = await db.player.findMany({
+    const rawCandidates = await db.player.findMany({
       where: {
         isActive: true,
         team: { in: [match.team1, match.team2] }
       },
       select: { id: true, name: true, position: true, team: true },
+    });
+
+    const goalsList = await db.goal.findMany({
+       where: { matchId }
+    });
+
+    const candidates = rawCandidates.map(c => {
+       const goalsCount = goalsList.filter(g => g.scorerPlayerId === c.id && !g.isOwnGoal).length;
+       const assistsCount = goalsList.filter(g => g.assistPlayerId === c.id).length;
+       return { ...c, goals: goalsCount, assists: assistsCount };
     });
 
     // Получаем все голоса

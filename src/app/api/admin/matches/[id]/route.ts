@@ -55,6 +55,7 @@ export async function PATCH(
     if (body.score1 !== undefined) updateData.score1 = parseInt(body.score1, 10);
     if (body.score2 !== undefined) updateData.score2 = parseInt(body.score2, 10);
     if (body.match_date) updateData.matchDate = new Date(body.match_date);
+    if (body.backgroundUrl !== undefined) updateData.backgroundUrl = body.backgroundUrl;
 
     const match = await db.match.update({
       where: { id: matchId },

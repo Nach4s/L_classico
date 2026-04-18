@@ -34,25 +34,56 @@ function getMatchStatus(match: Match): "upcoming" | "played" | "voting" {
   return "played";
 }
 
-// ─── Goal list item ───────────────────────────────────────────────────────────
+// ─── Grouped Goal list item ──────────────────────────────────────────────────
 
-function GoalItem({ goal }: { goal: GoalWithPlayers }) {
+interface GroupedGoal {
+  scorer: Player;
+  isOwnGoal: boolean;
+  count: number;
+  assists: string[]; // List of assist names
+}
+
+function groupGoals(goals: GoalWithPlayers[]): GroupedGoal[] {
+  const grouped: GroupedGoal[] = [];
+  for (const g of goals) {
+    const existing = grouped.find(
+      (item) => item.scorer.id === g.scorer.id && item.isOwnGoal === g.isOwnGoal
+    );
+    if (existing) {
+      existing.count++;
+      if (g.assist) existing.assists.push(g.assist.name);
+    } else {
+      grouped.push({
+        scorer: g.scorer,
+        isOwnGoal: g.isOwnGoal,
+        count: 1,
+        assists: g.assist ? [g.assist.name] : [],
+      });
+    }
+  }
+  return grouped;
+}
+
+function GroupedGoalItem({ item, align }: { item: GroupedGoal; align: "left" | "right" }) {
+  const uniqueAssists = Array.from(new Set(item.assists));
+  const assistText = uniqueAssists.length > 0 ? `асс. ${uniqueAssists.join(", ")}` : null;
+
   return (
-    <div className="flex items-start gap-1.5 text-xs text-slate-400 py-0.5">
-      <span className="text-slate-500 mt-0.5">⚽</span>
-      <span>
-        <span className="text-slate-200 font-medium">{goal.scorer.name}</span>
-        {goal.minute && (
-          <span className="text-slate-600 ml-1">{goal.minute}&apos;</span>
+    <div className={`flex flex-col py-0.5 ${align === "right" ? "items-end" : "items-start"}`}>
+      <div className="flex items-center gap-1.5 text-[13px] font-medium text-slate-100">
+        <span>{item.scorer.name}</span>
+        {item.isOwnGoal && (
+          <span className="text-red-500/90 font-normal text-[11px]">(автогол)</span>
         )}
-        {goal.assist && (
-          <span className="text-slate-600">
-            {" "}
-            <span className="text-slate-500">(acc.</span> {goal.assist.name}
-            <span className="text-slate-500">)</span>
-          </span>
-        )}
-      </span>
+        <span className="text-slate-400/80 text-xs ml-0.5 mt-[-1px]">
+          ⚽{item.count > 1 && <span className="font-semibold text-slate-300 ml-[1px]">x{item.count}</span>}
+        </span>
+      </div>
+      {assistText && (
+        <span className={`text-[11px] text-slate-500 mt-0.5 ${align === "right" ? "text-right" : "text-left"}`}>
+           {assistText}
+        </span>
+      )}
     </div>
   );
 }
@@ -61,7 +92,6 @@ function GoalItem({ goal }: { goal: GoalWithPlayers }) {
 
 interface MatchCardProps {
   match: MatchWithGoals;
-  /** If true, wraps the card in a Link to /matches/[id] */
   linkable?: boolean;
 }
 
@@ -69,100 +99,97 @@ export function MatchCard({ match, linkable = false }: MatchCardProps) {
   const status = getMatchStatus(match);
   const isPlayed = status !== "upcoming";
 
-  const team1Goals = match.goals.filter((g) => g.team === match.team1);
-  const team2Goals = match.goals.filter((g) => g.team === match.team2);
+  const team1Goals = groupGoals(match.goals.filter((g) => g.team === match.team1));
+  const team2Goals = groupGoals(match.goals.filter((g) => g.team === match.team2));
 
   const card = (
     <div
-      className={`card overflow-hidden transition-all duration-200
-        ${linkable ? "hover:border-slate-700 hover:scale-[1.01] cursor-pointer" : ""}
+      className={`card bg-slate-900/50 backdrop-blur-sm border border-slate-800 shadow-lg shadow-black/20 overflow-hidden transition-all duration-200
+        ${linkable ? "hover:border-slate-700 hover:scale-[1.015] hover:bg-[#131b26] cursor-pointer" : ""}
       `}
     >
-      {/* Top bar: date + status badges */}
-      <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-slate-800/60">
-        <span className="text-xs text-slate-500">{formatDate(match.matchDate)}</span>
+      <div className="px-4 py-2.5 flex items-center justify-between border-b border-white/5 bg-black/10">
+        <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">{formatDate(match.matchDate)}</span>
         <div className="flex items-center gap-2">
           {status === "upcoming" && (
-            <span className="badge bg-slate-700/50 text-slate-400 border border-slate-700 text-[10px]">
+            <span className="badge bg-slate-800/80 text-slate-400 border border-slate-700/50 text-[10px] shadow-sm">
               Скоро
             </span>
           )}
           {status === "voting" && (
-            <span className="badge bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px]">
-              🗳 MVP Voting Open
+            <span className="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+              🗳 Голосование MVP
             </span>
           )}
           {status === "played" && (
-            <span className="badge bg-slate-700/30 text-slate-500 border border-slate-800 text-[10px]">
+            <span className="badge bg-slate-800/50 text-slate-500 border border-slate-800 text-[10px]">
               Завершён
             </span>
           )}
         </div>
       </div>
 
-      {/* Score row */}
-      <div className="px-5 py-5 flex items-center gap-4">
+      <div className="px-5 pt-4 pb-5 flex items-start gap-4">
         {/* Team 1 */}
         <div className="flex-1 flex flex-col items-start gap-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-            <span className="font-semibold text-sm text-white">{match.team1}</span>
+          <div className="flex items-center gap-2 text-sm font-semibold text-white tracking-wide">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+            {match.team1}
           </div>
           {isPlayed && team1Goals.length > 0 && (
-            <div className="pl-4 space-y-0.5 mt-1">
-              {team1Goals.map((g) => (
-                <GoalItem key={g.id} goal={g} />
+            <div className="pl-4 space-y-1.5 mt-2 w-full">
+              {team1Goals.map((g, i) => (
+                <GroupedGoalItem key={i} item={g} align="left" />
               ))}
             </div>
           )}
         </div>
 
         {/* Score */}
-        <div className="flex-shrink-0 text-center min-w-[72px]">
+        <div className="flex-shrink-0 text-center min-w-[72px] mt-1 relative z-10">
           {isPlayed ? (
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="text-3xl font-black tabular-nums text-white">
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-3xl font-black tabular-nums text-white drop-shadow-md">
                 {match.score1}
               </span>
-              <span className="text-lg text-slate-600 font-light">:</span>
-              <span className="text-3xl font-black tabular-nums text-white">
+              <span className="text-lg text-slate-600 font-light mt-[-2px]">:</span>
+              <span className="text-3xl font-black tabular-nums text-white drop-shadow-md">
                 {match.score2}
               </span>
             </div>
           ) : (
-            <div className="flex items-center justify-center gap-1">
-              <span className="text-2xl font-bold text-slate-600">vs</span>
+            <div className="flex items-center justify-center gap-1 mt-1">
+              <span className="text-xl font-bold text-slate-600/80">vs</span>
             </div>
           )}
         </div>
 
         {/* Team 2 */}
         <div className="flex-1 flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-white">{match.team2}</span>
-            <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm font-semibold text-white tracking-wide">
+            {match.team2}
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 flex-shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
           </div>
           {isPlayed && team2Goals.length > 0 && (
-            <div className="pr-4 space-y-0.5 mt-1 flex flex-col items-end">
-              {team2Goals.map((g) => (
-                <GoalItem key={g.id} goal={g} />
+            <div className="pr-4 space-y-1.5 mt-2 flex flex-col items-end w-full">
+              {team2Goals.map((g, i) => (
+                <GroupedGoalItem key={i} item={g} align="right" />
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* Winner highlight */}
       {isPlayed && match.score1 !== match.score2 && (
         <div className="px-5 pb-3">
-          <div className="h-0.5 rounded-full bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+          <div className="h-[2px] rounded-full bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent shadow-[0_0_4px_rgba(16,185,129,0.2)]" />
         </div>
       )}
     </div>
   );
 
   if (linkable) {
-    return <Link href={`/matches/${match.id}`}>{card}</Link>;
+    return <Link href={`/matches/${match.id}`} className="block">{card}</Link>;
   }
 
   return card;

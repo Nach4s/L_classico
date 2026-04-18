@@ -32,7 +32,7 @@ export function PlayerRatingForm({
   const [ratings, setRatings] = useState<Record<number, number>>({});
   const [existingRatings, setExistingRatings] = useState<RatingEntry[]>([]);
   const [userHasRated, setUserHasRated] = useState(false);
-  const [candidates, setCandidates] = useState<{ id: number; name: string; team: string; position: string }[]>([]);
+  const [candidates, setCandidates] = useState<{ id: number; name: string; team: string; position: string; goals?: number; assists?: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -111,9 +111,9 @@ export function PlayerRatingForm({
 
   if (loading) return null;
 
-  // Group candidates by team
-  const group1 = candidates.filter((c) => c.team === team1);
-  const group2 = candidates.filter((c) => c.team === team2);
+  // Group candidates by team and exclude coaches
+  const group1 = candidates.filter((c) => c.team === team1 && c.position !== "COACH");
+  const group2 = candidates.filter((c) => c.team === team2 && c.position !== "COACH");
 
   return (
     <div className="card mt-6 overflow-hidden animate-slide-up" style={{ animationDelay: "240ms" }}>
@@ -180,23 +180,29 @@ export function PlayerRatingForm({
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{team}</p>
                   <div className="space-y-3">
                     {players.map((player) => {
-                      const val = ratings[player.id] ?? 5;
+                      const val = ratings[player.id] ?? 5.0;
                       return (
                         <div key={player.id} className="flex items-center gap-3">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                               <span className={`text-[10px] font-bold ${POSITION_COLORS[player.position] || "text-slate-400"}`}>
                                 {player.position}
                               </span>
-                              <span className="text-sm text-white font-medium truncate">{player.name}</span>
+                              <span className="text-sm text-white font-medium">{player.name}</span>
+                              {((player.goals && player.goals > 0) || (player.assists && player.assists > 0)) ? (
+                                <div className="flex items-center gap-0.5 ml-1">
+                                  {player.goals ? Array.from({ length: player.goals }).map((_, i) => <span key={`g-${i}`} title="Гол" className="text-sm leading-none drop-shadow-sm">⚽</span>) : null}
+                                  {player.assists ? Array.from({ length: player.assists }).map((_, i) => <span key={`a-${i}`} title="Ассист" className="text-sm leading-none drop-shadow-sm">🎯</span>) : null}
+                                </div>
+                              ) : null}
                             </div>
                             <input
                               type="range"
                               min={1}
                               max={10}
-                              step={1}
+                              step={0.1}
                               value={val}
-                              onChange={(e) => handleRatingChange(player.id, parseInt(e.target.value))}
+                              onChange={(e) => handleRatingChange(player.id, parseFloat(e.target.value))}
                               className="w-full h-1.5 appearance-none rounded-full bg-slate-700 accent-emerald-500 cursor-pointer"
                             />
                             <div className="flex justify-between text-[9px] text-slate-600 mt-0.5 px-0.5">
@@ -205,12 +211,13 @@ export function PlayerRatingForm({
                               <span>10</span>
                             </div>
                           </div>
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 border ${
-                            val >= 8 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
-                            val >= 5 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-                            "bg-slate-800 border-slate-700 text-slate-400"
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 border transition-colors ${
+                            val >= 9.0 ? "bg-blue-500/10 border-blue-500/30 text-blue-400" :
+                            val >= 7.5 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                            val >= 5.0 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
+                            "bg-red-500/10 border-red-500/30 text-red-500"
                           }`}>
-                            {val}
+                            {val.toFixed(1)}
                           </div>
                         </div>
                       );

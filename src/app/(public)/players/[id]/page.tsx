@@ -107,6 +107,8 @@ export default async function PlayerProfilePage({
 
     // 3. Высчитываем очки за каждый матч (тур)
     matchMap.forEach((entry) => {
+      // TODO: Вернуть расчет после реализации системы Туров (Gameweeks)
+      /*
       const pts = calculatePlayerPoints({
         position: player.position,
         goals: entry.goals,
@@ -115,6 +117,8 @@ export default async function PlayerProfilePage({
       });
       entry.points = pts.totalPoints;
       totalPoints += pts.totalPoints;
+      */
+      entry.points = 0;
     });
 
     // Превращаем словарь в массив и сортируем по дате матча (убывание)
@@ -180,7 +184,7 @@ export default async function PlayerProfilePage({
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 gap-4 lg:gap-6">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center justify-center">
             <span className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Голы</span>
             <span className="text-4xl font-black text-white">{totalGoals}</span>
@@ -188,11 +192,6 @@ export default async function PlayerProfilePage({
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center justify-center">
             <span className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Ассисты</span>
             <span className="text-4xl font-black text-white">{totalAssists}</span>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-900/40 to-slate-900 border border-emerald-500/20 p-6 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden transition-all hover:border-emerald-500/40">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full pointer-events-none"></div>
-            <span className="text-emerald-400/80 text-xs font-bold uppercase tracking-widest mb-2">Фэнтези Очки</span>
-            <span className="text-4xl font-black text-emerald-400">{totalPoints}</span>
           </div>
         </div>
 
@@ -247,9 +246,9 @@ export default async function PlayerProfilePage({
                        )}
                      </div>
 
-                     <div className="flex items-center justify-center md:justify-end w-full md:w-24">
-                        <div className="bg-emerald-500/10 text-emerald-400 font-mono font-black text-lg px-4 py-2 border border-emerald-500/20 rounded-xl group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
-                          +{h.points}
+                     <div className="flex items-center justify-center md:justify-end w-full md:w-32">
+                        <div className="bg-slate-800/40 text-slate-500 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 border border-slate-800 rounded-lg whitespace-nowrap">
+                          Очки: скоро
                         </div>
                      </div>
 

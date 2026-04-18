@@ -18,6 +18,7 @@ interface Player {
 interface Goal {
   id: number;
   team: string;
+  isOwnGoal: boolean;
   scorer: { id: number; name: string; team: string };
   assist: { id: number; name: string; team: string } | null;
 }
@@ -30,6 +31,7 @@ interface Match {
   score2: number | null;
   matchDate: string;
   season: { name: string };
+  backgroundUrl: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,7 +108,14 @@ function GoalItem({ goal, index }: { goal: Goal; index: number }) {
 
       {/* Scorer + assist */}
       <span style={{ flex: 1, fontSize: "0.95rem", color: "rgb(226 232 240)" }}>
-        <strong style={{ color: "white", fontWeight: 600 }}>{goal.scorer.name}</strong>
+        <strong style={{ color: "white", fontWeight: 600 }}>
+          {goal.scorer.name}
+          {goal.isOwnGoal && (
+            <span style={{ color: "rgb(239 68 68)", fontWeight: 400, fontSize: "0.85rem", marginLeft: "0.3rem" }}>
+              (автогол)
+            </span>
+          )}
+        </strong>
         {goal.assist && (
           <span style={{ color: "rgb(100 116 139)", fontSize: "0.85rem" }}>
             {" "}
@@ -202,6 +211,11 @@ export default function MatchDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isOwnGoal, setIsOwnGoal] = useState(false);
+
+  // Background URL state
+  const [backgroundUrl, setBackgroundUrl] = useState("");
+  const [savingBg, setSavingBg] = useState(false);
 
   // ── Fetch goals ──────────────────────────────────────────────────────────────
   const fetchGoals = useCallback(async () => {
@@ -232,6 +246,7 @@ export default function MatchDetailPage() {
         ]);
 
         setMatch(matchData.match);
+        setBackgroundUrl(matchData.match.backgroundUrl ?? "");
         setPlayers(playersData.players ?? []);
         setGoals(goalsData.goals ?? []);
       } catch (e: unknown) {
@@ -264,6 +279,7 @@ export default function MatchDetailPage() {
           team: selectedTeam,
           scorer_player_id: scorerPlayerId,
           assist_player_id: assistPlayerId || null,
+          is_own_goal: isOwnGoal,
         }),
       });
 
@@ -286,10 +302,33 @@ export default function MatchDetailPage() {
     }
   };
 
+  // ── Save background URL ───────────────────────────────────────────────────
+  const handleSaveBackground = async () => {
+    setSavingBg(true);
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ backgroundUrl: backgroundUrl.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка сохранения");
+      toast.success("Фон сохранён!");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setSavingBg(false);
+    }
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   // Filter players by selected team for scorer/assist selects
   const teamPlayers = players.filter((p) => p.team === selectedTeam);
+  const oppositeTeam = selectedTeam === "1 группа" ? "2 группа" : "1 группа";
+  const opponentPlayers = players.filter((p) => p.team === oppositeTeam);
+  
+  const scorerPlayers = isOwnGoal ? opponentPlayers : teamPlayers;
 
   // Count goals per team
   const goals1 = goals.filter((g) => g.team === "1 группа").length;
@@ -566,6 +605,40 @@ export default function MatchDetailPage() {
                   </StyledSelect>
                 </div>
 
+                {/* Own Goal Checkbox */}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "-0.2rem", marginBottom: "0.2rem" }}>
+                  <input
+                    type="checkbox"
+                    id="is-own-goal"
+                    checked={isOwnGoal}
+                    onChange={(e) => {
+                      setIsOwnGoal(e.target.checked);
+                      setScorerPlayerId("");
+                      setAssistPlayerId("");
+                    }}
+                    style={{
+                      width: "1.1rem",
+                      height: "1.1rem",
+                      accentColor: "rgb(52 211 153)",
+                      cursor: "pointer",
+                      background: "rgb(15 23 42)",
+                      border: "1px solid rgb(51 65 85)",
+                      borderRadius: "0.25rem",
+                    }}
+                  />
+                  <label
+                    htmlFor="is-own-goal"
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "rgb(226 232 240)",
+                      cursor: "pointer",
+                      userSelect: "none"
+                    }}
+                  >
+                    Это автогол (мяч забит в свои ворота)
+                  </label>
+                </div>
+
                 {/* Scorer select */}
                 <div>
                   <label
@@ -580,22 +653,22 @@ export default function MatchDetailPage() {
                       letterSpacing: "0.05em",
                     }}
                   >
-                    Автор гола *
+                    {isOwnGoal ? "Автор автогола (Игрок соперника) *" : "Автор гола *"}
                   </label>
                   <StyledSelect
                     id="select-scorer"
                     value={scorerPlayerId}
                     onChange={setScorerPlayerId}
-                    disabled={teamPlayers.length === 0}
+                    disabled={scorerPlayers.length === 0}
                   >
                     <option value="">— Выберите игрока —</option>
-                    {teamPlayers.map((p) => (
+                    {scorerPlayers.map((p) => (
                       <option key={p.id} value={String(p.id)}>
                         {p.name} ({p.position})
                       </option>
                     ))}
                   </StyledSelect>
-                  {teamPlayers.length === 0 && (
+                  {scorerPlayers.length === 0 && (
                     <p
                       style={{
                         marginTop: "0.4rem",
@@ -603,46 +676,48 @@ export default function MatchDetailPage() {
                         color: "rgb(239 68 68)",
                       }}
                     >
-                      В базе нет игроков для «{selectedTeam}». Сначала добавьте игроков.
+                      В базе нет игроков для «{isOwnGoal ? oppositeTeam : selectedTeam}».
                     </p>
                   )}
                 </div>
 
                 {/* Assist select */}
-                <div>
-                  <label
-                    htmlFor="select-assist"
-                    style={{
-                      display: "block",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      color: "rgb(148 163 184)",
-                      marginBottom: "0.4rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Ассистент{" "}
-                    <span style={{ color: "rgb(71 85 105)", fontWeight: 400, textTransform: "none" }}>
-                      (необязательно)
-                    </span>
-                  </label>
-                  <StyledSelect
-                    id="select-assist"
-                    value={assistPlayerId}
-                    onChange={setAssistPlayerId}
-                    disabled={teamPlayers.length === 0}
-                  >
-                    <option value="">— Без ассиста —</option>
-                    {teamPlayers
-                      .filter((p) => String(p.id) !== scorerPlayerId)
-                      .map((p) => (
-                        <option key={p.id} value={String(p.id)}>
-                          {p.name} ({p.position})
-                        </option>
-                      ))}
-                  </StyledSelect>
-                </div>
+                {!isOwnGoal && (
+                  <div>
+                    <label
+                      htmlFor="select-assist"
+                      style={{
+                        display: "block",
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        color: "rgb(148 163 184)",
+                        marginBottom: "0.4rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Ассистент{" "}
+                      <span style={{ color: "rgb(71 85 105)", fontWeight: 400, textTransform: "none" }}>
+                        (необязательно)
+                      </span>
+                    </label>
+                    <StyledSelect
+                      id="select-assist"
+                      value={assistPlayerId}
+                      onChange={setAssistPlayerId}
+                      disabled={teamPlayers.length === 0}
+                    >
+                      <option value="">— Без ассиста —</option>
+                      {teamPlayers
+                        .filter((p) => String(p.id) !== scorerPlayerId)
+                        .map((p) => (
+                          <option key={p.id} value={String(p.id)}>
+                            {p.name} ({p.position})
+                          </option>
+                        ))}
+                    </StyledSelect>
+                  </div>
+                )}
               </div>
 
               {/* Error / success feedback */}
@@ -815,6 +890,96 @@ export default function MatchDetailPage() {
           </div>
 
           <AdminMvpPanel matchId={matchId} />
+
+          {/* ── Background Image Card ── */}
+          <div
+            style={{
+              background: "rgb(15 23 42)",
+              border: "1px solid rgb(30 41 59)",
+              borderRadius: "1.25rem",
+              overflow: "hidden",
+              marginTop: "1.5rem",
+            }}
+          >
+            <div
+              style={{
+                padding: "1rem 1.5rem",
+                borderBottom: "1px solid rgb(30 41 59)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.6rem",
+              }}
+            >
+              <span style={{ fontSize: "1.1rem" }}>🖼️</span>
+              <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "white", margin: 0 }}>
+                Фон страницы матча
+              </h2>
+            </div>
+            <div style={{ padding: "1.25rem 1.5rem" }}>
+              <p style={{ fontSize: "0.8rem", color: "rgb(100 116 139)", marginBottom: "0.75rem" }}>
+                Поместите фото матча в папку{" "}
+                <code style={{ color: "rgb(52 211 153)", background: "rgba(52,211,153,0.1)", padding: "0.1rem 0.4rem", borderRadius: "0.3rem" }}>
+                  public/match-previews/
+                </code>{" "}
+                и введите путь ниже. Например:{" "}
+                <code style={{ color: "rgb(148 163 184)" }}>/match-previews/match-4.jpg</code>
+              </p>
+              {backgroundUrl && (
+                <div
+                  style={{
+                    marginBottom: "0.75rem",
+                    borderRadius: "0.75rem",
+                    overflow: "hidden",
+                    height: "120px",
+                    background: `url(${backgroundUrl}) center/cover no-repeat`,
+                    border: "1px solid rgb(51 65 85)",
+                    position: "relative",
+                  }}
+                >
+                  <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)" }} />
+                  <span style={{ position: "absolute", bottom: "0.5rem", right: "0.75rem", fontSize: "0.7rem", color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                    Предпросмотр
+                  </span>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <input
+                  type="text"
+                  value={backgroundUrl}
+                  onChange={(e) => setBackgroundUrl(e.target.value)}
+                  placeholder="/match-previews/match-4.jpg"
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem 1rem",
+                    borderRadius: "0.75rem",
+                    background: "rgb(2 6 23)",
+                    border: "1px solid rgb(51 65 85)",
+                    color: "white",
+                    fontSize: "0.875rem",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  onClick={handleSaveBackground}
+                  disabled={savingBg}
+                  style={{
+                    padding: "0.75rem 1.25rem",
+                    borderRadius: "0.75rem",
+                    background: savingBg ? "rgb(51 65 85)" : "rgb(52 211 153)",
+                    color: "rgb(2 6 23)",
+                    fontWeight: 700,
+                    fontSize: "0.875rem",
+                    border: "none",
+                    cursor: savingBg ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "background 0.2s",
+                  }}
+                >
+                  {savingBg ? "Сохраняем..." : "💾 Сохранить"}
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* Refresh button */}
           <div style={{ textAlign: "center", marginTop: "1rem" }}>

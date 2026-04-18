@@ -119,43 +119,48 @@ export function MvpVoting({
            </div>
         )}
 
-        {/* Если юзер уже голосовал ИЛИ голосование закрыто -> Показываем прогресс бары */}
+        {/* Если юзер уже голосовал ИЛИ голосование закрыто -> Показываем анонимные результаты (только свой выбор) */}
         {userVote || closed ? (
-          <div className="space-y-4">
-             {candidates.map((c, i) => {
-                const percentage = totalVotes === 0 ? 0 : Math.round((c.votes / totalVotes) * 100);
-                const isWinner = c.votes === maxVotes && c.votes > 0;
-                const isMyVote = userVote === c.id;
-
-                return (
-                  <div key={c.id} className="relative">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className={`font-semibold ${isMyVote ? "text-emerald-400" : "text-slate-300"}`}>
-                        {c.name} {isMyVote && " (Ваш голос)"}
-                      </span>
-                      <span className="text-slate-500 font-medium">
-                        {c.votes} {c.votes === 1 ? "голос" : "голосов"} ({percentage}%)
-                      </span>
-                    </div>
-                    {/* Progress Bar Track */}
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex items-center">
-                       {/* Progress Bar Fill */}
-                       <div 
-                         className={`h-full rounded-full transition-all duration-1000 ${
-                           isWinner ? "bg-amber-500" : (isMyVote ? "bg-emerald-500" : "bg-slate-600")
-                         }`} 
-                         style={{ width: `${percentage}%` }}
-                       />
-                    </div>
-                  </div>
-                )
-             })}
+          <div>
+            {userVote && !closed && (
+              <p className="text-sm text-emerald-400 mb-4 font-medium">
+                Голосование анонимное. Ваш голос принят и учтен!
+              </p>
+            )}
+            {closed && (
+              <p className="text-sm text-slate-400 mb-4">
+                Голосование завершено. Результаты скрыты и будут объявлены организаторами.
+              </p>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+               {candidates.map(c => {
+                 const isMyVote = userVote === c.id;
+                 return (
+                   <div
+                     key={c.id}
+                     className={`p-3 text-left border rounded-xl transition-all ${
+                       isMyVote 
+                         ? "bg-emerald-500/10 border-emerald-500/50 shadow-inner shadow-emerald-500/10" 
+                         : "bg-slate-900/30 border-slate-800/50 opacity-60"
+                     }`}
+                   >
+                     <div className={`font-semibold text-sm ${isMyVote ? "text-emerald-400" : "text-slate-300"}`}>
+                       {c.name}
+                     </div>
+                     <div className={`text-[10px] uppercase mt-1 flex items-center gap-2 ${isMyVote ? "text-emerald-500/70" : "text-slate-500"}`}>
+                       <span>{c.position} · {c.team === "1 группа" ? "Гр 1" : "Гр 2"}</span>
+                       {isMyVote && <span className="font-bold tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[8px]">ВАШ ГОЛОС</span>}
+                     </div>
+                   </div>
+                 )
+               })}
+            </div>
           </div>
         ) : (
           /* Если юзер не голосовал и открыто -> Сетка кнопок */
           <div>
             <p className="text-sm text-slate-400 mb-4">
-              Выберите лучшего игрока этого матча. Ваш голос повлияет на статус MVP!
+              Выберите лучшего игрока этого матча. Голосование полностью анонимное!
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                {candidates.map(c => (

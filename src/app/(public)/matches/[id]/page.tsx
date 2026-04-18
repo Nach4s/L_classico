@@ -4,6 +4,12 @@ import { db } from "@/lib/db";
 import type { GoalWithPlayers } from "@/components/league/MatchCard";
 import { MvpVoting } from "@/components/league/MvpVoting";
 import { PlayerRatingForm } from "@/components/league/PlayerRatingForm";
+import { Montserrat } from "next/font/google";
+
+const montserrat = Montserrat({ 
+  subsets: ["cyrillic", "latin"], 
+  weight: ["400", "600", "700", "900"] 
+});
 
 // ─── Data fetching ─────────────────────────────────────────────────────────────
 
@@ -22,6 +28,7 @@ async function getMatch(id: number) {
         include: { player: true },
       },
       season: true,
+      gameweeks: true,
     },
   });
 
@@ -61,52 +68,76 @@ function formatDate(date: Date) {
   }).format(new Date(date));
 }
 
-function getMvpPlayer(mvpVotes: { player: { name: string }; playerId: number }[]) {
-  if (!mvpVotes.length) return null;
-  // Count votes per player
-  const counts = new Map<number, { name: string; count: number }>();
-  for (const vote of mvpVotes) {
-    const entry = counts.get(vote.playerId);
-    if (entry) entry.count++;
-    else counts.set(vote.playerId, { name: vote.player.name, count: 1 });
-  }
-  // Find max
-  let mvp = null;
-  let max = 0;
-  for (const [, data] of counts) {
-    if (data.count > max) {
-      max = data.count;
-      mvp = data;
-    }
-  }
-  return mvp;
+// ─── Grouped Goal list item ──────────────────────────────────────────────────
+
+interface GroupedGoal {
+  scorer: { id: number; name: string };
+  isOwnGoal: boolean;
+  count: number;
+  assists: string[];
 }
 
-// ─── Goal row ─────────────────────────────────────────────────────────────────
+function groupGoals(goals: GoalWithPlayers[]): GroupedGoal[] {
+  const grouped: GroupedGoal[] = [];
+  for (const g of goals) {
+    const existing = grouped.find(
+      (item) => item.scorer.id === g.scorer.id && item.isOwnGoal === g.isOwnGoal
+    );
+    if (existing) {
+      existing.count++;
+      if (g.assist) existing.assists.push(g.assist.name);
+    } else {
+      grouped.push({
+        scorer: g.scorer,
+        isOwnGoal: g.isOwnGoal,
+        count: 1,
+        assists: g.assist ? [g.assist.name] : [],
+      });
+    }
+  }
+  return grouped;
+}
 
-function GoalRow({ goal, align }: { goal: GoalWithPlayers; align: "left" | "right" }) {
-  const content = (
-    <>
-      <span className="text-[13px] text-slate-500 w-7 text-center flex-shrink-0">
-        {goal.minute ? `${goal.minute}'` : "—"}
-      </span>
-      <div className={`flex flex-col ${align === "right" ? "items-end" : ""}`}>
-        <span className="text-sm font-medium text-slate-100">{goal.scorer.name}</span>
-        {goal.assist && (
-          <span className="text-[11px] text-slate-500">
-            acc. {goal.assist.name}
+function GoalRow({ item, align }: { item: GroupedGoal; align: "left" | "right" }) {
+  if (align === "left") {
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <div className="flex flex-nowrap items-center gap-1.5 text-sm sm:text-base font-bold">
+          <span className={`whitespace-nowrap truncate ${item.isOwnGoal ? "text-red-500" : "text-white"}`}>
+            {item.scorer.name}
           </span>
-        )}
+          {/* Ball icon + multiplier */}
+          <div className="flex flex-nowrap items-center text-slate-300 gap-0.5">
+            ⚽
+            {item.count > 1 && (
+              <span className="text-[10px] sm:text-xs text-slate-500 font-normal whitespace-nowrap">
+                x{item.count}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-    </>
-  );
-
-  return (
-    <div className={`flex items-center gap-2 py-1.5 ${align === "right" ? "flex-row-reverse" : ""}`}>
-      <span className="text-base flex-shrink-0">⚽</span>
-      {content}
-    </div>
-  );
+    );
+  } else {
+    return (
+      <div className="flex flex-col items-start gap-0.5">
+        <div className="flex flex-nowrap items-center gap-1.5 text-sm sm:text-base font-bold">
+          {/* Ball icon + multiplier */}
+          <div className="flex flex-nowrap items-center text-slate-300 gap-0.5">
+            {item.count > 1 && (
+              <span className="text-[10px] sm:text-xs text-slate-500 font-normal whitespace-nowrap">
+                x{item.count}
+              </span>
+            )}
+            ⚽
+          </div>
+          <span className={`whitespace-nowrap truncate ${item.isOwnGoal ? "text-red-500" : "text-white"}`}>
+            {item.scorer.name}
+          </span>
+        </div>
+      </div>
+    );
+  }
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -122,157 +153,160 @@ export default async function MatchDetailPage({
   if (!match) notFound();
 
   const isPlayed = match.score1 !== null && match.score2 !== null;
-  const isVotingOpen =
-    !match.votingClosed &&
-    match.votingEndsAt &&
-    new Date(match.votingEndsAt) > new Date();
+  const hasVotingBeenOpened = match.votingStartedAt !== null || match.votingEndsAt !== null;
+  const showVotingBlocks = isPlayed && hasVotingBeenOpened;
+  const hasGameweek = match.gameweeks && match.gameweeks.length > 0;
 
-  const team1Goals = match.goals.filter((g) => g.team === match.team1);
-  const team2Goals = match.goals.filter((g) => g.team === match.team2);
-  const mvpPlayer = getMvpPlayer(match.mvpVotes);
+  const team1Goals = groupGoals(match.goals.filter((g) => g.team === match.team1));
+  const team2Goals = groupGoals(match.goals.filter((g) => g.team === match.team2));
   const totalGoals = match.goals.length;
 
+  const bgImage = match.backgroundUrl;
+
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10 sm:py-16 animate-fade-in">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-slate-500 mb-8">
-        <a href="/matches" className="hover:text-slate-300 transition-colors">
-          Матчи
-        </a>
-        <span>/</span>
-        <span className="text-slate-400">{match.season.name}</span>
-      </div>
+    <main 
+      className="relative min-h-screen py-8 sm:py-16 flex flex-col items-center animate-fade-in bg-[#0a0f1a]"
+    >
+      <div className="w-full max-w-3xl px-4 relative z-10 flex flex-col gap-8 items-center">
+        
+        {/* Breadcrumb */}
+        <div className="w-full flex items-center gap-2 text-xs text-white/50 uppercase tracking-widest font-bold mb-2">
+          <a href="/matches" className="hover:text-white transition-colors">
+            Матчи
+          </a>
+          <span>/</span>
+          <span className="text-white/80">{match.season.name}</span>
+        </div>
 
-      {/* Score hero */}
-      <div className="card overflow-hidden mb-6 animate-slide-up">
-        <div className="px-6 py-8">
-          {/* Date */}
-          <p className="text-center text-xs text-slate-500 mb-6 capitalize">
-            {formatDate(match.matchDate)}
-          </p>
+        {/* 433 GRAPHIC CARD */}
+        <div
+          className={`w-full max-w-lg mx-auto rounded-3xl overflow-hidden relative shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-white/10 ${montserrat.className} ${
+            bgImage 
+              ? "aspect-[9/16] min-h-[600px] sm:min-h-[800px] flex flex-col justify-end bg-cover bg-top" 
+              : "min-h-[350px] sm:min-h-[450px] pb-8 pt-16 flex flex-col justify-center bg-slate-900/80 backdrop-blur-md"
+          }`}
+          style={bgImage ? { backgroundImage: `url('${bgImage}')` } : {}}
+        >
+          {/* Smart gradient overlay ONLY if photo exists */}
+          {bgImage && (
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f16] via-[#0a0f16]/60 to-transparent z-0" />
+          )}
 
-          {/* Teams + Score */}
-          <div className="flex items-center gap-4 justify-between">
-            {/* Team 1 */}
-            <div className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xl">
-                🔵
-              </div>
-              <span className="font-bold text-white text-center">{match.team1}</span>
-            </div>
+          {/* BRANDING LOGO - TOP LEFT */}
+          <div className="absolute top-6 left-6 z-20 flex items-center gap-1.5 opacity-90">
+            <span className="text-sm font-black text-white uppercase tracking-tighter">L</span>
+            <span className="text-sm font-black text-emerald-500 uppercase tracking-tighter">Clásico</span>
+          </div>
 
-            {/* Score */}
-            <div className="flex-shrink-0 text-center px-4">
-              {isPlayed ? (
-                <>
-                  <div className="flex items-center gap-3">
-                    <span className="text-5xl font-black text-white tabular-nums">
-                      {match.score1}
-                    </span>
-                    <span className="text-2xl text-slate-600">:</span>
-                    <span className="text-5xl font-black text-white tabular-nums">
-                      {match.score2}
-                    </span>
+          {/* Content */}
+          <div className={`relative z-10 w-full px-4 sm:px-8 ${bgImage ? "mb-8 mt-auto" : "mt-8"}`}>
+
+            {/* TEAMS AND SCORE */}
+            <div className="flex items-center justify-center gap-4 sm:gap-10 px-2">
+              {/* TEAM 1 */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 p-0.5 shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                  <div className="w-full h-full bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-3xl sm:text-4xl border border-white/20">
+                    🔵
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {totalGoals} {totalGoals === 1 ? "гол" : totalGoals < 5 ? "гола" : "голов"}
-                  </p>
-                </>
-              ) : (
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-3xl font-black text-slate-600">vs</span>
-                  <span className="text-xs text-slate-600">Матч не сыгран</span>
                 </div>
-              )}
-            </div>
-
-            {/* Team 2 */}
-            <div className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-xl">
-                🟠
+                <span className="font-black text-white text-xs sm:text-sm uppercase tracking-wider drop-shadow-md max-w-[80px] text-center leading-tight">
+                  {match.team1}
+                </span>
               </div>
-              <span className="font-bold text-white text-center">{match.team2}</span>
-            </div>
-          </div>
 
-          {/* Winner banner */}
-          {isPlayed && match.score1 !== match.score2 && (
-            <div className="mt-6 text-center">
-              <span className="badge-emerald text-xs px-3 py-1">
-                🏆 Победа:{" "}
-                {(match.score1 ?? 0) > (match.score2 ?? 0) ? match.team1 : match.team2}
-              </span>
+              {/* SCORE */}
+              <div className="flex flex-col items-center">
+                {isPlayed ? (
+                  <>
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <span className="text-[3.5rem] sm:text-[5rem] leading-none font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                        {match.score1}
+                      </span>
+                      <span className="text-[2.5rem] sm:text-[3rem] font-light text-white/40 mb-1">-</span>
+                      <span className="text-[3.5rem] sm:text-[5rem] leading-none font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                        {match.score2}
+                      </span>
+                    </div>
+                    {match.score1 !== match.score2 ? (
+                      <div className="mt-2 text-yellow-400 font-black text-[10px] sm:text-xs tracking-[0.2em] uppercase drop-shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                        Победа: {(match.score1 ?? 0) > (match.score2 ?? 0) ? match.team1 : match.team2}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-slate-300 font-black text-[11px] sm:text-xs tracking-[0.2em] uppercase">
+                        Ничья
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[2.5rem] sm:text-[4rem] font-black text-white/80 italic tracking-tighter">VS</span>
+                    <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-[0.2em]">  Предстоит</span>
+                  </div>
+                )}
+              </div>
+
+              {/* TEAM 2 */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 p-0.5 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
+                  <div className="w-full h-full bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-3xl sm:text-4xl border border-white/20">
+                    🟠
+                  </div>
+                </div>
+                <span className="font-black text-white text-xs sm:text-sm uppercase tracking-wider drop-shadow-md max-w-[80px] text-center leading-tight">
+                  {match.team2}
+                </span>
+              </div>
+            </div>
+
+            {/* GOALSCORERS */}
+            {isPlayed && totalGoals > 0 && (
+              <div className="mt-6 px-1 sm:px-2">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6 w-full">
+                  {/* Team 1 Goals */}
+                  <div className="flex flex-col gap-3 sm:gap-4 py-1">
+                    {team1Goals.map((g, i) => <GoalRow key={i} item={g} align="left" />)}
+                  </div>
+                  {/* Team 2 Goals */}
+                  <div className="flex flex-col gap-3 sm:gap-4 py-1">
+                    {team2Goals.map((g, i) => <GoalRow key={i} item={g} align="right" />)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div> {/* end bottom content */}
+        </div> {/* end 9:16 card */}
+
+        {/* Voting UI Modules (Standard UI below Graphic) */}
+        <div className="w-full max-w-3xl flex flex-col gap-6">
+          {showVotingBlocks ? (
+            <MvpVoting
+              matchId={match.id}
+              votingEndsAt={match.votingEndsAt?.toISOString() || null}
+            />
+          ) : (
+            <div className="card bg-black/40 backdrop-blur-md border border-white/10 shadow-xl mt-4">
+              <div className="p-6 text-sm font-semibold tracking-wider text-white/50 text-center uppercase">
+                {isPlayed 
+                  ? "Сбор данных... Скоро откроется голосование за MVP."
+                  : "Голосование за MVP откроется после завершения матча."}
+              </div>
             </div>
           )}
-          {isPlayed && match.score1 === match.score2 && (
-            <div className="mt-6 text-center">
-              <span className="badge badge-slate text-xs px-3 py-1">Ничья</span>
-            </div>
+
+          {showVotingBlocks && hasGameweek && (
+            <PlayerRatingForm
+              matchId={match.id}
+              team1={match.team1}
+              team2={match.team2}
+              votingEndsAt={match.votingEndsAt?.toISOString() || null}
+              votingClosed={match.votingClosed ?? false}
+            />
           )}
         </div>
+
       </div>
-
-      {/* Goals — two columns */}
-      {isPlayed && totalGoals > 0 && (
-        <div className="card mb-6 animate-slide-up" style={{ animationDelay: "80ms" }}>
-          <div className="card-header">
-            <h2 className="text-sm font-semibold text-white">Голы</h2>
-          </div>
-          <div className="grid grid-cols-2 divide-x divide-slate-800">
-            {/* Team 1 goals */}
-            <div className="p-4">
-              <p className="text-xs text-slate-500 mb-2 font-medium">{match.team1}</p>
-              {team1Goals.length > 0 ? (
-                team1Goals.map((g) => (
-                  <GoalRow key={g.id} goal={g} align="left" />
-                ))
-              ) : (
-                <p className="text-xs text-slate-600 py-2">—</p>
-              )}
-            </div>
-            {/* Team 2 goals */}
-            <div className="p-4">
-              <p className="text-xs text-slate-500 mb-2 font-medium text-right">
-                {match.team2}
-              </p>
-              {team2Goals.length > 0 ? (
-                team2Goals.map((g) => (
-                  <GoalRow key={g.id} goal={g} align="right" />
-                ))
-              ) : (
-                <p className="text-xs text-slate-600 py-2 text-right">—</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MVP Voting Block */}
-      {isPlayed ? (
-        <div className="animate-slide-up" style={{ animationDelay: "160ms" }}>
-          <MvpVoting
-            matchId={match.id}
-            votingEndsAt={match.votingEndsAt?.toISOString() || null}
-          />
-        </div>
-      ) : (
-        <div className="card animate-slide-up mt-6" style={{ animationDelay: "160ms" }}>
-           <div className="p-5 text-sm text-slate-500 text-center">
-             Голосование за MVP откроется после завершения матча.
-           </div>
-        </div>
-      )}
-
-      {/* Player Rating Block */}
-      {isPlayed && (
-        <PlayerRatingForm
-          matchId={match.id}
-          team1={match.team1}
-          team2={match.team2}
-          votingEndsAt={match.votingEndsAt?.toISOString() || null}
-          votingClosed={match.votingClosed ?? false}
-        />
-      )}
     </main>
   );
 }

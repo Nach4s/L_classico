@@ -282,29 +282,35 @@ export default async function ManagerProfilePage() {
                 ))}
                 
                 {/* Coach in Current Squad */}
-                {fantasyTeam.coachId && (
-                  <div className="mt-2 mx-1 p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-purple-900/20 flex items-center justify-center text-[10px] font-bold text-purple-400 border border-purple-500/30">
-                        👔
+                {fantasyTeam.coachId && (() => {
+                  const c = playerMap.get(fantasyTeam.coachId!);
+                  return (
+                    <div className="mt-2 mx-1 p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl flex items-center justify-between shadow-sm hover:bg-purple-500/10 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-900/20 flex items-center justify-center text-[10px] font-bold text-purple-400 border border-purple-500/30 overflow-hidden">
+                          {c?.avatarUrl ? (
+                            <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            "👔"
+                          )}
+                        </div>
+                        <div>
+                          {c ? (
+                            <Link href={`/players/${c.id}`} className="font-bold text-white text-sm block hover:text-emerald-400 hover:underline">
+                              {c.name}
+                            </Link>
+                          ) : (
+                            <div className="font-bold text-white text-sm">Тренер</div>
+                          )}
+                          <div className="text-[9px] text-purple-400/80 uppercase tracking-wider mt-0.5">{c?.team}</div>
+                        </div>
                       </div>
-                      <div>
-                        {(() => {
-                          const c = playerMap.get(fantasyTeam.coachId!);
-                          return (
-                            <>
-                              <div className="font-bold text-white text-sm">{c?.name || "Тренер"}</div>
-                              <div className="text-[9px] text-purple-400/80 uppercase tracking-wider">{c?.team}</div>
-                            </>
-                          );
-                        })()}
+                      <div className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20 font-bold whitespace-nowrap">
+                        ±3 PTS
                       </div>
                     </div>
-                    <div className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20 font-bold whitespace-nowrap">
-                      ±3 PTS
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
                 
                 <div className="p-3 mt-2 border-t border-slate-800 flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase">Остаток бюджета</span>
