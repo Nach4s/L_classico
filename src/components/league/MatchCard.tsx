@@ -69,18 +69,18 @@ function GroupedGoalItem({ item, align }: { item: GroupedGoal; align: "left" | "
   const assistText = uniqueAssists.length > 0 ? `асс. ${uniqueAssists.join(", ")}` : null;
 
   return (
-    <div className={`flex flex-col py-0.5 ${align === "right" ? "items-end" : "items-start"}`}>
-      <div className="flex items-center gap-1.5 text-[13px] font-medium text-slate-100">
-        <span>{item.scorer.name}</span>
+    <div className={`flex flex-col py-0.5 w-full ${align === "right" ? "items-end" : "items-start"}`}>
+      <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0 text-[13px] font-medium text-slate-100 ${align === "right" ? "justify-end" : "justify-start"}`}>
+        <span className="whitespace-nowrap">{item.scorer.name}</span>
         {item.isOwnGoal && (
-          <span className="text-red-500/90 font-normal text-[11px]">(автогол)</span>
+          <span className="text-red-500/90 font-normal text-[11px] whitespace-nowrap">(автогол)</span>
         )}
-        <span className="text-slate-400/80 text-xs ml-0.5 mt-[-1px]">
+        <span className="text-slate-400/80 text-xs whitespace-nowrap">
           ⚽{item.count > 1 && <span className="font-semibold text-slate-300 ml-[1px]">x{item.count}</span>}
         </span>
       </div>
       {assistText && (
-        <span className={`text-[11px] text-slate-500 mt-0.5 ${align === "right" ? "text-right" : "text-left"}`}>
+        <span className={`text-[10px] leading-[1.3] text-slate-500 mt-0.5 opacity-90 ${align === "right" ? "text-right" : "text-left"}`}>
            {assistText}
         </span>
       )}
@@ -131,7 +131,7 @@ export function MatchCard({ match, linkable = false }: MatchCardProps) {
 
       <div className="px-5 pt-4 pb-5 flex items-start gap-4">
         {/* Team 1 */}
-        <div className="flex-1 flex flex-col items-start gap-1">
+        <div className="flex-1 flex flex-col items-start gap-1 min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-white tracking-wide">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
             {match.team1}
@@ -165,8 +165,8 @@ export function MatchCard({ match, linkable = false }: MatchCardProps) {
         </div>
 
         {/* Team 2 */}
-        <div className="flex-1 flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white tracking-wide">
+        <div className="flex-1 flex flex-col items-end gap-1 min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold text-white tracking-wide justify-end w-full text-right">
             {match.team2}
             <span className="w-2.5 h-2.5 rounded-full bg-orange-500 flex-shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
           </div>
