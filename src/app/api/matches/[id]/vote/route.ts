@@ -35,7 +35,8 @@ export async function GET(
     const rawCandidates = await db.player.findMany({
       where: {
         isActive: true,
-        team: { in: [match.team1, match.team2] }
+        team: { in: [match.team1, match.team2] },
+        position: { not: "COACH" }
       },
       select: { id: true, name: true, position: true, team: true },
     });

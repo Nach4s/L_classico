@@ -10,6 +10,10 @@ export function ManagerNameForm({ currentName }: { currentName: string }) {
   const [name, setName] = useState(currentName);
   const [saving, setSaving] = useState(false);
 
+  if (currentName) {
+    return null;
+  }
+
   const handleSave = async () => {
     if (!name.trim() || name.trim() === currentName) {
       setIsEditing(false);
