@@ -7,6 +7,7 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [votingClosed, setVotingClosed] = useState(false);
   const [votingEndsAt, setVotingEndsAt] = useState<string | null>(null);
+  const [approvedMvpId, setApprovedMvpId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -18,6 +19,7 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
         setCandidates(data.results || []);
         setVotingClosed(data.votingClosed ?? false);
         setVotingEndsAt(data.votingEndsAt ?? null);
+        setApprovedMvpId(data.approvedMvpId ?? null);
       }
     } finally {
       setLoading(false);
@@ -285,24 +287,44 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
                   <strong style={{ color: "rgb(245 158 11)" }}>{candidates[0].name}</strong>{" "}
                   ({candidates[0].votes} голосов)
                 </p>
-                <button
-                  onClick={handleApproveMvp}
-                  disabled={actionLoading}
-                  style={{
-                    width: "100%",
-                    padding: "0.85rem 1rem",
-                    borderRadius: "0.875rem",
-                    border: "none",
-                    background: "rgb(245 158 11)",
-                    color: "rgb(2 6 23)",
-                    fontWeight: 700,
-                    fontSize: "0.9rem",
-                    cursor: actionLoading ? "not-allowed" : "pointer",
-                    opacity: actionLoading ? 0.6 : 1,
-                  }}
-                >
-                  {actionLoading ? "Утверждение..." : "⭐ Утвердить MVP"}
-                </button>
+                {approvedMvpId ? (
+                  <button
+                    disabled
+                    style={{
+                      width: "100%",
+                      padding: "0.85rem 1rem",
+                      borderRadius: "0.875rem",
+                      border: "none",
+                      background: "rgb(30 41 59)",
+                      color: "rgb(148 163 184)",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                      cursor: "not-allowed",
+                      opacity: 0.8,
+                    }}
+                  >
+                    🌟 MVP уже утвержден
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleApproveMvp}
+                    disabled={actionLoading}
+                    style={{
+                      width: "100%",
+                      padding: "0.85rem 1rem",
+                      borderRadius: "0.875rem",
+                      border: "none",
+                      background: "rgb(245 158 11)",
+                      color: "rgb(2 6 23)",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                      cursor: actionLoading ? "not-allowed" : "pointer",
+                      opacity: actionLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {actionLoading ? "Утверждение..." : "⭐ Утвердить MVP"}
+                  </button>
+                )}
               </div>
             )}
           </div>

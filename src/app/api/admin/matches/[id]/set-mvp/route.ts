@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
 // POST /api/admin/matches/[id]/set-mvp
 // Устанавливает MVP матча (закрепляет победителя голосования)
@@ -57,6 +58,9 @@ export async function POST(
           });
        }
     });
+
+    revalidatePath("/", "layout"); // инвалидируем публичные страницы
+    revalidatePath(`/admin/matches/${matchId}`); // инвалидируем админку
 
     return NextResponse.json({ message: "MVP успешно утвержден, очки обновлены" }, { status: 200 });
   } catch (error) {

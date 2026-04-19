@@ -24,6 +24,7 @@ export function MvpVoting({
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
+  const [approvedMvpId, setApprovedMvpId] = useState<number | null>(null);
 
   const isDeadlinePassed = votingEndsAt 
     ? new Date(votingEndsAt).getTime() < new Date().getTime()
@@ -45,6 +46,7 @@ export function MvpVoting({
       setCandidates(data.results || []);
       setUserVote(data.userVote);
       setClosed(data.votingClosed || isDeadlinePassed);
+      setApprovedMvpId(data.approvedMvpId ?? null);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -119,8 +121,21 @@ export function MvpVoting({
            </div>
         )}
 
-        {/* Если юзер уже голосовал ИЛИ голосование закрыто -> Показываем анонимные результаты (только свой выбор) */}
-        {userVote || closed ? (
+        {approvedMvpId ? (
+          <div className="bg-slate-800/80 border border-amber-500/30 rounded-xl p-6 text-center shadow-[0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
+            <div className="text-4xl mb-3 flex justify-center w-full" style={{ animation: "bounce 2s infinite" }}>🌟</div>
+            <div className="text-amber-400 font-black text-sm mb-1 tracking-widest uppercase opacity-90">MVP Матча</div>
+            <div className="text-white font-extrabold text-2xl drop-shadow-md">
+              {candidates.find(c => c.id === approvedMvpId)?.name || 'Неизвестно'}
+            </div>
+            {candidates.find(c => c.id === approvedMvpId) && (
+              <div className="text-[10px] text-slate-400 uppercase mt-2 font-bold tracking-wider">
+                {candidates.find(c => c.id === approvedMvpId)?.team === "1 группа" ? "Гр 1" : "Гр 2"} · {candidates.find(c => c.id === approvedMvpId)?.position}
+              </div>
+            )}
+          </div>
+        ) : userVote || closed ? (
           <div>
             {userVote && !closed && (
               <p className="text-sm text-emerald-400 mb-4 font-medium">

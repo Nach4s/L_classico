@@ -25,10 +25,27 @@ export async function GET(
     // Если этого мало, можно просто выдать всех активных игроков двух команд.
     const match = await db.match.findUnique({
       where: { id: matchId },
+      include: { 
+        gameweeks: { 
+          include: { 
+            playerStats: { 
+              where: { isMvp: true } 
+            } 
+          } 
+        } 
+      }
     });
 
     if (!match) {
       return NextResponse.json({ error: "Матч не найден" }, { status: 404 });
+    }
+
+    let approvedMvpId = null;
+    if (match.gameweeks && match.gameweeks.length > 0) {
+       const stats = match.gameweeks[0].playerStats;
+       if (stats && stats.length > 0) {
+         approvedMvpId = stats[0].playerId;
+       }
     }
 
     // Вытягиваем всех активных игроков этих двух команд
@@ -70,7 +87,8 @@ export async function GET(
       results: results.sort((a, b) => b.votes - a.votes),
       userVote,
       votingEndsAt: match.votingEndsAt,
-      votingClosed: match.votingClosed
+      votingClosed: match.votingClosed,
+      approvedMvpId
     }, { status: 200 });
 
   } catch (error) {
