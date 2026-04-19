@@ -185,16 +185,18 @@ export function LeagueTable({ standings, season }: LeagueTableProps) {
       </div>
 
       {/* Legend */}
-      <div className="px-5 py-3 border-t border-slate-800/50 flex items-center gap-4 flex-wrap">
-        <span className="text-[11px] text-slate-600 font-medium uppercase tracking-wider">Форма:</span>
-        {(["W", "D", "L"] as FormResult[]).map((r) => (
-          <div key={r} className="flex items-center gap-1.5">
-            <FormBadge result={r} />
-            <span className="text-[11px] text-slate-600">
-              {r === "W" ? "Победа" : r === "D" ? "Ничья" : "Поражение"}
-            </span>
-          </div>
-        ))}
+      <div className="px-4 sm:px-5 py-3 border-t border-slate-800/50 flex items-center gap-x-3 gap-y-2.5 flex-wrap">
+        <span className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Форма:</span>
+        <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+          {(["W", "D", "L"] as FormResult[]).map((r) => (
+            <div key={r} className="flex items-center gap-1.5">
+              <FormBadge result={r} />
+              <span className="text-[11px] text-slate-500">
+                {r === "W" ? "Победа" : r === "D" ? "Ничья" : "Поражение"}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

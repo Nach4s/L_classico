@@ -66,10 +66,10 @@ function groupGoals(goals: GoalWithPlayers[]): GroupedGoal[] {
 
 function GroupedGoalItem({ item, align }: { item: GroupedGoal; align: "left" | "right" }) {
   const uniqueAssists = Array.from(new Set(item.assists));
-  const assistText = uniqueAssists.length > 0 ? `асс. ${uniqueAssists.join(", ")}` : null;
 
   return (
-    <div className={`flex flex-col py-0.5 w-full ${align === "right" ? "items-end" : "items-start"}`}>
+    <div className={`flex flex-col py-0.5 w-full gap-0.5 ${align === "right" ? "items-end" : "items-start"}`}>
+      {/* Scorer row */}
       <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0 text-[13px] font-medium text-slate-100 ${align === "right" ? "justify-end" : "justify-start"}`}>
         <span className="whitespace-nowrap">{item.scorer.name}</span>
         {item.isOwnGoal && (
@@ -79,10 +79,15 @@ function GroupedGoalItem({ item, align }: { item: GroupedGoal; align: "left" | "
           ⚽{item.count > 1 && <span className="font-semibold text-slate-300 ml-[1px]">x{item.count}</span>}
         </span>
       </div>
-      {assistText && (
-        <span className={`text-[10px] leading-[1.3] text-slate-500 mt-0.5 opacity-90 ${align === "right" ? "text-right" : "text-left"}`}>
-           {assistText}
-        </span>
+
+      {/* Assists row — inline, comma-separated, wraps gracefully */}
+      {uniqueAssists.length > 0 && (
+        <div className={`flex flex-wrap gap-x-1 items-baseline ${align === "right" ? "justify-end" : "justify-start"}`}>
+          <span className="text-[10px] text-slate-600 font-medium whitespace-nowrap">асс.</span>
+          <span className="text-[10px] text-slate-500 leading-[1.4]">
+            {uniqueAssists.join(", ")}
+          </span>
+        </div>
       )}
     </div>
   );

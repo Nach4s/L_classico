@@ -28,7 +28,13 @@ async function getMatch(id: number) {
         include: { player: true },
       },
       season: true,
-      gameweeks: true,
+      gameweeks: {
+        include: {
+          playerStats: {
+            where: { isMvp: true }
+          }
+        }
+      },
     },
   });
 
@@ -153,8 +159,9 @@ export default async function MatchDetailPage({
   if (!match) notFound();
 
   const isPlayed = match.score1 !== null && match.score2 !== null;
-  const hasVotingBeenOpened = match.votingStartedAt !== null || match.votingEndsAt !== null;
-  const showVotingBlocks = isPlayed && hasVotingBeenOpened;
+  const hasVotingBeenOpened = match.votingStartedAt !== null || match.votingEndsAt !== null || match.votingClosed;
+  const hasMvp = match.gameweeks?.some(gw => gw.playerStats && gw.playerStats.length > 0);
+  const showVotingBlocks = isPlayed && (hasVotingBeenOpened || hasMvp);
   const hasGameweek = match.gameweeks && match.gameweeks.length > 0;
 
   const team1Goals = groupGoals(match.goals.filter((g) => g.team === match.team1));
