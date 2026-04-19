@@ -29,10 +29,13 @@ export async function POST(
 
     // Сохраняем все в транзакции
     await db.$transaction(async (tx) => {
-       // 1. Закрываем голосование
+       // 1. Закрываем голосование и назначаем MVP
        await tx.match.update({
          where: { id: matchId },
-         data: { votingClosed: true }
+         data: { 
+           votingClosed: true,
+           mvpId: playerId
+         }
        });
 
        // 2. Если матч привязан к Gameweek, обновляем статистику этого игрока -> isMvp = true
@@ -59,8 +62,11 @@ export async function POST(
        }
     });
 
+    console.log('MVP Updated:', matchId, playerId);
+
+    revalidatePath(`/matches/${matchId}`);
+    revalidatePath("/admin");
     revalidatePath("/", "layout"); // инвалидируем публичные страницы
-    revalidatePath(`/admin/matches/${matchId}`); // инвалидируем админку
 
     return NextResponse.json({ message: "MVP успешно утвержден, очки обновлены" }, { status: 200 });
   } catch (error) {

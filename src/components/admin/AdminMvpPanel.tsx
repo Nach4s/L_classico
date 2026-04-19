@@ -81,7 +81,7 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`MVP: ${leader.name}! ⭐`);
+      toast.success("MVP успешно назначен");
       loadVoting();
     } catch (e: any) { toast.error(e.message); }
     finally { setActionLoading(false); }
@@ -303,7 +303,7 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
                       opacity: 0.8,
                     }}
                   >
-                    🌟 MVP уже утвержден
+                    🌟 MVP Утвержден
                   </button>
                 ) : (
                   <button
@@ -322,7 +322,7 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
                       opacity: actionLoading ? 0.6 : 1,
                     }}
                   >
-                    {actionLoading ? "Утверждение..." : "⭐ Утвердить MVP"}
+                    {actionLoading ? "Сохранение..." : "⭐ Утвердить MVP"}
                   </button>
                 )}
               </div>

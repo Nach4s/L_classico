@@ -48,6 +48,7 @@ model Player {
   goalsScored  Goal[]              @relation("GoalScorer")
   goalsAssisted Goal[]             @relation("GoalAssist")
   mvpVotes     MatchMvpVote[]
+  matchesMvp   Match[]             @relation("MatchMvp")
   playerStats  GameweekPlayerStat[]
   ratingVotes  PlayerRatingVote[]
   fantasyTeamPlayers FantasyTeamPlayer[]
@@ -81,10 +82,12 @@ model Match {
   votingStartedAt DateTime? @map("voting_started_at")
   votingEndsAt DateTime? @map("voting_ends_at")
   backgroundUrl String?  @map("background_url")
+  mvpId        Int?      @map("mvp_id")
   createdAt    DateTime  @default(now()) @map("created_at")
 
   // Relations
   season    Season         @relation(fields: [seasonId], references: [id])
+  mvp       Player?        @relation("MatchMvp", fields: [mvpId], references: [id])
   goals     Goal[]
   mvpVotes  MatchMvpVote[]
   gameweeks Gameweek[]

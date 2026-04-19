@@ -17,6 +17,7 @@ async function getMatch(id: number) {
   const match = await db.match.findUnique({
     where: { id },
     include: {
+      mvp: true,
       goals: {
         include: {
           scorer: true,
@@ -160,7 +161,7 @@ export default async function MatchDetailPage({
 
   const isPlayed = match.score1 !== null && match.score2 !== null;
   const hasVotingBeenOpened = match.votingStartedAt !== null || match.votingEndsAt !== null || match.votingClosed;
-  const hasMvp = match.gameweeks?.some(gw => gw.playerStats && gw.playerStats.length > 0);
+  const hasMvp = match.mvpId !== null || match.gameweeks?.some(gw => gw.playerStats && gw.playerStats.length > 0);
   const showVotingBlocks = isPlayed && (hasVotingBeenOpened || hasMvp);
   const hasGameweek = match.gameweeks && match.gameweeks.length > 0;
 
@@ -292,6 +293,15 @@ export default async function MatchDetailPage({
               matchId={match.id}
               votingEndsAt={match.votingEndsAt?.toISOString() || null}
             />
+          ) : match.mvp ? (
+            <div className="bg-slate-800/80 border border-amber-500/30 rounded-xl p-6 text-center shadow-[0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden mt-4">
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
+              <div className="text-4xl mb-3 flex justify-center w-full" style={{ animation: "bounce 2s infinite" }}>🌟</div>
+              <div className="text-amber-400 font-black text-sm mb-1 tracking-widest uppercase opacity-90">MVP Матча</div>
+              <div className="text-white font-extrabold text-2xl drop-shadow-md">
+                {match.mvp.name}
+              </div>
+            </div>
           ) : (
             <div className="card bg-black/40 backdrop-blur-md border border-white/10 shadow-xl mt-4">
               <div className="p-6 text-sm font-semibold tracking-wider text-white/50 text-center uppercase">

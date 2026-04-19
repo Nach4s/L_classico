@@ -40,8 +40,8 @@ export async function GET(
       return NextResponse.json({ error: "Матч не найден" }, { status: 404 });
     }
 
-    let approvedMvpId = null;
-    if (match.gameweeks && match.gameweeks.length > 0) {
+    let approvedMvpId = match.mvpId || null;
+    if (!approvedMvpId && match.gameweeks && match.gameweeks.length > 0) {
        const stats = match.gameweeks[0].playerStats;
        if (stats && stats.length > 0) {
          approvedMvpId = stats[0].playerId;
