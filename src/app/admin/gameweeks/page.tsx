@@ -167,16 +167,6 @@ export default function AdminGameweeksPage() {
     }
   };
 
-  const handleLock = async (gameweekId: number) => {
-    if (!confirm("Зафиксировать составы всех команд? Это нельзя отменить.")) return;
-    try {
-      const res = await fetch(`/api/admin/gameweeks/${gameweekId}/snapshot`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) toast.error("Ошибка: " + data.error);
-      else { toast.success("Успех: " + data.message); fetchGameweeks(); }
-    } catch (e: any) { toast.error("Сетевая ошибка: " + e.message); }
-  };
-
   const handleFinalize = async (gameweekId: number, gwNumber: number) => {
     if (!confirm(`Финализировать тур №${gwNumber}? Очки будут начислены.`)) return;
     try {
@@ -323,12 +313,10 @@ export default function AdminGameweeksPage() {
                           ✅ Тур завершён
                         </div>
                       ) : !isLocked ? (
-                        <button
-                          onClick={() => handleLock(gw.id)}
-                          className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition-all active:scale-95 whitespace-nowrap"
-                        >
-                          🔒 Зафиксировать составы
-                        </button>
+                        <div className="px-4 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-500 text-xs text-center flex items-center gap-2">
+                          <span>⏳</span>
+                          <span>Составы зафиксируются автоматически<br/>при начислении очков за матч</span>
+                        </div>
                       ) : (
                         <>
                           <div className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 font-bold text-sm text-center">

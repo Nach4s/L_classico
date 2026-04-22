@@ -121,7 +121,7 @@ function PlayerDrawer({
                   <p className="text-sm text-slate-500 mt-0.5">{player.team}</p>
                   {player.position === "COACH" ? (
                     <div className="mt-2 inline-flex border border-purple-500/20 bg-purple-500/10 text-purple-400 font-medium text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-                      +2 за победу / -2 за поражение
+                      +3 за победу / -3 за поражение
                     </div>
                   ) : (
                     <p className="text-2xl font-black text-emerald-400 font-mono mt-1">
@@ -604,7 +604,7 @@ export default function FantasyPage() {
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-800">
                   <p className="text-sm font-bold text-white">Тренер</p>
-                  <p className="text-[11px] text-slate-600 mt-0.5">+2 очка за победу / -2 за поражение</p>
+                  <p className="text-[11px] text-slate-600 mt-0.5">+3 очка за победу / -3 за поражение</p>
                 </div>
                 <div className="p-3 space-y-2">
                   <button

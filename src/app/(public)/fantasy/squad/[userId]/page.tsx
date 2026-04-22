@@ -158,6 +158,11 @@ export default async function SquadViewPage({
     avatarUrl: string | null;
   }[] = [];
   let coachPlayer: typeof players[0] | null = null;
+  let captainId: number | null = null;
+  let viceCaptainId: number | null = null;
+  let totalPts = 0;
+  let coachPts = 0;
+  let isCurrentSelection = false;
 
   if (snapshot) {
     const allIds = [
@@ -173,6 +178,33 @@ export default async function SquadViewPage({
     coachPlayer = snapshot.coachPlayerId
       ? (fetched.find((p) => p.id === snapshot.coachPlayerId) ?? null)
       : null;
+    captainId = snapshot.captainPlayerId;
+    viceCaptainId = snapshot.viceCaptainPlayerId;
+    totalPts = snapshot.totalPoints;
+    coachPts = snapshot.coachPoints;
+  } else if (isOwner) {
+    // Снапшота нет, но это владелец — показываем его текущую команду
+    const fantasyTeam = await db.fantasyTeam.findUnique({
+      where: { userId_seasonId: { userId, seasonId: latestGameweek.seasonId } },
+      include: {
+        players: {
+          include: {
+            player: { select: { id: true, name: true, position: true, team: true, avatarUrl: true } }
+          }
+        },
+        coach: { select: { id: true, name: true, position: true, team: true, avatarUrl: true } }
+      }
+    });
+
+    if (fantasyTeam && fantasyTeam.players.length > 0) {
+      isCurrentSelection = true;
+      players = fantasyTeam.players.map(p => p.player);
+      coachPlayer = fantasyTeam.coach || null;
+      captainId = fantasyTeam.players.find(p => p.isCaptain)?.player.id || null;
+      viceCaptainId = fantasyTeam.players.find(p => p.isViceCaptain)?.player.id || null;
+      totalPts = 0;
+      coachPts = 0;
+    }
   }
 
   return (
@@ -195,7 +227,7 @@ export default async function SquadViewPage({
               <p className="text-sm text-slate-500">Тур {latestGameweek.number}</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-black text-amber-400">{snapshot?.totalPoints ?? 0}</div>
+              <div className="text-2xl font-black text-amber-400">{totalPts}</div>
               <div className="text-[11px] text-slate-500 uppercase tracking-wider">очков за тур</div>
               <div className="text-xs text-slate-600 mt-0.5">
                 Всего: <span className="text-white font-semibold">{user.totalPoints}</span>
@@ -221,23 +253,30 @@ export default async function SquadViewPage({
                 : "начала тура"}
             </p>
           </div>
-        ) : !snapshot ? (
+        ) : !snapshot && !isCurrentSelection ? (
           <div className="card p-10 text-center text-slate-500 text-sm">
             <div className="text-4xl mb-3">📋</div>
             {isOwner
-              ? "Вы ещё не зафиксировали состав на этот тур."
+              ? "Вы ещё не собрали состав."
               : "Менеджер не зафиксировал состав на этот тур."}
           </div>
         ) : (
           <>
+            {isCurrentSelection && (
+              <div className="mb-6 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm text-center">
+                <span className="font-bold">Вы ещё не зафиксировали состав на этот тур.</span>
+                <br />
+                Ниже показан ваш текущий выбранный состав:
+              </div>
+            )}
             {/* Players grid */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               {players.map((p) => (
                 <PlayerCard
                   key={p.id}
                   player={p}
-                  isCaptain={snapshot.captainPlayerId === p.id}
-                  isViceCaptain={snapshot.viceCaptainPlayerId === p.id}
+                  isCaptain={captainId === p.id}
+                  isViceCaptain={viceCaptainId === p.id}
                 />
               ))}
             </div>
@@ -256,8 +295,10 @@ export default async function SquadViewPage({
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className="text-lg font-black text-purple-400">+{snapshot.coachPoints}</div>
-                  <div className="text-[10px] text-slate-600">за победу</div>
+                  <div className={`text-lg font-black ${coachPts < 0 ? "text-red-400" : "text-purple-400"}`}>
+                    {coachPts > 0 ? "+" : ""}{coachPts}
+                  </div>
+                  <div className="text-[10px] text-slate-600">бонус</div>
                 </div>
               </div>
             )}
@@ -269,6 +310,7 @@ export default async function SquadViewPage({
               <span>👟 Ассист: +2</span>
               <span>🌟 MVP-бонус: +2 — +8</span>
               <span>🅲 Капитан: очки ×2</span>
+              <span>🧑‍💼 Тренер: ±3 очка</span>
             </div>
           </>
         )}
