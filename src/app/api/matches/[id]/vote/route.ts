@@ -88,7 +88,8 @@ export async function GET(
       userVote,
       votingEndsAt: match.votingEndsAt,
       votingClosed: match.votingClosed,
-      approvedMvpId
+      approvedMvpId,
+      pointsProcessed: match.pointsProcessed
     }, { status: 200 });
 
   } catch (error) {

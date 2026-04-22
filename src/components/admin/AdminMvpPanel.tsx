@@ -8,8 +8,10 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
   const [votingClosed, setVotingClosed] = useState(false);
   const [votingEndsAt, setVotingEndsAt] = useState<string | null>(null);
   const [approvedMvpId, setApprovedMvpId] = useState<number | null>(null);
+  const [pointsProcessed, setPointsProcessed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pointsLoading, setPointsLoading] = useState(false);
 
   const loadVoting = useCallback(async () => {
     try {
@@ -20,6 +22,7 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
         setVotingClosed(data.votingClosed ?? false);
         setVotingEndsAt(data.votingEndsAt ?? null);
         setApprovedMvpId(data.approvedMvpId ?? null);
+        setPointsProcessed(data.pointsProcessed ?? false);
       }
     } finally {
       setLoading(false);
@@ -85,6 +88,21 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
       loadVoting();
     } catch (e: any) { toast.error(e.message); }
     finally { setActionLoading(false); }
+  };
+
+  const handleProcessPoints = async () => {
+    if (!confirm(pointsProcessed ? "Очки уже были начислены. Пересчитать заново?" : "Начислить очки всем игрокам за этот матч?")) return;
+    setPointsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}/process-points`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message || "Очки успешно начислены");
+      loadVoting();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPointsLoading(false); }
   };
 
   if (loading) return null;
@@ -234,6 +252,26 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
               </button>
             </>
           )}
+
+          {/* Process points button */}
+          <button
+            onClick={handleProcessPoints}
+            disabled={pointsLoading}
+            style={{
+              padding: "0.75rem 1rem",
+              borderRadius: "0.875rem",
+              border: "none",
+              background: pointsProcessed ? "rgb(30 41 59)" : "rgb(139 92 246)",
+              color: pointsProcessed ? "rgb(148 163 184)" : "white",
+              fontWeight: 700,
+              fontSize: "0.85rem",
+              cursor: pointsLoading ? "not-allowed" : "pointer",
+              marginLeft: "auto",
+              boxShadow: pointsProcessed ? "none" : "0 0 15px rgba(139, 92, 246, 0.3)",
+            }}
+          >
+            {pointsLoading ? "Обработка..." : pointsProcessed ? "✓ Очки начислены (Пересчитать)" : "⚡ Начислить очки за матч"}
+          </button>
         </div>
 
         {/* Results table */}

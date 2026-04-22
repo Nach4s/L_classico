@@ -71,19 +71,21 @@ enum Position {
 // ===================================
 
 model Match {
-  id           Int       @id @default(autoincrement())
-  seasonId     Int       @map("season_id")
-  team1        String    @default("1 группа")
-  team2        String    @default("2 группа")
-  score1       Int?      // null = match not played yet
-  score2       Int?
-  matchDate    DateTime  @map("match_date")
-  votingClosed Boolean   @default(false) @map("voting_closed")
-  votingStartedAt DateTime? @map("voting_started_at")
-  votingEndsAt DateTime? @map("voting_ends_at")
-  backgroundUrl String?  @map("background_url")
-  mvpId        Int?      @map("mvp_id")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id               Int       @id @default(autoincrement())
+  seasonId         Int       @map("season_id")
+  team1            String    @default("1 группа")
+  team2            String    @default("2 группа")
+  score1           Int?      // null = match not played yet
+  score2           Int?
+  matchDate        DateTime  @map("match_date")
+  votingClosed     Boolean   @default(false) @map("voting_closed")
+  votingStartedAt  DateTime? @map("voting_started_at")
+  votingEndsAt     DateTime? @map("voting_ends_at")
+  backgroundUrl    String?   @map("background_url")
+  mvpId            Int?      @map("mvp_id")
+  pointsProcessed  Boolean   @default(false) @map("points_processed") // Idempotency: was match points applied?
+  mvpBonusProcessed Boolean  @default(false) @map("mvp_bonus_processed") // Idempotency: was MVP bonus applied?
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   // Relations
   season    Season         @relation(fields: [seasonId], references: [id])
@@ -232,6 +234,7 @@ model User {
   passwordHash String   @map("password_hash")
   role         UserRole @default(USER)
   managerName  String?  @map("manager_name") // Fantasy manager display name
+  totalPoints  Int      @default(0) @map("total_points") // Cached fantasy points total
   createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
