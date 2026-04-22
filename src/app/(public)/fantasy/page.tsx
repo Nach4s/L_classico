@@ -423,8 +423,15 @@ export default function FantasyPage() {
             </p>
           </div>
 
-          {/* Budget widget */}
-          <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3.5 min-w-[240px]">
+        {/* Budget widget + leaderboard link */}
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <Link
+              href="/fantasy/leaderboard"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-all text-sm font-semibold"
+            >
+              🏆 Рейтинг
+            </Link>
+            <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3.5 min-w-[240px]">
             <div className="flex-1">
               <div className="flex justify-between text-[11px] mb-1.5">
                 <span className="text-slate-600 uppercase tracking-widest font-semibold">Бюджет</span>
@@ -442,6 +449,7 @@ export default function FantasyPage() {
             <p className={`text-2xl font-black font-mono tabular-nums flex-shrink-0 ${isOverBudget ? "text-red-400" : "text-emerald-400"}`}>
               {remaining.toFixed(1)}<span className="text-slate-600 text-sm font-normal">M</span>
             </p>
+          </div>
           </div>
         </div>
 

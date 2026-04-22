@@ -28,9 +28,8 @@ function MedalBadge({ rank }: { rank: number }) {
 export default async function LeaderboardPage() {
   const session = await getServerSession(authOptions);
 
-  // Получаем последний активный сезон и тур
+  // Получаем последний тур (любой статус, даже SETUP)
   const latestGameweek = await db.gameweek.findFirst({
-    where: { status: { not: "SETUP" } },
     orderBy: [{ seasonId: "desc" }, { number: "desc" }],
     include: {
       squadSnapshots: {

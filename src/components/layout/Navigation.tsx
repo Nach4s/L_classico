@@ -73,12 +73,22 @@ export function Navigation() {
               <Link
                 href="/fantasy"
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
-                  ${isActive("/fantasy")
+                  ${isActive("/fantasy") && !pathname.startsWith("/fantasy/leaderboard")
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                     : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                   }`}
               >
                 🎮 Фэнтези
+              </Link>
+              <Link
+                href="/fantasy/leaderboard"
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
+                  ${isActive("/fantasy/leaderboard")
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  }`}
+              >
+                🏆 Рейтинг
               </Link>
 
               {session.user.role === "ADMIN" && (
@@ -161,9 +171,16 @@ export function Navigation() {
             <Link
               href="/fantasy"
               className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors
-                ${isActive("/fantasy") ? "bg-emerald-500/20 text-emerald-400" : "text-slate-400 hover:text-white"}`}
+                ${isActive("/fantasy") && !pathname.startsWith("/fantasy/leaderboard") ? "bg-emerald-500/20 text-emerald-400" : "text-slate-400 hover:text-white"}`}
             >
               🎮 Фэнтези
+            </Link>
+            <Link
+              href="/fantasy/leaderboard"
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors
+                ${isActive("/fantasy/leaderboard") ? "bg-amber-500/20 text-amber-400" : "text-slate-400 hover:text-white"}`}
+            >
+              🏆 Рейтинг
             </Link>
             {session.user.role === "ADMIN" && (
               <Link

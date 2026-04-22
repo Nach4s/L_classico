@@ -120,7 +120,6 @@ export default async function SquadViewPage({
 
   // Получаем последний активный тур
   const latestGameweek = await db.gameweek.findFirst({
-    where: { status: { not: "SETUP" } },
     orderBy: [{ seasonId: "desc" }, { number: "desc" }],
   });
 
