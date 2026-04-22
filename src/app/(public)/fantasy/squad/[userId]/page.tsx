@@ -191,15 +191,14 @@ export default async function SquadViewPage({
           include: {
             player: { select: { id: true, name: true, position: true, team: true, avatarUrl: true } }
           }
-        },
-        coach: { select: { id: true, name: true, position: true, team: true, avatarUrl: true } }
+        }
       }
     });
 
     if (fantasyTeam && fantasyTeam.players.length > 0) {
       isCurrentSelection = true;
       players = fantasyTeam.players.map(p => p.player);
-      coachPlayer = fantasyTeam.coach || null;
+      coachPlayer = null;
       captainId = fantasyTeam.players.find(p => p.isCaptain)?.player.id || null;
       viceCaptainId = fantasyTeam.players.find(p => p.isViceCaptain)?.player.id || null;
       totalPts = 0;
