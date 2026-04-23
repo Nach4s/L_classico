@@ -46,16 +46,15 @@ const pill = (pos: string) => POS_META[pos]?.pill ?? "bg-slate-700 text-slate-40
 
 function PitchLines() {
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 560" preserveAspectRatio="none">
-      <rect x="8" y="8" width="384" height="544" rx="4" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-      <line x1="8" y1="280" x2="392" y2="280" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-      <circle cx="200" cy="280" r="55" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-      <circle cx="200" cy="280" r="2" fill="rgba(255,255,255,0.15)" />
-      <rect x="100" y="8" width="200" height="80" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-      <rect x="145" y="8" width="110" height="32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-      <rect x="100" y="472" width="200" height="80" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-      <rect x="145" y="520" width="110" height="32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-    </svg>
+    <div className="absolute inset-0 pointer-events-none border-[1.5px] border-white/15 m-2 rounded-lg">
+      <div className="absolute top-1/2 left-0 w-full h-px bg-white/10 -translate-y-1/2" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 border border-white/10 rounded-full" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-white/15 rounded-full" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[50%] h-[15%] border-b border-x border-white/10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[25%] h-[6%] border-b border-x border-white/10" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[50%] h-[15%] border-t border-x border-white/10" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[25%] h-[6%] border-t border-x border-white/10" />
+    </div>
   );
 }
 
@@ -247,7 +246,7 @@ export function FantasyHub({
               </div>
 
               {/* Detailed Link */}
-              <Link href={`/players/${drawerPlayer.slug}`} className="w-full py-3 flex justify-center items-center rounded-xl font-bold transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm">
+              <Link href={`/players/${drawerPlayer.id}`} className="w-full py-3 flex justify-center items-center rounded-xl font-bold transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm">
                 Подробная информация
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
@@ -304,9 +303,9 @@ export function FantasyHub({
         
         {/* Header & Gameweek Selector */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full mb-8">
-          <div className="w-full sm:w-auto text-center sm:text-left">
+          <div className="w-full sm:w-auto text-center sm:text-left min-w-0">
             <h1 className="text-2xl font-black text-white flex items-center justify-center sm:justify-start gap-2">🎮 Fantasy Hub</h1>
-            <p className="text-sm text-slate-500 mt-1">Менеджер: <span className="text-emerald-400">{user.managerName}</span></p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 break-words">Менеджер: <span className="text-emerald-400">{user.managerName}</span></p>
           </div>
 
           <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 w-full sm:w-auto justify-center">
@@ -324,12 +323,17 @@ export function FantasyHub({
         </div>
 
         {/* Dashboard Stats / Budget */}
-        {isPast ? (
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+          {isPast ? (
           <div className="flex items-center justify-center gap-8 mb-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <div className="text-center">
               <div className="text-xs text-slate-500 uppercase tracking-widest">Очки за тур</div>
               <div className="text-4xl font-black text-emerald-400">{snapshot?.totalPoints ?? '—'}</div>
             </div>
+          </div>
+        ) : shouldHide ? (
+          <div className="flex items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
+            <span className="text-slate-500 text-sm">Бюджет скрыт до конца тура</span>
           </div>
         ) : (
           <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 mb-8 gap-4 flex-wrap">
@@ -349,10 +353,10 @@ export function FantasyHub({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="flex flex-col lg:flex-row gap-8 items-start justify-center w-full">
           
           {/* Main Pitch Area */}
-          <div className="lg:col-span-3">
+          <div className="w-full max-w-md lg:max-w-lg flex-shrink-0 mx-auto">
             {shouldHide ? (
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center h-full flex flex-col items-center justify-center">
                 <div className="text-4xl mb-4">🔒</div>
@@ -365,13 +369,13 @@ export function FantasyHub({
                 
                 {/* Positions Map */}
                 {[
-                  { top: '15%', left: '50%', transform: '-translate-x-1/2' },
-                  { top: '45%', left: '25%', transform: '-translate-x-1/2' },
-                  { top: '45%', left: '75%', transform: '-translate-x-1/2' }
-                ].map((pos, i) => {
+                  "absolute top-[15%] left-1/2 -translate-x-1/2 z-10",
+                  "absolute top-[50%] left-[25%] -translate-x-1/2 z-10",
+                  "absolute top-[50%] right-[25%] translate-x-1/2 z-10"
+                ].map((posClass, i) => {
                   const p = isPast ? snapPlayers[i] : selectedPlayers[i];
                   return (
-                    <div key={i} className="absolute" style={{ top: pos.top, left: pos.left, transform: pos.transform }}>
+                    <div key={i} className={posClass}>
                       {p ? (
                         <PitchCard 
                           player={p} 
@@ -392,7 +396,7 @@ export function FantasyHub({
                 <div className="absolute bottom-[20%] left-4 right-4 h-px bg-white/10" />
                 <div className="absolute bottom-[22%] left-1/2 -translate-x-1/2 text-[9px] text-white/20 uppercase tracking-widest">Тренер</div>
 
-                <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2">
+                <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 z-10">
                   {(isPast ? snapCoach : (selectedCoach ? allPlayers.find(c => c.id === selectedCoach) : null)) ? (
                     <PitchCard
                       player={(isPast ? snapCoach : allPlayers.find(c => c.id === selectedCoach)) as Player}
@@ -417,7 +421,7 @@ export function FantasyHub({
 
           {/* Player Selection Sidebar (Only in Transfer mode & Owner) */}
           {!isPast && isOwner && !shouldHide && (
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[600px]">
+            <div className="w-full max-w-md lg:max-w-lg flex-1 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[600px]">
               <div className="flex border-b border-slate-800">
                 {([1, 2] as const).map(g => (
                   <button key={g} onClick={() => { setActiveGroup(g); setPosFilter("ALL"); }} className={`flex-1 py-3 text-sm font-semibold border-b-2 ${activeGroup === g ? 'border-emerald-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
@@ -452,6 +456,7 @@ export function FantasyHub({
               </div>
             </div>
           )}
+        </div>
         </div>
       </main>
     </>
