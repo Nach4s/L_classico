@@ -221,12 +221,25 @@ export default async function SquadViewPage({
 
         {/* Header */}
         <div className="mb-8">
-          <a
-            href="/fantasy/leaderboard"
-            className="text-xs text-slate-500 hover:text-white transition-colors uppercase tracking-wider mb-4 inline-block"
-          >
-            ← Лидерборд
-          </a>
+          <div className="flex items-center justify-between mb-4">
+            <a
+              href="/fantasy/leaderboard"
+              className="text-xs text-slate-500 hover:text-white transition-colors uppercase tracking-wider"
+            >
+              ← Лидерборд
+            </a>
+            <div className="flex gap-2">
+              <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">
+                Состав
+              </span>
+              <a
+                href={`/fantasy/points/${userId}`}
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-colors"
+              >
+                Очки
+              </a>
+            </div>
+          </div>
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h1 className="text-xl font-black text-white">
@@ -292,8 +305,19 @@ export default async function SquadViewPage({
             {/* Coach */}
             {coachPlayer && (
               <div className="card p-4 flex items-center gap-4 border border-purple-500/20 bg-purple-500/5">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg flex-shrink-0">
-                  🧑‍💼
+                <div className="relative flex-shrink-0">
+                  {coachPlayer.avatarUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={coachPlayer.avatarUrl}
+                      alt={coachPlayer.name}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-purple-500/30"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-purple-500/30 flex items-center justify-center text-xl">
+                      🧑‍💼
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-purple-400 font-bold uppercase tracking-wider mb-0.5">Тренер</div>

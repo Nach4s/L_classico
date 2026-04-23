@@ -17,6 +17,11 @@ export const metadata: Metadata = {
     template: "%s | L Clásico",
   },
   description: "Официальная платформа футбольного дерби L Clásico. Турнирная таблица, статистика игроков и Fantasy лига.",
+  icons: {
+    icon: "/assets/logo.jpg",
+    shortcut: "/assets/logo.jpg",
+    apple: "/assets/logo.jpg",
+  },
 };
 
 export default function RootLayout({
