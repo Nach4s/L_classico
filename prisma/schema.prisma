@@ -167,6 +167,7 @@ model Gameweek {
 
 enum GameweekStatus {
   SETUP        // Admin is configuring (transfers open)
+  LOCKED       // Deadline passed, rosters are fixed
   STATS_ENTRY  // Match played, admin entering stats
   VOTING_OPEN  // Players voting on ratings
   COMPLETED    // All done, points finalized

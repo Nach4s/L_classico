@@ -75,6 +75,11 @@ export async function GET(req: Request) {
       });
     }
 
+    const latestGameweek = await db.gameweek.findFirst({
+      where: { seasonId: activeSeason.id },
+      orderBy: { number: "desc" },
+    });
+
     return NextResponse.json({
       team: {
         ...team,
@@ -83,6 +88,7 @@ export async function GET(req: Request) {
       usedChips: {
         triple: !!usedTripleChip,
       },
+      gameweekStatus: latestGameweek?.status || "SETUP",
     });
   } catch (error) {
     console.error("[FANTASY_TEAM_GET_ERROR]", error);
@@ -138,6 +144,18 @@ export async function POST(req: Request) {
 
     if (!activeSeason) {
       return NextResponse.json({ error: "Активный сезон не найден" }, { status: 404 });
+    }
+
+    const latestGameweek = await db.gameweek.findFirst({
+      where: { seasonId: activeSeason.id },
+      orderBy: { number: "desc" },
+    });
+
+    if (latestGameweek && latestGameweek.status === "LOCKED") {
+      return NextResponse.json(
+        { error: "Тур заблокирован. Изменения вступят в силу со следующего тура." },
+        { status: 400 }
+      );
     }
 
     // Проверяем, не использован ли уже буст в этом сезоне

@@ -294,6 +294,7 @@ export default function FantasyPage() {
   const [activeGroup,  setActiveGroup]  = useState<1 | 2>(1);
   const [posFilter,    setPosFilter]    = useState<string>("ALL");
   const [saving, setSaving] = useState(false);
+  const [gameweekStatus, setGameweekStatus] = useState<string>("SETUP");
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/auth/login");
@@ -312,6 +313,7 @@ export default function FantasyPage() {
       if (tr.ok) {
         const d = await tr.json();
         const t: FantasyTeam = d.team;
+        setGameweekStatus(d.gameweekStatus || "SETUP");
         setMyTeam(t);
         if (t) {
           setSelectedIds(t.players.map((tp) => tp.player.id));
@@ -338,7 +340,8 @@ export default function FantasyPage() {
   const totalCost    = selected.reduce((s, p) => s + Number(p.price), 0);
   const remaining    = BUDGET - totalCost;
   const isOverBudget = totalCost > BUDGET;
-  const canSave      = selectedIds.length === MAX_PLAYERS && !!captainId && !isOverBudget;
+  const isLocked     = gameweekStatus === "LOCKED";
+  const canSave      = selectedIds.length === MAX_PLAYERS && !!captainId && !isOverBudget && !isLocked;
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -656,6 +659,11 @@ export default function FantasyPage() {
                 <span>⚠</span> Превышен бюджет на {(totalCost - BUDGET).toFixed(1)}M
               </div>
             )}
+            {isLocked && (
+              <div className="px-3 py-2.5 rounded-xl bg-yellow-500/8 border border-yellow-500/20 text-yellow-500 text-xs flex items-center gap-2">
+                <span>🔒</span> Тур заблокирован. Изменения вступят в силу со следующего тура.
+              </div>
+            )}
 
             {/* Save button */}
             <button
@@ -674,7 +682,9 @@ export default function FantasyPage() {
                   </svg>
                   Сохранение...
                 </span>
-              ) : !canSave && selectedIds.length < MAX_PLAYERS
+              ) : isLocked 
+                ? "Тур заблокирован"
+                : !canSave && selectedIds.length < MAX_PLAYERS
                 ? `Выбери ещё ${MAX_PLAYERS - selectedIds.length} ${MAX_PLAYERS - selectedIds.length === 1 ? "игрока" : "игроков"}`
                 : !captainId
                 ? "Назначь капитана ★"
