@@ -198,7 +198,16 @@ export default async function SquadViewPage({
     if (fantasyTeam && fantasyTeam.players.length > 0) {
       isCurrentSelection = true;
       players = fantasyTeam.players.map(p => p.player);
-      coachPlayer = null;
+      
+      let coachData = null;
+      if (fantasyTeam.coachId) {
+        coachData = await db.player.findUnique({
+          where: { id: fantasyTeam.coachId },
+          select: { id: true, name: true, position: true, team: true, avatarUrl: true }
+        });
+      }
+      coachPlayer = coachData;
+      
       captainId = fantasyTeam.players.find(p => p.isCaptain)?.player.id || null;
       viceCaptainId = fantasyTeam.players.find(p => p.isViceCaptain)?.player.id || null;
       totalPts = 0;
@@ -262,8 +271,8 @@ export default async function SquadViewPage({
         ) : (
           <>
             {isCurrentSelection && (
-              <div className="mb-6 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm text-center">
-                <span className="font-bold">Вы ещё не зафиксировали состав на этот тур.</span>
+              <div className="mb-6 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm text-center">
+                <span className="font-bold">Состав будет зафиксирован автоматически при наступлении дедлайна.</span>
                 <br />
                 Ниже показан ваш текущий выбранный состав:
               </div>
