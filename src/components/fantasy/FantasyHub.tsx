@@ -86,9 +86,9 @@ function PitchCard({
 
       <div className="relative">
         {player.avatarUrl ? (
-          <img src={player.avatarUrl} alt={player.name} className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 shadow-xl ${player.position === 'COACH' ? 'border-purple-500/40' : 'border-white/20'}`} />
+          <img src={player.avatarUrl} alt={player.name} className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 shadow-xl ${player.position === 'COACH' ? 'border-purple-500/40' : 'border-white/20'}`} />
         ) : (
-          <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-800 border-2 flex items-center justify-center text-xl shadow-xl ${player.position === 'COACH' ? 'border-purple-500/20' : 'border-slate-600'}`}>
+          <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800 border-2 flex items-center justify-center text-xl shadow-xl ${player.position === 'COACH' ? 'border-purple-500/20' : 'border-slate-600'}`}>
             {player.position === 'COACH' ? '🧑‍💼' : '👤'}
           </div>
         )}
@@ -114,7 +114,7 @@ function PitchCard({
 function EmptySlot({ onAdd, label }: { onAdd: () => void, label: string }) {
   return (
     <button onClick={onAdd} className="flex flex-col items-center gap-1 w-16 sm:w-20 group">
-      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-slate-600 bg-slate-800/40 flex items-center justify-center text-slate-500 group-hover:border-emerald-500 group-hover:text-emerald-400 transition-colors">
+      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-slate-600 bg-slate-800/40 flex items-center justify-center text-slate-500 group-hover:border-emerald-500 group-hover:text-emerald-400 transition-colors">
         +
       </div>
       <span className="text-[10px] text-slate-500 group-hover:text-emerald-400">{label}</span>
@@ -227,29 +227,74 @@ export function FantasyHub({
                   <h2 className="text-xl font-black text-white">{drawerPlayer.name}</h2>
                   <p className="text-sm text-slate-500 mt-0.5">{drawerPlayer.team}</p>
                   {drawerPlayer.position === 'COACH' ? (
-                    <div className="mt-2 text-xs text-purple-400 bg-purple-500/10 px-2 py-1 rounded">±3 очка за матч</div>
+                    <div className="mt-2 text-[10px] sm:text-xs text-purple-400 border border-purple-500/20 bg-purple-500/10 px-2.5 py-1.5 rounded-lg inline-block whitespace-nowrap">±3 очка за матч</div>
                   ) : (
                     <p className="text-2xl font-black text-emerald-400 mt-1">{Number(drawerPlayer.price).toFixed(1)}M</p>
                   )}
                 </div>
               </div>
-            </div>
-            <div className="px-5 py-4 border-t border-slate-800">
-              <button
-                onClick={() => {
-                  if (drawerPlayer.position === 'COACH') {
-                    setSelectedCoach(drawerPlayer.id);
-                  } else {
-                    if (selectedIds.length < MAX_PLAYERS && !selectedIds.includes(drawerPlayer.id)) {
-                      setSelectedIds([...selectedIds, drawerPlayer.id]);
-                    }
+
+              {/* Form / Stats */}
+              <div>
+                <h3 className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Форма (последние 5 матчей)</h3>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((_, i) => (
+                    <div key={i} className="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700/50 flex flex-col items-center justify-center text-slate-400 shadow-inner">
+                      <span className="text-xs font-bold">—</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detailed Link */}
+              <Link href={`/players/${drawerPlayer.slug}`} className="w-full py-3 flex justify-center items-center rounded-xl font-bold transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm">
+                Подробная информация
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+              
+              {/* Tip */}
+              <div className="bg-slate-800/40 border border-slate-700/30 rounded-xl px-4 py-3">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {drawerPlayer.position === "COACH" 
+                    ? "Тренер не тратит бюджет. Его результат целиком зависит от исхода реального матча."
+                    : `Выбери до ${MAX_PLAYERS} игроков в состав. Капитан получает удвоенные очки.`
                   }
-                  setDrawerPlayer(null);
-                }}
-                className="w-full py-3 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-              >
-                Выбрать
-              </button>
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-800">
+              {(drawerPlayer.position === 'COACH' ? selectedCoach === drawerPlayer.id : selectedIds.includes(drawerPlayer.id)) ? (
+                <button
+                  onClick={() => {
+                    if (drawerPlayer.position === 'COACH') setSelectedCoach(null);
+                    else {
+                      setSelectedIds(selectedIds.filter(id => id !== drawerPlayer.id));
+                      if (captainId === drawerPlayer.id) setCaptainId(null);
+                    }
+                    setDrawerPlayer(null);
+                  }}
+                  className="w-full py-3 rounded-xl font-bold text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                >
+                  {drawerPlayer.position === "COACH" ? "Убрать тренера" : "Убрать из состава"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (drawerPlayer.position === 'COACH') {
+                      setSelectedCoach(drawerPlayer.id);
+                    } else {
+                      if (selectedIds.length < MAX_PLAYERS && !selectedIds.includes(drawerPlayer.id)) {
+                        setSelectedIds([...selectedIds, drawerPlayer.id]);
+                      }
+                    }
+                    setDrawerPlayer(null);
+                  }}
+                  className="w-full py-3 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  {drawerPlayer.position === "COACH" ? "+ Выбрать тренера" : "+ Добавить в состав"}
+                </button>
+              )}
             </div>
           </>
         )}
@@ -258,13 +303,13 @@ export function FantasyHub({
       <main className="max-w-6xl mx-auto px-4 py-8">
         
         {/* Header & Gameweek Selector */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-          <div>
-            <h1 className="text-2xl font-black text-white flex items-center gap-2">🎮 Fantasy Hub</h1>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full mb-8">
+          <div className="w-full sm:w-auto text-center sm:text-left">
+            <h1 className="text-2xl font-black text-white flex items-center justify-center sm:justify-start gap-2">🎮 Fantasy Hub</h1>
             <p className="text-sm text-slate-500 mt-1">Менеджер: <span className="text-emerald-400">{user.managerName}</span></p>
           </div>
 
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1">
+          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 w-full sm:w-auto justify-center">
             <button disabled={!prevGw} onClick={() => setSelectedGwId(prevGw?.id)} className="p-2 text-slate-400 hover:text-white disabled:opacity-30"><ChevronLeft className="w-5 h-5"/></button>
             <div className="px-4 text-center min-w-[120px]">
               <div className="text-sm font-bold text-white">Тур {selectedGw?.number}</div>
@@ -273,7 +318,7 @@ export function FantasyHub({
             <button disabled={!nextGw} onClick={() => setSelectedGwId(nextGw?.id)} className="p-2 text-slate-400 hover:text-white disabled:opacity-30"><ChevronRight className="w-5 h-5"/></button>
           </div>
           
-          <Link href="/fantasy/leaderboard" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-sm font-semibold">
+          <Link href="/fantasy/leaderboard" className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-sm font-semibold">
             🏆 Рейтинг
           </Link>
         </div>
@@ -315,14 +360,14 @@ export function FantasyHub({
                 <p className="text-slate-500 text-sm">Вы сможете увидеть состав менеджера после начала тура.</p>
               </div>
             ) : !isPast || snapshot ? (
-              <div className="relative w-full rounded-2xl overflow-hidden border border-emerald-900/30 shadow-2xl" style={{ background: "linear-gradient(to bottom, rgba(6,78,59,0.5) 0%, rgba(10,15,26,1) 100%)", paddingBottom: "130%" }}>
+              <div className="relative w-full max-w-md mx-auto aspect-[3/4] max-h-[600px] rounded-2xl overflow-hidden border border-emerald-900/30 shadow-2xl" style={{ background: "linear-gradient(to bottom, rgba(6,78,59,0.5) 0%, rgba(10,15,26,1) 100%)" }}>
                 <PitchLines />
                 
                 {/* Positions Map */}
                 {[
-                  { top: '8%', left: '50%', transform: '-translate-x-1/2' },
-                  { top: '48%', left: '20%', transform: '-translate-x-1/2' },
-                  { top: '48%', left: '80%', transform: '-translate-x-1/2' }
+                  { top: '15%', left: '50%', transform: '-translate-x-1/2' },
+                  { top: '45%', left: '25%', transform: '-translate-x-1/2' },
+                  { top: '45%', left: '75%', transform: '-translate-x-1/2' }
                 ].map((pos, i) => {
                   const p = isPast ? snapPlayers[i] : selectedPlayers[i];
                   return (
@@ -347,7 +392,7 @@ export function FantasyHub({
                 <div className="absolute bottom-[20%] left-4 right-4 h-px bg-white/10" />
                 <div className="absolute bottom-[22%] left-1/2 -translate-x-1/2 text-[9px] text-white/20 uppercase tracking-widest">Тренер</div>
 
-                <div className="absolute bottom-[4%] left-1/2 -translate-x-1/2">
+                <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2">
                   {(isPast ? snapCoach : (selectedCoach ? allPlayers.find(c => c.id === selectedCoach) : null)) ? (
                     <PitchCard
                       player={(isPast ? snapCoach : allPlayers.find(c => c.id === selectedCoach)) as Player}
