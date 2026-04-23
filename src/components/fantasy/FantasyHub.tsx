@@ -426,27 +426,30 @@ export function FantasyHub({
 
           {/* Player Selection Sidebar (Only in Transfer mode & Owner) */}
           {!isPast && isOwner && !shouldHide && (
-            <div className="w-full max-w-md lg:max-w-lg flex-1 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[600px]">
-              <div className="flex border-b border-slate-800">
+            <div className="w-full max-w-md lg:max-w-lg flex-1 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex flex-col min-h-[400px] max-h-[60vh] lg:h-[600px] lg:max-h-none">
+              <div className="flex border-b border-slate-800 flex-shrink-0">
                 {([1, 2] as const).map(g => (
                   <button key={g} onClick={() => { setActiveGroup(g); setPosFilter("ALL"); }} className={`flex-1 py-3 text-sm font-semibold border-b-2 ${activeGroup === g ? 'border-emerald-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
                     {g} группа
                   </button>
                 ))}
               </div>
-              <div className="flex gap-2 p-3 border-b border-slate-800 overflow-x-auto">
+              <div className="flex gap-2 p-3 border-b border-slate-800 overflow-x-auto flex-shrink-0">
                 {positions.map(pos => (
                   <button key={pos} onClick={() => setPosFilter(pos)} className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${posFilter === pos ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-800'}`}>
                     {pos === "ALL" ? "Все" : pos}
                   </button>
                 ))}
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto overscroll-contain">
+                {visible.length === 0 && (
+                  <div className="p-6 text-center text-slate-500 text-sm">Игроки не найдены</div>
+                )}
                 {visible.map(p => {
                   const isSel = selectedIds.includes(p.id) || selectedCoach === p.id;
                   const isFull = p.position === 'COACH' ? !!selectedCoach : selectedIds.length >= MAX_PLAYERS;
                   return (
-                    <div key={p.id} onClick={() => (!isSel && !isFull) && setDrawerPlayer(p)} className={`flex items-center justify-between p-3 border-b border-slate-800/50 ${isSel || isFull ? 'opacity-40' : 'cursor-pointer hover:bg-slate-800/50'}`}>
+                    <div key={p.id} onClick={() => setDrawerPlayer(p)} className={`flex items-center justify-between p-3 border-b border-slate-800/50 cursor-pointer ${isSel ? 'bg-emerald-500/5' : isFull ? 'opacity-40' : 'hover:bg-slate-800/50'}`}>
                       <div className="flex items-center gap-3">
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${pill(p.position)}`}>{p.position}</span>
                         <div>
