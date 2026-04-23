@@ -177,7 +177,7 @@ export function FantasyHub({
   // Helpers
   const coaches = allPlayers.filter(p => p.position === 'COACH');
   const outfield = allPlayers.filter(p => p.position !== 'COACH');
-  const byGroup = (g: 1 | 2) => outfield.filter(p => p.team === \`\${g} группа\`);
+  const byGroup = (g: 1 | 2) => outfield.filter(p => p.team === `${g} группа`);
   const positions = ["ALL", ...Array.from(new Set(byGroup(activeGroup).map(p => p.position)))];
   const visible = byGroup(activeGroup).filter(p => posFilter === "ALL" || p.position === posFilter);
 
@@ -293,7 +293,7 @@ export function FantasyHub({
                 <span className="text-slate-500 uppercase tracking-widest">Остаток бюджета</span>
                 <span className={isOverBudget ? "text-red-400 font-mono" : "text-slate-400 font-mono"}>{totalCost.toFixed(1)} / {BUDGET}M</span>
               </div>
-              <div className="h-1.5 rounded-full bg-slate-800"><div className={`h-full rounded-full ${isOverBudget ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: \`\${Math.min(100, (totalCost/BUDGET)*100)}%\` }}/></div>
+              <div className="h-1.5 rounded-full bg-slate-800"><div className={`h-full rounded-full ${isOverBudget ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, (totalCost/BUDGET)*100)}%` }}/></div>
             </div>
             <div className={`text-3xl font-black font-mono ${isOverBudget ? "text-red-400" : "text-emerald-400"}`}>
               {remaining.toFixed(1)}<span className="text-slate-500 text-lg">M</span>
