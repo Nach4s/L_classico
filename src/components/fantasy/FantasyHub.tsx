@@ -176,7 +176,12 @@ export function FantasyHub({
   // Helpers
   const coaches = allPlayers.filter(p => p.position === 'COACH');
   const outfield = allPlayers.filter(p => p.position !== 'COACH');
-  const byGroup = (g: 1 | 2) => outfield.filter(p => p.team === `${g} группа`);
+  // Group 1 includes outfield from team "1 группа" + coaches; Group 2 just outfield
+  const byGroup = (g: 1 | 2) => {
+    const grp = g === 1 ? "1 группа" : "2 группа";
+    const players = outfield.filter(p => p.team === grp);
+    return g === 1 ? [...players, ...coaches] : players;
+  };
   const positions = ["ALL", ...Array.from(new Set(byGroup(activeGroup).map(p => p.position)))];
   const visible = byGroup(activeGroup).filter(p => posFilter === "ALL" || p.position === posFilter);
 

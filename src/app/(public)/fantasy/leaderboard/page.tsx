@@ -125,14 +125,16 @@ export default async function LeaderboardPage() {
                   {/* Manager name */}
                   <Link
                     href={`/fantasy/squad/${user.id}`}
-                    className="font-semibold text-sm text-white hover:text-emerald-400 transition-colors truncate group"
+                    className="font-semibold text-sm text-white hover:text-emerald-400 transition-colors min-w-0"
                   >
-                    {user.managerName}
-                    {isMe && (
-                      <span className="ml-2 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
-                        ВЫ
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="break-all text-xs sm:text-sm">{user.managerName}</span>
+                      {isMe && (
+                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                          ВЫ
+                        </span>
+                      )}
+                    </div>
                   </Link>
 
                   {/* Gameweek points */}
