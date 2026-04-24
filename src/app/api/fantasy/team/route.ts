@@ -158,7 +158,7 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      if (new Date() > new Date(latestGameweek.deadline)) {
+      if (latestGameweek.deadline && new Date() > new Date(latestGameweek.deadline)) {
         return NextResponse.json(
           { error: "Дедлайн тура уже прошел. Изменения не сохранены." },
           { status: 400 }
