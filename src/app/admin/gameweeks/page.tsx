@@ -253,9 +253,16 @@ export default function AdminGameweeksPage() {
             </div>
           ) : (
             gameweeks.map((gw) => {
+              const isTimeUp = gw.deadline ? new Date() > new Date(gw.deadline) : false;
               const isLocked = gw.squadSnapshots.length > 0;
               const isCompleted = gw.status === "COMPLETED";
-              const statusInfo = STATUS_LABELS[gw.status] || STATUS_LABELS["SETUP"];
+              const statusInfo = { ...(STATUS_LABELS[gw.status] || STATUS_LABELS["SETUP"]) };
+              
+              if (gw.status === "SETUP" && isTimeUp) {
+                statusInfo.label = "ДЕДЛАЙН ПРОШЕЛ";
+                statusInfo.color = "text-amber-400 border-amber-400/20 bg-amber-400/10";
+              }
+
               const isExpanded = expandedId === gw.id;
 
               const formattedDeadline = gw.deadline

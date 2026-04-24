@@ -134,8 +134,12 @@ export function FantasyHub({
   const selectedGw = gws.find(g => g.id === selectedGwId);
   
   // Is this GW in the past/locked?
-  // We consider it locked if it's not SETUP, OR if deadline has passed.
+  const isTimeUp = selectedGw ? new Date() > new Date(selectedGw.deadline) : false;
+  // isPast means the gameweek is officially locked by the admin (snapshots generated) OR we are looking at an old gameweek
   const isPast = selectedGw ? selectedGw.status !== 'SETUP' : false;
+  
+  // isLocked means the user can no longer edit the squad
+  const isLocked = isPast || isTimeUp;
 
   // Editor State
   const [selectedIds, setSelectedIds] = useState<number[]>(activeTeam?.players.map((p: any) => p.playerId) || []);
@@ -152,10 +156,11 @@ export function FantasyHub({
   const totalCost = selectedPlayers.reduce((s, p) => s + Number(p.price), 0);
   const remaining = BUDGET - totalCost;
   const isOverBudget = totalCost > BUDGET;
-  const canSave = selectedIds.length === MAX_PLAYERS && !!captainId && !isOverBudget && !isPast && isOwner;
+  const canSave = selectedIds.length === MAX_PLAYERS && !!captainId && !isOverBudget && !isLocked && isOwner;
 
   // Privacy check
-  const shouldHide = !isOwner && !isPast;
+  const shouldHidePitch = !isOwner && !isLocked;
+  const shouldHideBudget = !isOwner && !isPast;
 
   // Derived Snapshot for past gameweek
   const snapshot = snapshots.find(s => s.gameweekId === selectedGwId);
@@ -317,7 +322,7 @@ export function FantasyHub({
             <button disabled={!prevGw} onClick={() => setSelectedGwId(prevGw?.id)} className="p-2 text-slate-400 hover:text-white disabled:opacity-30"><ChevronLeft className="w-5 h-5"/></button>
             <div className="px-4 text-center min-w-[120px]">
               <div className="text-sm font-bold text-white">Тур {selectedGw?.number}</div>
-              <div className="text-[10px] text-slate-500 uppercase">{isPast ? 'История' : 'Трансферы'}</div>
+              <div className="text-[10px] text-slate-500 uppercase">{isLocked ? 'История' : 'Трансферы'}</div>
             </div>
             <button disabled={!nextGw} onClick={() => setSelectedGwId(nextGw?.id)} className="p-2 text-slate-400 hover:text-white disabled:opacity-30"><ChevronRight className="w-5 h-5"/></button>
           </div>
@@ -334,9 +339,8 @@ export function FantasyHub({
             <div className="text-center">
               <div className="text-xs text-slate-500 uppercase tracking-widest">Очки за тур</div>
               <div className="text-4xl font-black text-emerald-400">{snapshot?.totalPoints ?? '—'}</div>
-            </div>
           </div>
-        ) : shouldHide ? (
+        ) : shouldHideBudget ? (
           <div className="flex items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
             <span className="text-slate-500 text-sm">Бюджет скрыт до конца тура</span>
           </div>
@@ -362,7 +366,7 @@ export function FantasyHub({
           
           {/* Main Pitch Area */}
           <div className="w-full max-w-md lg:max-w-lg flex-shrink-0 mx-auto">
-            {shouldHide ? (
+            {shouldHidePitch ? (
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center h-full flex flex-col items-center justify-center">
                 <div className="text-4xl mb-4">🔒</div>
                 <h3 className="text-lg font-bold text-white mb-2">Состав скрыт до дедлайна</h3>
@@ -385,13 +389,13 @@ export function FantasyHub({
                         <PitchCard 
                           player={p} 
                           isCaptain={isPast ? snapshot?.captainPlayerId === p.id : captainId === p.id}
-                          isEdit={!isPast}
+                          isEdit={!isLocked}
                           value={isPast ? (ptsMap.get(p.id) ?? 0) : Number(p.price).toFixed(1)}
                           label={isPast ? 'pts' : 'M'}
                           onRemove={() => { setSelectedIds(selectedIds.filter(id => id !== p.id)); if (captainId === p.id) setCaptainId(null); }}
                           onToggleCaptain={() => setCaptainId(captainId === p.id ? null : p.id)}
                         />
-                      ) : !isPast && (
+                      ) : !isLocked && (
                         <EmptySlot label="Слот" onAdd={() => setDrawerPlayer(null)} />
                       )}
                     </div>
@@ -405,12 +409,12 @@ export function FantasyHub({
                   {(isPast ? snapCoach : (selectedCoach ? allPlayers.find(c => c.id === selectedCoach) : null)) ? (
                     <PitchCard
                       player={(isPast ? snapCoach : allPlayers.find(c => c.id === selectedCoach)) as Player}
-                      isEdit={!isPast}
+                      isEdit={!isLocked}
                       value={isPast ? (snapshot?.coachPoints ?? 0) : ''}
                       label={isPast ? 'pts' : ''}
                       onRemove={() => setSelectedCoach(null)}
                     />
-                  ) : !isPast && (
+                  ) : !isLocked && (
                     <EmptySlot label="Выбрать" onAdd={() => { setActiveGroup(1); }} /> 
                   )}
                 </div>
@@ -425,7 +429,7 @@ export function FantasyHub({
           </div>
 
           {/* Player Selection Sidebar (Only in Transfer mode & Owner) */}
-          {!isPast && isOwner && !shouldHide && (
+          {!isLocked && isOwner && !shouldHidePitch && (
             <div className="w-full max-w-md lg:max-w-lg flex-1 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex flex-col min-h-[400px] max-h-[60vh] lg:h-[600px] lg:max-h-none">
               <div className="flex border-b border-slate-800 flex-shrink-0">
                 {([1, 2] as const).map(g => (

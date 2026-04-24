@@ -58,7 +58,7 @@ function ScoreBadge({ score }: { score: number | null }) {
   );
 }
 
-function GoalItem({ goal, index }: { goal: Goal; index: number }) {
+function GoalItem({ goal, index, onDelete }: { goal: Goal; index: number; onDelete?: (id: number) => void }) {
   const teamColor =
     goal.team === "1 группа" ? "rgb(52 211 153)" : "rgb(251 146 60)";
 
@@ -123,7 +123,40 @@ function GoalItem({ goal, index }: { goal: Goal; index: number }) {
             <span style={{ color: "rgb(148 163 184)" }}>{goal.assist.name}</span>
           </span>
         )}
+          </span>
+        )}
       </span>
+
+      {onDelete && (
+        <button
+          onClick={() => onDelete(goal.id)}
+          title="Удалить гол"
+          style={{
+            flexShrink: 0,
+            marginRight: "0.5rem",
+            background: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            color: "rgb(239 68 68)",
+            borderRadius: "0.4rem",
+            width: "1.8rem",
+            height: "1.8rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "0.9rem",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.2)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+          }}
+        >
+          ✕
+        </button>
+      )}
 
       {/* Team label */}
       <span
@@ -260,6 +293,18 @@ export default function MatchDetailPage() {
   }, [matchId]);
 
   // ── Add goal ──────────────────────────────────────────────────────────────
+  const handleDeleteGoal = async (id: number) => {
+    if (!confirm("Вы уверены, что хотите удалить этот гол?")) return;
+    try {
+      const res = await fetch(`/api/admin/goals/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Ошибка при удалении гола");
+      fetchGoals();
+      toast.success("Гол успешно удален!");
+    } catch (e: any) {
+      alert("Ошибка: " + e.message);
+    }
+  };
+
   const handleAddGoal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!scorerPlayerId) {
@@ -318,6 +363,41 @@ export default function MatchDetailPage() {
       toast.error(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setSavingBg(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSavingBg(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка загрузки");
+
+      setBackgroundUrl(data.url);
+      
+      const patchRes = await fetch(`/api/admin/matches/${matchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ backgroundUrl: data.url }),
+      });
+      if (!patchRes.ok) throw new Error("Ошибка при привязке фона к матчу");
+
+      toast.success("Фон загружен и сохранён!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Ошибка");
+    } finally {
+      setSavingBg(false);
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -882,7 +962,7 @@ export default function MatchDetailPage() {
                   }}
                 >
                   {goals.map((goal, i) => (
-                    <GoalItem key={goal.id} goal={goal} index={i} />
+                    <GoalItem key={goal.id} goal={goal} index={i} onDelete={handleDeleteGoal} />
                   ))}
                 </ul>
               )}
@@ -917,12 +997,7 @@ export default function MatchDetailPage() {
             </div>
             <div style={{ padding: "1.25rem 1.5rem" }}>
               <p style={{ fontSize: "0.8rem", color: "rgb(100 116 139)", marginBottom: "0.75rem" }}>
-                Поместите фото матча в папку{" "}
-                <code style={{ color: "rgb(52 211 153)", background: "rgba(52,211,153,0.1)", padding: "0.1rem 0.4rem", borderRadius: "0.3rem" }}>
-                  public/match-previews/
-                </code>{" "}
-                и введите путь ниже. Например:{" "}
-                <code style={{ color: "rgb(148 163 184)" }}>/match-previews/match-4.jpg</code>
+                Загрузите фото для фона страницы матча (рекомендуется формат 16:9)
               </p>
               {backgroundUrl && (
                 <div
@@ -942,14 +1017,15 @@ export default function MatchDetailPage() {
                   </span>
                 </div>
               )}
-              <div style={{ display: "flex", gap: "0.75rem" }}>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <input
                   type="text"
                   value={backgroundUrl}
                   onChange={(e) => setBackgroundUrl(e.target.value)}
-                  placeholder="/match-previews/match-4.jpg"
+                  placeholder="Или URL-адрес фото..."
                   style={{
                     flex: 1,
+                    minWidth: "200px",
                     padding: "0.75rem 1rem",
                     borderRadius: "0.75rem",
                     background: "rgb(2 6 23)",
@@ -959,6 +1035,41 @@ export default function MatchDetailPage() {
                     outline: "none",
                   }}
                 />
+                
+                <label
+                  style={{
+                    padding: "0.75rem 1.25rem",
+                    borderRadius: "0.75rem",
+                    background: savingBg ? "rgb(51 65 85)" : "rgba(59, 130, 246, 0.1)",
+                    border: savingBg ? "1px solid rgb(51 65 85)" : "1px solid rgba(59, 130, 246, 0.3)",
+                    color: savingBg ? "rgb(148 163 184)" : "rgb(96 165 250)",
+                    fontWeight: 700,
+                    fontSize: "0.875rem",
+                    cursor: savingBg ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!savingBg) (e.currentTarget as HTMLLabelElement).style.background = "rgba(59, 130, 246, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!savingBg) (e.currentTarget as HTMLLabelElement).style.background = "rgba(59, 130, 246, 0.1)";
+                  }}
+                >
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileUpload} 
+                    style={{ display: "none" }} 
+                    disabled={savingBg}
+                  />
+                  {savingBg ? "Загрузка..." : "📤 Загрузить фото"}
+                </label>
+
                 <button
                   onClick={handleSaveBackground}
                   disabled={savingBg}
@@ -975,7 +1086,7 @@ export default function MatchDetailPage() {
                     transition: "background 0.2s",
                   }}
                 >
-                  {savingBg ? "Сохраняем..." : "💾 Сохранить"}
+                  {savingBg ? "..." : "💾 Сохранить URL"}
                 </button>
               </div>
             </div>

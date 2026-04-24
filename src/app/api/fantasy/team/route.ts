@@ -151,11 +151,19 @@ export async function POST(req: Request) {
       orderBy: { number: "desc" },
     });
 
-    if (latestGameweek && latestGameweek.status === "LOCKED") {
-      return NextResponse.json(
-        { error: "Тур заблокирован. Изменения вступят в силу со следующего тура." },
-        { status: 400 }
-      );
+    if (latestGameweek) {
+      if (latestGameweek.status === "LOCKED" || latestGameweek.status === "FINISHED") {
+        return NextResponse.json(
+          { error: "Тур заблокирован. Изменения вступят в силу со следующего тура." },
+          { status: 400 }
+        );
+      }
+      if (new Date() > new Date(latestGameweek.deadline)) {
+        return NextResponse.json(
+          { error: "Дедлайн тура уже прошел. Изменения не сохранены." },
+          { status: 400 }
+        );
+      }
     }
 
     // Проверяем, не использован ли уже буст в этом сезоне
