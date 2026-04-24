@@ -335,12 +335,13 @@ export function FantasyHub({
         {/* Dashboard Stats / Budget */}
         <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
           {isPast ? (
-          <div className="flex items-center justify-center gap-8 mb-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <div className="text-center">
-              <div className="text-xs text-slate-500 uppercase tracking-widest">Очки за тур</div>
-              <div className="text-4xl font-black text-emerald-400">{snapshot?.totalPoints ?? '—'}</div>
-          </div>
-        ) : shouldHideBudget ? (
+            <div className="flex items-center justify-center gap-8 mb-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+              <div className="text-center">
+                <div className="text-xs text-slate-500 uppercase tracking-widest">Очки за тур</div>
+                <div className="text-4xl font-black text-emerald-400">{snapshot?.totalPoints ?? '—'}</div>
+              </div>
+            </div>
+          ) : shouldHideBudget ? (
           <div className="flex items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
             <span className="text-slate-500 text-sm">Бюджет скрыт до конца тура</span>
           </div>
@@ -361,6 +362,7 @@ export function FantasyHub({
             </button>
           </div>
         )}
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start justify-center w-full">
           
@@ -468,7 +470,6 @@ export function FantasyHub({
               </div>
             </div>
           )}
-        </div>
         </div>
       </main>
     </>

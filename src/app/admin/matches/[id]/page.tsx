@@ -123,8 +123,6 @@ function GoalItem({ goal, index, onDelete }: { goal: Goal; index: number; onDele
             <span style={{ color: "rgb(148 163 184)" }}>{goal.assist.name}</span>
           </span>
         )}
-          </span>
-        )}
       </span>
 
       {onDelete && (
