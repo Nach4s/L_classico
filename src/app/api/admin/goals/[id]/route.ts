@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,7 +13,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
     }
 
-    const goalId = parseInt(params.id, 10);
+    const { id } = await params;
+    const goalId = parseInt(id, 10);
     if (isNaN(goalId)) {
       return NextResponse.json({ error: "Неверный ID гола" }, { status: 400 });
     }
