@@ -152,7 +152,7 @@ export async function POST(req: Request) {
     });
 
     if (latestGameweek) {
-      if (latestGameweek.status === "LOCKED" || latestGameweek.status === "FINISHED") {
+      if (latestGameweek.status !== "SETUP") {
         return NextResponse.json(
           { error: "Тур заблокирован. Изменения вступят в силу со следующего тура." },
           { status: 400 }
