@@ -188,10 +188,10 @@ export default async function MatchDetailPage({
 
         {/* 433 GRAPHIC CARD */}
         <div
-          className={`w-full max-w-lg mx-auto rounded-3xl overflow-hidden relative shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-white/10 ${montserrat.className} ${
+          className={`w-full max-w-lg mx-auto rounded-3xl overflow-hidden relative shadow-[0_25px_60px_rgba(0,0,0,0.8)] ${montserrat.className} ${
             bgImage 
               ? "aspect-[9/16] min-h-[600px] sm:min-h-[800px] flex flex-col justify-end" 
-              : "min-h-[350px] sm:min-h-[450px] pb-8 pt-16 flex flex-col justify-center bg-slate-900/80 backdrop-blur-md"
+              : "border border-white/10 min-h-[350px] sm:min-h-[450px] pb-8 pt-16 flex flex-col justify-center bg-slate-900/80 backdrop-blur-md"
           }`}
           style={bgImage ? {
             // bg-cover/bg-top Tailwind classes don't apply to inline backgroundImage.

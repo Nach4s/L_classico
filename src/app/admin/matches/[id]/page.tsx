@@ -383,23 +383,27 @@ export default function MatchDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка загрузки");
 
-      // Store the relative path as-is (/match-previews/filename.jpg).
-      // Using window.location.origin here causes the image to break
-      // when the page is viewed on a different host or port.
       const relativeUrl = data.url; // e.g. "/match-previews/1234-photo.jpg"
+      console.log("Upload successful. URL:", relativeUrl, "Match ID:", matchId);
 
       setBackgroundUrl(relativeUrl);
 
+      console.log(`Sending PATCH to /api/admin/matches/${matchId} with backgroundUrl:`, relativeUrl);
       const patchRes = await fetch(`/api/admin/matches/${matchId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ backgroundUrl: relativeUrl }),
       });
+      console.log("PATCH response status:", patchRes.status);
+      
       const patchData = await patchRes.json();
+      console.log("PATCH response body:", patchData);
+      
       if (!patchRes.ok) throw new Error(patchData.error ?? "Ошибка при привязке фона к матчу");
 
       toast.success("Фон загружен и сохранён!");
     } catch (err: unknown) {
+      console.error("Error in handleFileUpload:", err);
       toast.error(err instanceof Error ? err.message : "Ошибка");
     } finally {
       setSavingBg(false);
