@@ -129,33 +129,43 @@ export async function POST(
       playerPointsMap.set(stat.playerId, base);
     }
 
-    // ── 3. Тренерский бонус: +3 если команда тренера победила, -3 если проиграла ──
-    // (Тренер хранится в snapshot.coachPlayerId)
+    // ── 3. Тренерский бонус: +3 победа, 0 ничья, -3 поражение ───────────────
     // Победа определяется по score1/score2 матча
-    const team1Won =
-      match.score1 !== null &&
-      match.score2 !== null &&
-      match.score1 > match.score2;
-    const team2Won =
-      match.score1 !== null &&
-      match.score2 !== null &&
-      match.score2 > match.score1;
+    const team1Won = match.score1 !== null && match.score2 !== null && match.score1 > match.score2;
+    const team2Won = match.score1 !== null && match.score2 !== null && match.score2 > match.score1;
+    const isDraw = match.score1 !== null && match.score2 !== null && match.score1 === match.score2;
+
+    // Получаем всех тренеров участвующих команд напрямую из БД, 
+    // т.к. в playerStats (статистика на поле) они обычно не попадают
+    const matchCoaches = await db.player.findMany({
+      where: {
+        team: { in: [match.team1, match.team2] },
+        position: "COACH"
+      }
+    });
+
+    const coachMatchPoints = new Map<number, number>();
+    for (const coach of matchCoaches) {
+      let pts = 0;
+      if (coach.team === match.team1) {
+        if (team1Won) pts = 3;
+        else if (team2Won) pts = -3;
+        else if (isDraw) pts = 0;
+      } else if (coach.team === match.team2) {
+        if (team2Won) pts = 3;
+        else if (team1Won) pts = -3;
+        else if (isDraw) pts = 0;
+      }
+      coachMatchPoints.set(coach.id, pts);
+      
+      // Также добавим очки тренеру в общую мапу, если потребуется
+      playerPointsMap.set(coach.id, pts);
+    }
 
     // ── 4. Откат, если очки уже были начислены ───────────────────────────────
     await db.$transaction(async (tx) => {
       if (match.pointsProcessed) {
-        // Откатываем ранее начисленные очки через хранение дельты в снапшоте нет,
-        // поэтому пересчитываем "старые" значения и делаем decrement.
-        // Простейший подход: обнулить totalPoints и пересчитать с нуля ниже.
-        // Для этого сначала ставим все снапшоты тура в 0, потом Re-apply.
-        // Но чтобы не затронуть MVP-бонус, сбрасываем только matchPoints часть.
-        // Для простоты: сохраняем matchPoints отдельно в снапшоте (нет поля),
-        // используем накопительный подход: decrement старого значения.
-        // Реализация: просто decrement у каждого снапшота и юзера на то, что было,
-        // т.к. мы не храним "предыдущее применение", обнуляем весь totalPoints тура.
         for (const snap of snapshots) {
-          // Вычисляем что было применено ранее — не знаем точно без доп поля,
-          // поэтому сбрасываем totalPoints снапшота в 0 и синхронизируем User
           await tx.user.update({
             where: { id: snap.userId },
             data: { totalPoints: { decrement: snap.totalPoints } },
@@ -165,6 +175,15 @@ export async function POST(
             data: { totalPoints: 0, coachPoints: 0 },
           });
         }
+      }
+
+      // Обновляем/создаем статистику для тренеров в БД, чтобы очки отображались у самого тренера
+      for (const [coachId, pts] of coachMatchPoints.entries()) {
+        await tx.gameweekPlayerStat.upsert({
+          where: { gameweekId_playerId: { gameweekId: gameweek.id, playerId: coachId } },
+          update: { totalPoints: pts, statsPoints: pts },
+          create: { gameweekId: gameweek.id, playerId: coachId, totalPoints: pts, statsPoints: pts }
+        });
       }
 
       // ── 5. Начисляем новые очки каждому снапшоту ──────────────────────────
@@ -182,31 +201,11 @@ export async function POST(
           snapPoints += earned;
         }
 
-        // Тренерский бонус (+3 если тренер победил, -3 если проиграл)
-        if (snap.coachPlayerId) {
-          const coachStat = playerStats.find(ps => ps.playerId === snap.coachPlayerId);
-          // Если coachStat нет, значит тренерская команда не играла в этом матче (он не в заявке матча)
-          // Но мы можем определить команду тренера напрямую из БД, если это нужно.
-          // В текущей реализации coachTeam берется из playerStats, что ок, если он там есть.
-          const coachTeam = coachStat?.player?.team;
-
-          if (coachTeam) {
-            const coachWon =
-              (coachTeam === match.team1 && team1Won) ||
-              (coachTeam === match.team2 && team2Won);
-
-            const coachLost =
-              (coachTeam === match.team1 && team2Won) ||
-              (coachTeam === match.team2 && team1Won);
-
-            if (coachWon) {
-              snapCoachPoints = 3;
-              snapPoints += 3;
-            } else if (coachLost) {
-              snapCoachPoints = -3;
-              snapPoints -= 3;
-            }
-          }
+        // Применяем тренерский бонус, если тренер участвовал в этом матче
+        if (snap.coachPlayerId && coachMatchPoints.has(snap.coachPlayerId)) {
+          const coachPts = coachMatchPoints.get(snap.coachPlayerId)!;
+          snapCoachPoints = coachPts;
+          snapPoints += coachPts;
         }
 
         // Обновляем снапшот
