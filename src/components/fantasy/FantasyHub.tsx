@@ -341,11 +341,7 @@ export function FantasyHub({
                 <div className="text-4xl font-black text-emerald-400">{snapshot?.totalPoints ?? '—'}</div>
               </div>
             </div>
-          ) : shouldHideBudget ? (
-          <div className="flex items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
-            <span className="text-slate-500 text-sm">Бюджет скрыт до конца тура</span>
-          </div>
-        ) : (
+          ) : shouldHideBudget ? null : (
           <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 mb-8 gap-4 flex-wrap">
             <div className="flex-1 min-w-[200px]">
               <div className="flex justify-between text-xs mb-2">

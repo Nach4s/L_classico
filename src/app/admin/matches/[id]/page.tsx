@@ -1047,6 +1047,7 @@ export default function MatchDetailPage() {
                 />
                 
                 <label
+                  htmlFor="bg-file-upload"
                   style={{
                     padding: "0.75rem 1.25rem",
                     borderRadius: "0.75rem",
@@ -1070,11 +1071,13 @@ export default function MatchDetailPage() {
                     if (!savingBg) (e.currentTarget as HTMLLabelElement).style.background = "rgba(59, 130, 246, 0.1)";
                   }}
                 >
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleFileUpload} 
-                    style={{ display: "none" }} 
+                  {/* id + htmlFor required for mobile browsers (iOS Safari, Android Chrome) to open file picker */}
+                  <input
+                    id="bg-file-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    style={{ display: "none" }}
                     disabled={savingBg}
                   />
                   {savingBg ? "Загрузка..." : "📤 Загрузить фото"}
