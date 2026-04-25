@@ -145,9 +145,6 @@ export function PlayerRatingForm({
                         {r.player.position}
                       </span>
                       <span className="text-sm text-white font-medium truncate">{r.player.name}</span>
-                      <span className="text-[10px] text-slate-600 flex-shrink-0 ml-auto">
-                        {r.voteCount} оц.
-                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">

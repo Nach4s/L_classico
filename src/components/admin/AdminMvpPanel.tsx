@@ -90,6 +90,21 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
     finally { setActionLoading(false); }
   };
 
+  const handleAnonVote = async (playerId: number, action: "add" | "remove") => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}/anon-vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      loadVoting();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setActionLoading(false); }
+  };
+
   const handleProcessPoints = async () => {
     if (!confirm(pointsProcessed ? "Очки уже были начислены. Пересчитать заново?" : "Начислить очки всем игрокам за этот матч?")) return;
     setPointsLoading(true);
@@ -300,7 +315,27 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                       <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "white" }}>{c.name}</span>
-                      <span style={{ fontSize: "0.75rem", color: "rgb(100 116 139)", flexShrink: 0 }}>{c.votes} · {pct}%</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <span style={{ fontSize: "0.75rem", color: "rgb(100 116 139)" }}>{c.votes} · {pct}%</span>
+                        {!votingClosed && (
+                          <div style={{ display: "flex", gap: "2px" }}>
+                            <button
+                              onClick={() => handleAnonVote(c.id, "remove")}
+                              disabled={actionLoading || c.votes === 0}
+                              style={{
+                                width: "20px", height: "20px", borderRadius: "4px", border: "1px solid rgb(51 65 85)", background: "rgb(30 41 59)", color: "white", fontSize: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
+                              }}
+                            >-</button>
+                            <button
+                              onClick={() => handleAnonVote(c.id, "add")}
+                              disabled={actionLoading}
+                              style={{
+                                width: "20px", height: "20px", borderRadius: "4px", border: "1px solid rgb(51 65 85)", background: "rgb(30 41 59)", color: "white", fontSize: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
+                              }}
+                            >+</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div style={{ height: "6px", background: "rgb(30 41 59)", borderRadius: "4px", overflow: "hidden" }}>
                       <div
