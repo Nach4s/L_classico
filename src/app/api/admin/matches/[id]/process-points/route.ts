@@ -281,7 +281,7 @@ export async function POST(
             played:      s.played,
             isMvp:       s.isMvp,
             mvpBonus,
-            avgRating:   avgRating > 0 ? avgRating : null,
+            avgRating:   avgRating > 0 ? avgRating : undefined,
             ratingBonus,
             statsPoints,
             totalPoints,
