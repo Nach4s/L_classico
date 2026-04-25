@@ -349,10 +349,16 @@ export default function MatchDetailPage() {
   const handleSaveBackground = async () => {
     setSavingBg(true);
     try {
+      const raw = backgroundUrl.trim();
+      // Convert relative paths (e.g. /match-previews/...) to absolute URLs
+      const urlToSave = raw && !raw.startsWith("http")
+        ? `${window.location.origin}${raw}`
+        : raw || null;
+
       const res = await fetch(`/api/admin/matches/${matchId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ backgroundUrl: backgroundUrl.trim() || null }),
+        body: JSON.stringify({ backgroundUrl: urlToSave }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка сохранения");
@@ -381,14 +387,20 @@ export default function MatchDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка загрузки");
 
-      setBackgroundUrl(data.url);
-      
+      // Convert relative path to absolute URL to satisfy DB URL validation
+      const absoluteUrl = data.url.startsWith("http")
+        ? data.url
+        : `${window.location.origin}${data.url}`;
+
+      setBackgroundUrl(absoluteUrl);
+
       const patchRes = await fetch(`/api/admin/matches/${matchId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ backgroundUrl: data.url }),
+        body: JSON.stringify({ backgroundUrl: absoluteUrl }),
       });
-      if (!patchRes.ok) throw new Error("Ошибка при привязке фона к матчу");
+      const patchData = await patchRes.json();
+      if (!patchRes.ok) throw new Error(patchData.error ?? "Ошибка при привязке фона к матчу");
 
       toast.success("Фон загружен и сохранён!");
     } catch (err: unknown) {
@@ -995,7 +1007,7 @@ export default function MatchDetailPage() {
             </div>
             <div style={{ padding: "1.25rem 1.5rem" }}>
               <p style={{ fontSize: "0.8rem", color: "rgb(100 116 139)", marginBottom: "0.75rem" }}>
-                Загрузите фото для фона страницы матча (рекомендуется формат 16:9)
+                Загрузите фото для фона страницы матча (рекомендуется формат 9:16)
               </p>
               {backgroundUrl && (
                 <div

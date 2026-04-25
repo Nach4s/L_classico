@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { toDatetimeLocalValue, datetimeLocalToUtcIso, formatDeadline } from "@/lib/date-utils";
 
 interface Match {
   id: number;
@@ -38,8 +39,10 @@ function GameweekEditForm({
   matches: Match[];
   onSaved: () => void;
 }) {
+  // datetime-local needs a LOCAL time string (YYYY-MM-DDTHH:mm), not UTC.
+  // toDatetimeLocalValue() handles the offset conversion.
   const [deadline, setDeadline] = useState(
-    gw.deadline ? new Date(gw.deadline).toISOString().slice(0, 16) : ""
+    toDatetimeLocalValue(gw.deadline)
   );
   const [matchId, setMatchId] = useState(gw.match ? String(gw.match.id) : "");
   const [saving, setSaving] = useState(false);
@@ -47,11 +50,14 @@ function GameweekEditForm({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // datetimeLocalToUtcIso converts "YYYY-MM-DDTHH:mm" (local) → UTC ISO string
+      const deadlineUtc = datetimeLocalToUtcIso(deadline);
+
       const res = await fetch(`/api/admin/gameweeks/${gw.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deadline: deadline || null,
+          deadline: deadlineUtc,
           matchId: matchId ? parseInt(matchId) : null,
         }),
       });
@@ -146,12 +152,15 @@ export default function AdminGameweeksPage() {
     setCreating(true);
     setError(null);
     try {
+      // datetime-local gives a local-time string — convert to UTC ISO before sending.
+      const deadlineUtc = datetimeLocalToUtcIso(formDeadline);
+
       const res = await fetch("/api/admin/gameweeks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           number: formNum,
-          deadline: formDeadline,
+          deadline: deadlineUtc,
           matchId: formMatchId || null,
         }),
       });
@@ -265,11 +274,8 @@ export default function AdminGameweeksPage() {
 
               const isExpanded = expandedId === gw.id;
 
-              const formattedDeadline = gw.deadline
-                ? new Date(gw.deadline).toLocaleString("ru-RU", {
-                    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
-                  })
-                : "Не указан";
+              // formatDeadline() renders the UTC date in browser's local timezone
+              const formattedDeadline = formatDeadline(gw.deadline);
 
               return (
                 <div

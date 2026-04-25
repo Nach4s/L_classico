@@ -93,7 +93,7 @@ export default async function TablePage() {
               },
               {
                 label: "Всего голов",
-                value: standings.reduce((sum, t) => sum + t.goalsFor, 0) / 2,
+                value: standings.reduce((sum, t) => sum + t.goalsFor, 0),
                 icon: "🥅",
               },
               {
