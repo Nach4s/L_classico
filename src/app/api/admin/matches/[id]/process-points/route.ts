@@ -218,7 +218,7 @@ export async function POST(
         });
 
         // Обновляем общие очки пользователя
-        if (snapPoints > 0) {
+        if (snapPoints !== 0) {
           await tx.user.update({
             where: { id: snap.userId },
             data: { totalPoints: { increment: snapPoints } },

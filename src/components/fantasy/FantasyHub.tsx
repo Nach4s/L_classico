@@ -172,7 +172,8 @@ export function FantasyHub({
   if (snapshot) {
     const gwStats = playerStats.filter(s => s.gameweekId === selectedGwId);
     for (const stat of gwStats) {
-      const base = (stat.played ? 1 : 0) + stat.goals * 3 + stat.assists * 2 + stat.mvpBonus;
+      // Используем серверные очки. Они уже содержат все бонусы (участие, голы, ассисты, MVP, рейтинг).
+      const base = stat.totalPoints;
       const isCap = snapshot.captainPlayerId === stat.playerId;
       ptsMap.set(stat.playerId, isCap ? base * 2 : base);
     }
