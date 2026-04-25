@@ -45,8 +45,8 @@ export default async function PlayerProfilePage({
   let totalAssists = 0;
 
   if (activeSeason) {
-    // 1. Параллельный запрос всех голов, ассистов и MVP
-    const [goalsScored, goalsAssisted, mvpStats] = await Promise.all([
+    // 1. Параллельный запрос всех голов, ассистов и статистики (GameweekPlayerStat)
+    const [goalsScored, goalsAssisted, playerStats] = await Promise.all([
       db.goal.findMany({
         where: { scorerPlayerId: playerId, match: { seasonId: activeSeason.id } },
         include: { match: { include: { gameweeks: true } } },
@@ -56,7 +56,7 @@ export default async function PlayerProfilePage({
         include: { match: { include: { gameweeks: true } } },
       }),
       db.gameweekPlayerStat.findMany({
-        where: { playerId, isMvp: true, gameweek: { seasonId: activeSeason.id } },
+        where: { playerId, gameweek: { seasonId: activeSeason.id } },
         include: { gameweek: { include: { match: true } } },
       })
     ]);
@@ -98,27 +98,12 @@ export default async function PlayerProfilePage({
       totalAssists += 1;
     });
 
-    mvpStats.forEach((ps) => {
+    playerStats.forEach((ps) => {
       if (ps.gameweek.match) {
         const entry = getOrCreateMatchEntry(ps.gameweek.match);
-        entry.isMvp = true;
+        if (ps.isMvp) entry.isMvp = true;
+        entry.points = ps.totalPoints;
       }
-    });
-
-    // 3. Высчитываем очки за каждый матч (тур)
-    matchMap.forEach((entry) => {
-      // TODO: Вернуть расчет после реализации системы Туров (Gameweeks)
-      /*
-      const pts = calculatePlayerPoints({
-        position: player.position,
-        goals: entry.goals,
-        assists: entry.assists,
-        is_mvp: entry.isMvp,
-      });
-      entry.points = pts.totalPoints;
-      totalPoints += pts.totalPoints;
-      */
-      entry.points = 0;
     });
 
     // Превращаем словарь в массив и сортируем по дате матча (убывание)
@@ -246,11 +231,17 @@ export default async function PlayerProfilePage({
                        )}
                      </div>
 
-                     <div className="flex items-center justify-center md:justify-end w-full md:w-32">
-                        <div className="bg-slate-800/40 text-slate-500 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 border border-slate-800 rounded-lg whitespace-nowrap">
-                          Очки: скоро
-                        </div>
-                     </div>
+                      <div className="flex items-center justify-center md:justify-end w-full md:w-32">
+                        {h.points !== 0 ? (
+                          <div className={`font-black text-sm px-3 py-1.5 border rounded-lg whitespace-nowrap ${h.points > 0 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+                            {h.points > 0 ? "+" : ""}{h.points} pts
+                          </div>
+                        ) : (
+                          <div className="bg-slate-800/40 text-slate-500 font-semibold text-[10px] uppercase tracking-wider px-3 py-1.5 border border-slate-800 rounded-lg whitespace-nowrap">
+                            Скоро
+                          </div>
+                        )}
+                      </div>
 
                    </div>
                  ))}
