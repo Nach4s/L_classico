@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { calculatePlayerPoints } from "@/lib/points-engine";
 import Link from "next/link";
+
+export const dynamic = "force-dynamic";
 
 interface MatchHistoryEntry {
   matchId: number;

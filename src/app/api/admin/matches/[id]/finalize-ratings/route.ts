@@ -163,6 +163,8 @@ export async function POST(
 
     revalidatePath(`/matches/${matchId}`);
     revalidatePath("/fantasy/leaderboard");
+    revalidatePath("/fantasy", "layout");
+    revalidatePath("/players", "layout");
     revalidatePath("/", "layout");
 
     return NextResponse.json({
