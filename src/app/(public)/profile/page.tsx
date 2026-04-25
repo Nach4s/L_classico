@@ -2,9 +2,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { calculatePlayerPoints } from "@/lib/points-engine";
 import Link from "next/link";
 import { ManagerNameForm } from "./ManagerNameForm";
+
+export const dynamic = "force-dynamic";
 
 export default async function ManagerProfilePage() {
   const session = await getServerSession(authOptions);
@@ -30,20 +31,16 @@ export default async function ManagerProfilePage() {
   }
 
   // 2. Параллельная загрузка всех связанных данных (Team, Gameweeks, MVP Stats, Snapshots, Players)
-  const [fantasyTeam, gameweeks, playerStatsDb, snapshots, allPlayers] = await Promise.all([
+  const [fantasyTeam, playerStatsDb, snapshots, allPlayers] = await Promise.all([
     db.fantasyTeam.findUnique({
       where: { userId_seasonId: { userId, seasonId: activeSeason.id } },
       include: {
         players: { include: { player: true } },
       },
     }),
-    db.gameweek.findMany({
-      where: { seasonId: activeSeason.id },
-      include: { match: { include: { goals: true } } },
-      orderBy: { number: "asc" },
-    }),
+    // Загружаем ВСЮ статистику (источник истины для очков)
     db.gameweekPlayerStat.findMany({
-      where: { gameweek: { seasonId: activeSeason.id }, isMvp: true },
+      where: { gameweek: { seasonId: activeSeason.id } },
     }),
     db.gameweekSquadSnapshot.findMany({
       where: { userId, gameweek: { seasonId: activeSeason.id } },
@@ -53,44 +50,23 @@ export default async function ManagerProfilePage() {
     db.player.findMany(),
   ]);
 
-  // 3. Вычисляем исторические очки по турам
-  const statsMap = new Map<number, Map<number, { goals: number; assists: number; isMvp: boolean }>>();
-
-  gameweeks.forEach((gw) => {
-    const gwMap = new Map<number, { goals: number; assists: number; isMvp: boolean }>();
-    if (gw.match && gw.match.goals) {
-      gw.match.goals.forEach((g) => {
-        const scorer = gwMap.get(g.scorerPlayerId) || { goals: 0, assists: 0, isMvp: false };
-        scorer.goals += 1;
-        gwMap.set(g.scorerPlayerId, scorer);
-
-        if (g.assistPlayerId) {
-          const assist = gwMap.get(g.assistPlayerId) || { goals: 0, assists: 0, isMvp: false };
-          assist.assists += 1;
-          gwMap.set(g.assistPlayerId, assist);
-        }
-      });
-    }
-
-    // Подшиваем MVP
-    playerStatsDb
-      .filter((ps) => ps.gameweekId === gw.id && ps.isMvp)
-      .forEach((ps) => {
-        const p = gwMap.get(ps.playerId) || { goals: 0, assists: 0, isMvp: false };
-        p.isMvp = true;
-        gwMap.set(ps.playerId, p);
-      });
-
-    statsMap.set(gw.id, gwMap);
-  });
-
-  // Подготовка словаря игроков для быстрого доступа
+  // 3. Строим словари для быстрого доступа
   const playerMap = new Map<number, any>();
   allPlayers.forEach((p) => playerMap.set(p.id, p));
 
+  // Источник истины для очков — GameweekPlayerStat (totalPoints уже включает голы + MVP + рейтинг)
+  // Индекс: gameweekId -> playerId -> totalPoints
+  const statsByGw = new Map<number, Map<number, number>>();
+  for (const stat of playerStatsDb) {
+    if (!statsByGw.has(stat.gameweekId)) {
+      statsByGw.set(stat.gameweekId, new Map());
+    }
+    statsByGw.get(stat.gameweekId)!.set(stat.playerId, stat.totalPoints);
+  }
+
   let totalPoints = 0;
   const history = snapshots.map((snap) => {
-    const gwMap = statsMap.get(snap.gameweekId);
+    const gwStatMap = statsByGw.get(snap.gameweekId);
     let gwPoints = 0;
 
     const playerIds: number[] = Array.isArray(snap.playerIds) ? (snap.playerIds as number[]) : [];
@@ -99,10 +75,9 @@ export default async function ManagerProfilePage() {
     const detailedPlayers = playerIds.map((pId) => {
       const isCap = pId === captainId;
       const pDetails = playerMap.get(pId);
-      const gwStat = gwMap?.get(pId) || { goals: 0, assists: 0, isMvp: false };
-      const pPosition = pDetails?.position || "FWD";
-      let playerPoints = calculatePlayerPoints({ goals: gwStat.goals, assists: gwStat.assists, is_mvp: gwStat.isMvp, position: pPosition }).totalPoints;
-      if (isCap) playerPoints *= 2;
+      // Берём очки из базы (totalPoints), умножаем x2 для капитана
+      const basePoints = gwStatMap?.get(pId) ?? 0;
+      const playerPoints = isCap ? basePoints * 2 : basePoints;
 
       gwPoints += playerPoints;
 
@@ -114,7 +89,7 @@ export default async function ManagerProfilePage() {
       };
     });
 
-    // COACH Points in history
+    // Тренер — очки из снапшота (coachPoints)
     let coachInfo = null;
     if (snap.coachPlayerId) {
       const coachDetails = playerMap.get(snap.coachPlayerId);
