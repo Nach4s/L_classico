@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────
 // GET /api/admin/matches/[id]
@@ -61,6 +62,10 @@ export async function PATCH(
       where: { id: matchId },
       data: updateData,
     });
+
+    // Invalidate public match page cache so background/score updates appear immediately
+    revalidatePath(`/matches/${matchId}`);
+    revalidatePath("/matches");
 
     return NextResponse.json({ match });
   } catch (error) {
