@@ -120,6 +120,20 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
     finally { setPointsLoading(false); }
   };
 
+  const handleFinalizeRatings = async () => {
+    if (!confirm("Применить народный рейтинг к игрокам? Это добавит бонусы согласно FotMob-системе.")) return;
+    setPointsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}/finalize-ratings`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message || "Рейтинги успешно применены");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPointsLoading(false); }
+  };
+
   if (loading) return null;
 
   return (
@@ -269,24 +283,42 @@ export function AdminMvpPanel({ matchId }: { matchId: string }) {
           )}
 
           {/* Process points button */}
-          <button
-            onClick={handleProcessPoints}
-            disabled={pointsLoading}
-            style={{
-              padding: "0.75rem 1rem",
-              borderRadius: "0.875rem",
-              border: "none",
-              background: pointsProcessed ? "rgb(30 41 59)" : "rgb(139 92 246)",
-              color: pointsProcessed ? "rgb(148 163 184)" : "white",
-              fontWeight: 700,
-              fontSize: "0.85rem",
-              cursor: pointsLoading ? "not-allowed" : "pointer",
-              marginLeft: "auto",
-              boxShadow: pointsProcessed ? "none" : "0 0 15px rgba(139, 92, 246, 0.3)",
-            }}
-          >
-            {pointsLoading ? "Обработка..." : pointsProcessed ? "✓ Очки начислены (Пересчитать)" : "⚡ Начислить очки за матч"}
-          </button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem" }}>
+            <button
+              onClick={handleFinalizeRatings}
+              disabled={pointsLoading}
+              style={{
+                padding: "0.75rem 1rem",
+                borderRadius: "0.875rem",
+                border: "none",
+                background: "rgb(16 185 129)", // emerald-500
+                color: "white",
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                cursor: pointsLoading ? "not-allowed" : "pointer",
+                boxShadow: "0 0 15px rgba(16, 185, 129, 0.3)",
+              }}
+            >
+              📊 Применить рейтинг
+            </button>
+            <button
+              onClick={handleProcessPoints}
+              disabled={pointsLoading}
+              style={{
+                padding: "0.75rem 1rem",
+                borderRadius: "0.875rem",
+                border: "none",
+                background: pointsProcessed ? "rgb(30 41 59)" : "rgb(139 92 246)",
+                color: pointsProcessed ? "rgb(148 163 184)" : "white",
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                cursor: pointsLoading ? "not-allowed" : "pointer",
+                boxShadow: pointsProcessed ? "none" : "0 0 15px rgba(139, 92, 246, 0.3)",
+              }}
+            >
+              {pointsLoading ? "Обработка..." : pointsProcessed ? "✓ Очки начислены (Пересчитать)" : "⚡ Начислить очки за матч"}
+            </button>
+          </div>
         </div>
 
         {/* Results table */}
