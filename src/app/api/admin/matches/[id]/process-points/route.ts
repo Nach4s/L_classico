@@ -121,12 +121,47 @@ export async function POST(
     // Формула: (played ? 1 : 0) + (goals * 3) + (assists * 2)
     const playerPointsMap = new Map<number, number>();
 
+    // Собираем голы и ассисты из match.goals
+    const actualStats = new Map<number, { goals: number, assists: number, played: boolean, isMvp: boolean }>();
+    
+    // Переносим существующую стату (например, MVP уже мог быть задан)
     for (const stat of playerStats) {
-      const base =
-        (stat.played ? 1 : 0) +
-        stat.goals * 3 +
-        stat.assists * 2;
-      playerPointsMap.set(stat.playerId, base);
+      actualStats.set(stat.playerId, { goals: stat.goals, assists: stat.assists, played: stat.played, isMvp: stat.isMvp });
+    }
+
+    // Все игроки, которые были выбраны менеджерами, по умолчанию считаются сыгравшими
+    for (const snap of snapshots) {
+      for (const playerId of snap.playerIds) {
+        if (!actualStats.has(playerId)) {
+          actualStats.set(playerId, { goals: 0, assists: 0, played: true, isMvp: false });
+        } else {
+          actualStats.get(playerId)!.played = true;
+        }
+      }
+    }
+
+    // Добавляем статистику из реальных голов матча
+    for (const goal of match.goals) {
+      // Автор гола
+      if (goal.scorerPlayerId) {
+        const s = actualStats.get(goal.scorerPlayerId) || { goals: 0, assists: 0, played: true, isMvp: false };
+        s.goals += 1;
+        s.played = true; // Раз забил, значит играл
+        actualStats.set(goal.scorerPlayerId, s);
+      }
+      // Ассистент
+      if (goal.assistPlayerId) {
+        const s = actualStats.get(goal.assistPlayerId) || { goals: 0, assists: 0, played: true, isMvp: false };
+        s.assists += 1;
+        s.played = true;
+        actualStats.set(goal.assistPlayerId, s);
+      }
+    }
+
+    // Сохраняем в мапу и БД (в транзакции ниже)
+    for (const [playerId, st] of actualStats.entries()) {
+      const base = (st.played ? 1 : 0) + (st.goals * 3) + (st.assists * 2) + (st.isMvp ? 3 : 0); // MVP бонус 3 очка (или по логике)
+      playerPointsMap.set(playerId, base);
     }
 
     // ── 3. Тренерский бонус: +3 победа, 0 ничья, -3 поражение ───────────────
@@ -183,6 +218,30 @@ export async function POST(
           where: { gameweekId_playerId: { gameweekId: gameweek.id, playerId: coachId } },
           update: { totalPoints: pts, statsPoints: pts },
           create: { gameweekId: gameweek.id, playerId: coachId, totalPoints: pts, statsPoints: pts }
+        });
+      }
+
+      // Обновляем/создаем статистику для полевых игроков
+      for (const [playerId, st] of actualStats.entries()) {
+        const base = playerPointsMap.get(playerId) ?? 0;
+        await tx.gameweekPlayerStat.upsert({
+          where: { gameweekId_playerId: { gameweekId: gameweek.id, playerId: playerId } },
+          update: { 
+            goals: st.goals, 
+            assists: st.assists, 
+            played: st.played,
+            totalPoints: base,
+            statsPoints: base
+          },
+          create: { 
+            gameweekId: gameweek.id, 
+            playerId: playerId, 
+            goals: st.goals, 
+            assists: st.assists, 
+            played: st.played,
+            totalPoints: base,
+            statsPoints: base
+          }
         });
       }
 
