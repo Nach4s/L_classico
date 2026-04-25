@@ -349,11 +349,7 @@ export default function MatchDetailPage() {
   const handleSaveBackground = async () => {
     setSavingBg(true);
     try {
-      const raw = backgroundUrl.trim();
-      // Convert relative paths (e.g. /match-previews/...) to absolute URLs
-      const urlToSave = raw && !raw.startsWith("http")
-        ? `${window.location.origin}${raw}`
-        : raw || null;
+      const urlToSave = backgroundUrl.trim() || null;
 
       const res = await fetch(`/api/admin/matches/${matchId}`, {
         method: "PATCH",
@@ -387,17 +383,17 @@ export default function MatchDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка загрузки");
 
-      // Convert relative path to absolute URL to satisfy DB URL validation
-      const absoluteUrl = data.url.startsWith("http")
-        ? data.url
-        : `${window.location.origin}${data.url}`;
+      // Store the relative path as-is (/match-previews/filename.jpg).
+      // Using window.location.origin here causes the image to break
+      // when the page is viewed on a different host or port.
+      const relativeUrl = data.url; // e.g. "/match-previews/1234-photo.jpg"
 
-      setBackgroundUrl(absoluteUrl);
+      setBackgroundUrl(relativeUrl);
 
       const patchRes = await fetch(`/api/admin/matches/${matchId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ backgroundUrl: absoluteUrl }),
+        body: JSON.stringify({ backgroundUrl: relativeUrl }),
       });
       const patchData = await patchRes.json();
       if (!patchRes.ok) throw new Error(patchData.error ?? "Ошибка при привязке фона к матчу");
@@ -1063,22 +1059,30 @@ export default function MatchDetailPage() {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "0.5rem",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!savingBg) (e.currentTarget as HTMLLabelElement).style.background = "rgba(59, 130, 246, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!savingBg) (e.currentTarget as HTMLLabelElement).style.background = "rgba(59, 130, 246, 0.1)";
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
-                  {/* id + htmlFor required for mobile browsers (iOS Safari, Android Chrome) to open file picker */}
+                  {/*
+                    iOS Safari ignores display:none inputs even with htmlFor.
+                    Using opacity:0 + position:absolute makes it physically
+                    present (so iOS triggers it) but visually invisible.
+                  */}
                   <input
                     id="bg-file-upload"
                     type="file"
                     accept="image/*"
                     onChange={handleFileUpload}
-                    style={{ display: "none" }}
                     disabled={savingBg}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      opacity: 0,
+                      width: "100%",
+                      height: "100%",
+                      cursor: "pointer",
+                      fontSize: 0,
+                    }}
                   />
                   {savingBg ? "Загрузка..." : "📤 Загрузить фото"}
                 </label>
