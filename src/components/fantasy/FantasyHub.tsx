@@ -247,11 +247,27 @@ export function FantasyHub({
               <div>
                 <h3 className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Форма (последние 5 матчей)</h3>
                 <div className="flex items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((_, i) => (
-                    <div key={i} className="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700/50 flex flex-col items-center justify-center text-slate-400 shadow-inner">
-                      <span className="text-xs font-bold">—</span>
-                    </div>
-                  ))}
+                  {(() => {
+                    // Get stats for this player from completed gameweeks, sorted by GW number
+                    const completedGws = gws.filter(g => g.status === 'COMPLETED').sort((a, b) => a.number - b.number);
+                    const last5 = completedGws.slice(-5);
+                    // Pad to 5 slots (oldest first)
+                    const slots = Array(5).fill(null);
+                    last5.forEach((gw, i) => {
+                      const stat = playerStats.find((s: any) => s.gameweekId === gw.id && s.playerId === drawerPlayer.id);
+                      slots[5 - last5.length + i] = stat ? stat.totalPoints : null;
+                    });
+                    return slots.map((pts, i) => {
+                      const isEmpty = pts === null;
+                      const color = pts !== null && pts > 0 ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : pts !== null && pts < 0 ? 'border-red-500/40 text-red-400 bg-red-500/10' : 'border-slate-600 text-slate-500';
+                      return (
+                        <div key={i} className={`w-10 h-10 rounded-full bg-slate-800/80 border flex flex-col items-center justify-center shadow-inner ${color}`}>
+                          <span className="text-xs font-bold">{isEmpty ? '—' : pts}</span>
+                        </div>
+
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
